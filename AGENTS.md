@@ -113,6 +113,12 @@ Implementation rules:
   - e.g., `ChangeNotifier` + `ListenableBuilder` / `AnimatedBuilder` / `ValueListenableBuilder` or equivalent.
 - ViewModel is the **single source of UI state** for the View.
 
+- Keep widget classes small and composable; split complex UIs into multiple widgets.
+- Default convention: one widget per Dart file (especially for reusable widgets).
+  - Exception: tiny, private helper widgets tightly coupled to a single parent may live in the same file as private classes (e.g. `_HeaderWidget`).
+- Prefer extracting subtrees into widgets (not large `build()` helper methods) to keep rebuilds efficient and code readable.
+
+
 ### 11.4 ViewModels & Commands
 ViewModels own **UI logic** and **UI state**.
 
@@ -241,20 +247,33 @@ Naming:
 - Services: UserApiService, AuthApiService
 - Use-cases: LoadUserProfileUseCase, SubmitOrderUseCase
 
-Suggested structure:
+Text Resources / Localization
+- No hardcoded user-facing strings in Dart code (except string keys/identifiers).
+- Store every user-facing text line externally as its own file, per locale, to make editing and adding languages easy.
+  - Convention: `assets/text/<locale>/<key>.txt`
+    - Example: `assets/text/en/home_title.txt`, `assets/text/de/home_title.txt`
+- Provide a single app-wide access layer for text lookup (so Views don’t read assets directly).
+  - Keep the key ↔ file mapping centralized (and test-covered).
+
+Small Files / Avoid Large Classes
+- Prefer small, focused classes (single responsibility). If a class grows, split responsibilities (extract widgets, extract use-cases/helpers).
+- Aim for one widget per file; put reusable widgets in a dedicated `widgets/` folder per feature.
+
+Suggested additions to structure:
 
 lib/
   features/
     <feature>/
       view/
+        widgets/
       view_model/
       data/
         repositories/
         services/
-  domain/
-    usecases/
-  ui/
-    core/
+assets/
+  text/
+    en/
+    de/
 
 
 ### 11.11 Testing (Architecture-Specific)
@@ -275,7 +294,7 @@ Views:
 
 ### 12. Decision Log
 
-[YYYY-MM-DD] Adopted MVVC architecture as mandatory for all features.
+[2025-12-14] Adopted MVVC architecture as mandatory for all features.
 Rationale: more predictable, testable, and maintainable codebase.
 
 
