@@ -195,8 +195,92 @@ Service rules:
 ViewModels and Views **must not** depend on Services directly; they should always go through Repositories.
 
 ### 11.7 Data Flow Requirements
-All data and events follow this strict direction:
+All data and events follow this strict direction: 
+User → View → ViewModel (Command) → Repository → Service → Repository → ViewModel (state update) → View (rebuild)
 
-```text
-User → View → ViewModel (Command) → Repository → Service
-     → Repository → ViewModel (state update) → View (rebuild)
+Constraints:
+- No skipping layers.
+- Treat all models as effectively immutable.
+- ViewModels own:
+  - Current list snapshots
+  - Pagination cursors
+  - Filters and sort parameters
+
+
+
+
+###  11.9 Dependency Injection & Navigation
+
+Dependency Injection
+
+- Use Provider / Riverpod or similar DI solution.
+- Inject ViewModels, Repositories, and Services via constructors.
+- Allow overriding dependencies in tests (mocks/fakes).
+
+Navigation
+
+- Use a declarative router (e.g. go_router).
+
+View-level navigation:
+- Use when navigation depends only on UI events.
+
+ViewModel-driven navigation:
+- Use when navigation depends on business logic or state (e.g., onboarding completion).
+
+Separation of concerns:
+- Keep navigation logic separate from data access.
+- No repository calls inside navigation code.
+
+
+### 11.10 Naming & Folder Structure
+
+Naming:
+- Views: HomeView, LoginScreen, ProfilePage
+- ViewModels: HomeViewModel, LoginViewModel
+- Repositories: UserRepository, AuthRepository
+- Services: UserApiService, AuthApiService
+- Use-cases: LoadUserProfileUseCase, SubmitOrderUseCase
+
+Suggested structure:
+
+lib/
+  features/
+    <feature>/
+      view/
+      view_model/
+      data/
+        repositories/
+        services/
+  domain/
+    usecases/
+  ui/
+    core/
+
+
+### 11.11 Testing (Architecture-Specific)
+
+ViewModels:
+- Test commands and state transitions (loading / success / error).
+
+Repositories:
+- Test business logic, caching, error handling (mock Services).
+
+Services:
+- Test request/response handling with fake clients.
+
+Views:
+- Widget tests for key screens and states.
+- Navigation tests for critical flows.
+
+
+### 12. Decision Log
+
+[YYYY-MM-DD] Adopted MVVC architecture as mandatory for all features.
+Rationale: more predictable, testable, and maintainable codebase.
+
+
+### 13. Milestones & Roadmap Template
+
+
+
+Last updated: 2025-12-14
