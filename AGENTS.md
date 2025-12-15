@@ -247,6 +247,26 @@ Naming:
 - Services: UserApiService, AuthApiService
 - Use-cases: LoadUserProfileUseCase, SubmitOrderUseCase
 
+Suggested structure:
+
+lib/
+  features/
+    <feature>/
+      view/
+      view_model/
+      data/
+        repositories/
+        services/
+  domain/
+    usecases/
+  ui/
+    core/
+  assets/
+    text/
+      en/
+      de/
+
+
 Text Resources / Localization
 - No hardcoded user-facing strings in Dart code (except string keys/identifiers).
 - Store every user-facing text line externally as its own file, per locale, to make editing and adding languages easy.
@@ -258,23 +278,6 @@ Text Resources / Localization
 Small Files / Avoid Large Classes
 - Prefer small, focused classes (single responsibility). If a class grows, split responsibilities (extract widgets, extract use-cases/helpers).
 - Aim for one widget per file; put reusable widgets in a dedicated `widgets/` folder per feature.
-
-Suggested additions to structure:
-
-lib/
-  features/
-    <feature>/
-      view/
-        widgets/
-      view_model/
-      data/
-        repositories/
-        services/
-assets/
-  text/
-    en/
-    de/
-
 
 ### 11.11 Testing (Architecture-Specific)
 
