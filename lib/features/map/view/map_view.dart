@@ -1,10 +1,12 @@
 import 'dart:async';
 
+import 'package:easy_localization/easy_localization.dart';
 import 'package:flutter/gestures.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_map/flutter_map.dart';
 
 import '../view_model/map_view_model.dart';
+import '../../../translations/locale_keys.g.dart';
 
 /// Map screen view; renders state from [MapViewModel] without holding logic.
 class MapView extends StatefulWidget {
@@ -73,18 +75,16 @@ class _MapViewState extends State<MapView> {
                   right: 16,
                   child: Icon(Icons.error_outline, color: Colors.redAccent),
                 ),
-              if (state.attribution.isNotEmpty &&
-                  state.attributionSource.isNotEmpty)
-                Positioned(
-                  left: 0,
-                  right: 0,
-                  bottom: 0,
-                  child: _AttributionBanner(
-                    text: state.attribution,
-                    linkLabel: state.attributionSource,
-                    tapRecognizer: _attributionTapRecognizer,
-                  ),
+              Positioned(
+                left: 0,
+                right: 0,
+                bottom: 0,
+                child: _AttributionBanner(
+                  text: LocaleKeys.map_attribution.tr(),
+                  linkLabel: LocaleKeys.map_attribution_source.tr(),
+                  tapRecognizer: _attributionTapRecognizer,
                 ),
+              ),
             ],
           ),
         );

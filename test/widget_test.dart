@@ -1,13 +1,12 @@
 import 'dart:typed_data';
 
-import 'package:explored/core/text/data/repositories/text_repository.dart';
-import 'package:explored/core/text/data/services/text_service.dart';
 import 'package:explored/features/map/data/models/map_tile_source.dart';
 import 'package:explored/features/map/data/repositories/map_repository.dart';
 import 'package:explored/features/map/data/services/map_attribution_service.dart';
 import 'package:explored/features/map/data/services/map_tile_service.dart';
 import 'package:explored/features/map/view/map_view.dart';
 import 'package:explored/features/map/view_model/map_view_model.dart';
+import 'package:easy_localization/easy_localization.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_map/flutter_map.dart';
 import 'package:flutter_test/flutter_test.dart';
@@ -21,13 +20,31 @@ void main() {
         tileService: _FakeMapTileService(),
         attributionService: _FakeMapAttributionService(),
       ),
-      textRepository: TextRepository(textService: _FakeTextService()),
-      locale: const Locale('en'),
     );
 
-    await tester.pumpWidget(MaterialApp(home: MapView(viewModel: viewModel)));
+    await tester.pumpWidget(
+      EasyLocalization(
+        supportedLocales: const [Locale('en')],
+        path: 'assets/translations',
+        fallbackLocale: const Locale('en'),
+        startLocale: const Locale('en'),
+        saveLocale: false,
+        assetLoader: const _TestAssetLoader(),
+        child: Builder(
+          builder: (context) {
+            return MaterialApp(
+              localizationsDelegates: context.localizationDelegates,
+              supportedLocales: context.supportedLocales,
+              locale: context.locale,
+              home: MapView(viewModel: viewModel),
+            );
+          },
+        ),
+      ),
+    );
 
-    await tester.pumpAndSettle();
+    await tester.pump();
+    await tester.pump(const Duration(milliseconds: 50));
 
     expect(find.byType(FlutterMap), findsOneWidget);
     expect(
@@ -39,6 +56,7 @@ void main() {
       ),
       findsOneWidget,
     );
+    expect(tester.takeException(), isNull);
   });
 }
 
@@ -52,25 +70,6 @@ class _FakeMapTileService implements MapTileService {
       userAgentPackageName: 'com.example.test',
       tileProvider: _FakeTileProvider(),
     );
-  }
-}
-
-/// Returns a fixed attribution text for widget test scaffolding.
-class _FakeTextService implements TextService {
-  @override
-  Future<String> fetchText({
-    required String locale,
-    required String key,
-  }) async {
-    if (key == 'map_attribution') {
-      return 'Map data from';
-    }
-
-    if (key == 'map_attribution_source') {
-      return 'OpenStreetMap';
-    }
-
-    return 'Test text';
   }
 }
 
@@ -155,4 +154,17 @@ class _FakeTileProvider extends TileProvider {
 class _FakeMapAttributionService implements MapAttributionService {
   @override
   Future<void> openAttribution() async {}
+}
+
+class _TestAssetLoader extends AssetLoader {
+  const _TestAssetLoader();
+
+  @override
+  Future<Map<String, dynamic>> load(String path, Locale locale) async {
+    return const <String, dynamic>{
+      'app_title': 'Explored',
+      'map_attribution': 'Map data from',
+      'map_attribution_source': 'OpenStreetMap',
+    };
+  }
 }

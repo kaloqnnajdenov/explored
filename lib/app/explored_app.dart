@@ -1,19 +1,19 @@
+import 'package:easy_localization/easy_localization.dart';
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 
 import '../features/map/view/map_view.dart';
 import '../features/map/view_model/map_view_model.dart';
+import '../translations/locale_keys.g.dart';
 
 /// Root app wiring dependencies and theming; hosts the map as the entry screen.
 class ExploredApp extends StatelessWidget {
   const ExploredApp({
     required this.mapViewModel,
-    required this.appTitle,
     super.key,
   });
 
   final MapViewModel mapViewModel;
-  final String appTitle;
 
   @override
   Widget build(BuildContext context) {
@@ -22,7 +22,10 @@ class ExploredApp extends StatelessWidget {
         ChangeNotifierProvider<MapViewModel>.value(value: mapViewModel),
       ],
       child: MaterialApp(
-        title: appTitle,
+        onGenerateTitle: (_) => LocaleKeys.app_title.tr(),
+        localizationsDelegates: context.localizationDelegates,
+        supportedLocales: context.supportedLocales,
+        locale: context.locale,
         theme: ThemeData(
           colorScheme: ColorScheme.fromSeed(seedColor: Colors.green.shade700),
           useMaterial3: true,

@@ -9,8 +9,6 @@ class MapViewState {
     required this.center,
     required this.zoom,
     required this.tileSource,
-    required this.attribution,
-    required this.attributionSource,
     required this.isLoading,
     this.error,
   });
@@ -21,8 +19,6 @@ class MapViewState {
       center: config.initialCenter,
       zoom: config.initialZoom,
       tileSource: config.tileSource,
-      attribution: '',
-      attributionSource: '',
       isLoading: true,
     );
   }
@@ -30,8 +26,6 @@ class MapViewState {
   final LatLng center;
   final double zoom;
   final MapTileSource tileSource;
-  final String attribution;
-  final String attributionSource;
   final bool isLoading;
   final Object? error;
 
@@ -40,8 +34,6 @@ class MapViewState {
     LatLng? center,
     double? zoom,
     MapTileSource? tileSource,
-    String? attribution,
-    String? attributionSource,
     bool? isLoading,
     Object? error,
     bool clearError = false,
@@ -50,8 +42,6 @@ class MapViewState {
       center: center ?? this.center,
       zoom: zoom ?? this.zoom,
       tileSource: tileSource ?? this.tileSource,
-      attribution: attribution ?? this.attribution,
-      attributionSource: attributionSource ?? this.attributionSource,
       isLoading: isLoading ?? this.isLoading,
       error: clearError ? null : (error ?? this.error),
     );

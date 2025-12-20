@@ -238,7 +238,7 @@ Separation of concerns:
 - No repository calls inside navigation code.
 
 
-### 11.10 Naming & Folder Structure
+### 11.10 Naming, Languages and Folder Structure
 
 Naming:
 - Views: HomeView, LoginScreen, ProfilePage
@@ -262,18 +262,31 @@ lib/
   ui/
     core/
   assets/
-    text/
-      en/
-      de/
+ assets/
+    translations/
+      en.json
+      de-DE.json
+  lib/
+    translations/
+      locale_keys.g.dart   // generated
+      codegen_loader.g.dart // generated (if used)
 
+Localization (Mandatory: easy_localization)
+- We use `easy_localization` for all i18n. No alternative localization systems.
+- Translation files live in `assets/translations/` as JSON:
+  - `{languageCode}.json` (e.g., `en.json`) - (e.g., `en-US.json`).
+- No hardcoded user-facing strings in Dart. Use keys + `.tr()` (prefer generated `LocaleKeys.*`).
+  - Generate keys: `flutter pub run easy_localization:generate -f keys -o locale_keys.g.dart`
+  - Optional hygiene check: `flutter pub run easy_localization:audit`
+- Interpolation/plurals/gender must use easy_localization features (e.g. `tr(args:, namedArgs:, gender:)`).
+- MVVC rule: do not translate in Repositories/Services/ViewModels. Pass translation keys + params to the View layer and translate there.
+- iOS: supported locales must be added to `ios/Runner/Info.plist` per Flutter guidance.
 
-Text Resources / Localization
-- No hardcoded user-facing strings in Dart code (except string keys/identifiers).
-- Store every user-facing text line externally as its own file, per locale, to make editing and adding languages easy.
-  - Convention: `assets/text/<locale>/<key>.txt`
-    - Example: `assets/text/en/home_title.txt`, `assets/text/de/home_title.txt`
-- Provide a single app-wide access layer for text lookup (so Views don’t read assets directly).
-  - Keep the key ↔ file mapping centralized (and test-covered).
+Creating a text message:
+- always when creating a text message you have to ensure the following:
+  - the message has a translation in all languages according to the above described convention
+  - when creating a new text emssage we should also include test cases which check if this text message in all language fits well in the widgets that we use (no overflows, no errors etc.)
+
 
 Small Files / Avoid Large Classes
 - Prefer small, focused classes (single responsibility). If a class grows, split responsibilities (extract widgets, extract use-cases/helpers).

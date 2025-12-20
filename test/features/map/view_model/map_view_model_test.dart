@@ -1,8 +1,5 @@
-import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 
-import 'package:explored/core/text/data/repositories/text_repository.dart';
-import 'package:explored/core/text/data/services/text_service.dart';
 import 'package:explored/features/map/data/models/map_tile_source.dart';
 import 'package:explored/features/map/data/repositories/map_repository.dart';
 import 'package:explored/features/map/data/services/map_attribution_service.dart';
@@ -10,23 +7,13 @@ import 'package:explored/features/map/data/services/map_tile_service.dart';
 import 'package:explored/features/map/view_model/map_view_model.dart';
 
 void main() {
-  test('initialize loads map config and attribution', () async {
+  test('initialize loads map config', () async {
     final attributionService = _FakeMapAttributionService();
-    final textRepository = TextRepository(
-      textService: _FakeTextService({
-        'map_attribution': 'Test attribution',
-        'map_attribution_source': 'Test source',
-      }),
-    );
     final mapRepository = MapRepository(
       tileService: _FakeMapTileService(),
       attributionService: attributionService,
     );
-    final viewModel = MapViewModel(
-      mapRepository: mapRepository,
-      textRepository: textRepository,
-      locale: const Locale('en'),
-    );
+    final viewModel = MapViewModel(mapRepository: mapRepository);
 
     expect(viewModel.state.isLoading, isTrue);
 
@@ -34,8 +21,6 @@ void main() {
 
     final state = viewModel.state;
     expect(state.isLoading, isFalse);
-    expect(state.attribution, 'Test attribution');
-    expect(state.attributionSource, 'Test source');
     expect(state.tileSource.urlTemplate, 'https://example.com/{z}/{x}/{y}.png');
     expect(state.tileSource.subdomains, ['a']);
     expect(state.center.latitude, 0);
@@ -44,22 +29,12 @@ void main() {
 
   test('openAttribution delegates to repository', () async {
     final attributionService = _FakeMapAttributionService();
-    final textRepository = TextRepository(
-      textService: _FakeTextService({
-        'map_attribution': 'Test attribution',
-        'map_attribution_source': 'Test source',
-      }),
-    );
     final mapRepository = MapRepository(
       tileService: _FakeMapTileService(),
       attributionService: attributionService,
     );
 
-    final viewModel = MapViewModel(
-      mapRepository: mapRepository,
-      textRepository: textRepository,
-      locale: const Locale('en'),
-    );
+    final viewModel = MapViewModel(mapRepository: mapRepository);
 
     await viewModel.openAttribution();
 
@@ -76,21 +51,6 @@ class _FakeMapTileService implements MapTileService {
       subdomains: ['a'],
       userAgentPackageName: 'com.example.test',
     );
-  }
-}
-
-/// Returns a fixed string for attribution lookups.
-class _FakeTextService implements TextService {
-  _FakeTextService(this._values);
-
-  final Map<String, String> _values;
-
-  @override
-  Future<String> fetchText({
-    required String locale,
-    required String key,
-  }) async {
-    return _values[key] ?? '';
   }
 }
 

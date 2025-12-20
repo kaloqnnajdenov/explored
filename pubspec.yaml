@@ -34,6 +34,9 @@ dependencies:
   # Architecture + state
   provider: ^6.1.2
 
+  # Localization
+  easy_localization: ^3.0.7
+
   # Mapping (OpenStreetMap)
   flutter_map: ^7.0.2
   latlong2: ^0.9.1
@@ -62,9 +65,7 @@ flutter:
   uses-material-design: true
 
   assets:
-    - assets/text/en/app_title.txt
-    - assets/text/en/map_attribution.txt
-    - assets/text/en/map_attribution_source.txt
+    - assets/translations/
 
   # An image asset can refer to one or more resolution-specific "variants", see
   # https://flutter.dev/to/resolution-aware-images
