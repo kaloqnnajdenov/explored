@@ -13,7 +13,7 @@ class OpenStreetMapTileService implements MapTileService {
   @override
   MapTileSource getTileSource() {
     return const MapTileSource(
-      urlTemplate: 'https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png',
+      urlTemplate: 'https://tile.openstreetmap.org/{z}/{x}/{y}.png',
       subdomains: ['a', 'b', 'c'],
       userAgentPackageName: 'com.explored.app',
     );

@@ -6,8 +6,10 @@ import 'package:flutter/material.dart';
 import 'package:flutter_map/flutter_map.dart';
 
 import '../../../translations/locale_keys.g.dart';
+import '../../location/data/models/location_notification.dart';
 import '../view_model/map_view_model.dart';
 import 'widgets/attribution_banner.dart';
+import 'widgets/location_tracking_panel.dart';
 
 /// Map screen view; renders state from [MapViewModel] without holding logic.
 class MapView extends StatefulWidget {
@@ -20,12 +22,14 @@ class MapView extends StatefulWidget {
 }
 
 /// Bridges MapView to the ViewModel via AnimatedBuilder.
-class _MapViewState extends State<MapView> {
+class _MapViewState extends State<MapView> with WidgetsBindingObserver {
   late final TapGestureRecognizer _attributionTapRecognizer;
+  static const String _androidNotificationIcon = '@mipmap/ic_launcher';
 
   @override
   void initState() {
     super.initState();
+    WidgetsBinding.instance.addObserver(this);
     _attributionTapRecognizer = TapGestureRecognizer()
       ..onTap = () {
         unawaited(widget.viewModel.openAttribution());
@@ -35,8 +39,14 @@ class _MapViewState extends State<MapView> {
 
   @override
   void dispose() {
+    WidgetsBinding.instance.removeObserver(this);
     _attributionTapRecognizer.dispose();
     super.dispose();
+  }
+
+  @override
+  void didChangeAppLifecycleState(AppLifecycleState state) {
+    widget.viewModel.handleAppLifecycleState(state);
   }
 
   @override
@@ -51,6 +61,16 @@ class _MapViewState extends State<MapView> {
             body: Center(child: CircularProgressIndicator()),
           );
         }
+
+        final notificationTitle = LocaleKeys.location_notification_title.tr();
+        widget.viewModel.setBackgroundNotification(
+          LocationNotification(
+            title: notificationTitle,
+            message:
+                LocaleKeys.location_notification_message_background.tr(),
+            iconName: _androidNotificationIcon,
+          ),
+        );
 
         return Scaffold(
           body: Stack(
@@ -75,6 +95,28 @@ class _MapViewState extends State<MapView> {
                   top: 16,
                   right: 16,
                   child: Icon(Icons.error_outline, color: Colors.redAccent),
+                ),
+              Positioned(
+                top: 16,
+                left: 16,
+                right: 16,
+                child: SafeArea(
+                  child: LocationTrackingPanel(
+                    state: state.locationTracking,
+                    onRequestForegroundPermission: () {
+                      unawaited(widget.viewModel.requestForegroundPermission());
+                    },
+                    onRequestBackgroundPermission: () {
+                      unawaited(widget.viewModel.requestBackgroundPermission());
+                    },
+                    onRequestNotificationPermission: () {
+                      unawaited(widget.viewModel.requestNotificationPermission());
+                    },
+                    onOpenSettings: () {
+                      unawaited(widget.viewModel.openAppSettings());
+                    },
+                  ),
+                ),
               ),
               Positioned(
                 left: 0,

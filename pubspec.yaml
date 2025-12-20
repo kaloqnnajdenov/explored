@@ -37,6 +37,14 @@ dependencies:
   # Localization
   easy_localization: ^3.0.7
 
+  # Location tracking
+  # Local fork to remove deprecated v1 embedding references in background_location.
+  background_location:
+    path: packages/background_location
+  geolocator: ^14.0.2
+  permission_handler: ^11.3.1
+  shared_preferences: ^2.3.2
+
   # Mapping (OpenStreetMap)
   flutter_map: ^7.0.2
   latlong2: ^0.9.1
