@@ -56,6 +56,10 @@ class LocationRepository {
     return _permissionService.requestNotificationPermission();
   }
 
+  bool get isNotificationPermissionRequired {
+    return _permissionService.isNotificationPermissionRequired;
+  }
+
   Future<bool> openAppSettings() {
     return _permissionService.openAppSettings();
   }

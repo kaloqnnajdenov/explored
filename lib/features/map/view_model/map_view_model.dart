@@ -199,6 +199,10 @@ class MapViewModel extends ChangeNotifier {
       final serviceEnabled = await _locationRepository.isLocationServiceEnabled();
       final notificationGranted =
           await _locationRepository.isNotificationPermissionGranted();
+      final notificationRequired =
+          _locationRepository.isNotificationPermissionRequired;
+      final effectiveNotificationGranted =
+          notificationRequired ? notificationGranted : true;
       final lastLocation = includeLastLocation
           ? await _locationRepository.loadLastLocation()
           : null;
@@ -211,17 +215,26 @@ class MapViewModel extends ChangeNotifier {
       );
       debugPrint(
         'Permission=$permissionLevel serviceEnabled=$serviceEnabled '
-        'notificationGranted=$notificationGranted',
+        'notificationGranted=$notificationGranted '
+        'notificationRequired=$notificationRequired',
       );
 
       final desiredMode = _desiredTrackingMode(
         permissionLevel: permissionLevel,
         serviceEnabled: serviceEnabled,
-        notificationGranted: notificationGranted,
+        notificationGranted: effectiveNotificationGranted,
       );
 
       if (desiredMode == _state.locationTracking.trackingMode &&
           desiredMode != LocationTrackingMode.none) {
+        if (_state.locationTracking.status ==
+            LocationStatus.requestingPermission) {
+          _updateLocationState(
+            status: desiredMode == LocationTrackingMode.foreground
+                ? LocationStatus.trackingStartedForeground
+                : LocationStatus.trackingStartedBackground,
+          );
+        }
         return;
       }
 
@@ -245,7 +258,7 @@ class MapViewModel extends ChangeNotifier {
       final status = _statusForNoTracking(
         permissionLevel: permissionLevel,
         serviceEnabled: serviceEnabled,
-        notificationGranted: notificationGranted,
+        notificationGranted: effectiveNotificationGranted,
       );
       if (_state.locationTracking.isTracking) {
         await _stopTrackingInternal(status);

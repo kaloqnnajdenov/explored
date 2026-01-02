@@ -226,6 +226,52 @@ void main() {
       expect(logEntry.fields['next_action'], 'show_permission_rationale');
     });
 
+    test('Foreground permission not granted (iOS)', () async {
+      // Arrange: prepare denied foreground permission on iOS.
+      final permissionGateway = FakePermissionGateway(
+        foregroundStatus: PermissionStatus.denied,
+        backgroundStatus: PermissionStatus.denied,
+      )..queueForegroundRequestResult(PermissionStatus.denied);
+      final locationGateway = FakeLocationServicesGateway(
+        servicesEnabled: true,
+        notificationsAllowed: false,
+      );
+      final logger = FakeLogger();
+      final repository = LocationTrackingRepository(
+        permissionGateway: permissionGateway,
+        locationServicesGateway: locationGateway,
+        platformInfo: FakePlatformInfo(
+          isAndroid: false,
+          isIOS: true,
+          androidSdkInt: null,
+        ),
+        logger: logger,
+      );
+      final controller = TrackingController(repository: repository);
+
+      // Act: attempt to start foreground tracking.
+      final result = await controller.startForegroundTracking();
+
+      // Assert: permission was requested, tracking did not start, and state/logs updated.
+      expect(permissionGateway.foregroundRequestCount, 1);
+      expect(locationGateway.activeListeners, 0);
+      expect(controller.currentState, TrackingState.permissionRequiredForeground);
+      expect(result, TrackingStartResult.permissionDeniedForeground);
+      expect(
+        controller.uiState.statusKey,
+        LocaleKeys.location_status_permission_denied,
+      );
+      expect(
+        controller.uiState.actionKey,
+        LocaleKeys.location_action_request_foreground,
+      );
+      expect(controller.uiState.isTracking, false);
+      final logEntry = logger.entryFor('permission_foreground_denied');
+      expect(logEntry, isNotNull);
+      expect(logEntry!.fields['tracking_active'], false);
+      expect(logEntry.fields['next_action'], 'show_permission_rationale');
+    });
+
     test('Foreground granted, background not granted', () async {
       // Arrange: prepare granted foreground but denied background permission.
       final permissionGateway = FakePermissionGateway(
@@ -300,6 +346,7 @@ void main() {
       final result = await controller.startBackgroundTracking();
 
       // Assert: background tracking stays off and logs instruct settings.
+      expect(permissionGateway.backgroundRequestCount, 1);
       expect(locationGateway.startBackgroundServiceCalls, 0);
       expect(locationGateway.activeListeners, 0);
       expect(controller.currentState, TrackingState.permissionRequiredBackground);
@@ -366,6 +413,58 @@ void main() {
       expect(backgroundLog!.fields['reason'], 'permanently_denied');
     });
 
+    test('Denied forever / do not ask again (iOS)', () async {
+      // Arrange: configure permanently denied foreground permission on iOS.
+      final permissionGateway = FakePermissionGateway(
+        foregroundStatus: PermissionStatus.denied,
+        backgroundStatus: PermissionStatus.denied,
+        permanentlyDenied: true,
+      );
+      final locationGateway = FakeLocationServicesGateway(
+        servicesEnabled: true,
+        notificationsAllowed: false,
+      );
+      final logger = FakeLogger();
+      final repository = LocationTrackingRepository(
+        permissionGateway: permissionGateway,
+        locationServicesGateway: locationGateway,
+        platformInfo: FakePlatformInfo(
+          isAndroid: false,
+          isIOS: true,
+          androidSdkInt: null,
+        ),
+        logger: logger,
+      );
+      final controller = TrackingController(repository: repository);
+
+      // Act: request foreground tracking while permanently denied.
+      final foregroundResult = await controller.startForegroundTracking();
+
+      // Assert: no OS prompt was simulated and settings guidance is shown.
+      expect(permissionGateway.foregroundRequestCount, 0);
+      expect(foregroundResult, TrackingStartResult.permissionDeniedForever);
+      expect(controller.uiState.actionKey, LocaleKeys.location_action_open_settings);
+      expect(locationGateway.activeListeners, 0);
+      final foregroundLog = logger.entryFor('permission_foreground_denied');
+      expect(foregroundLog, isNotNull);
+      expect(foregroundLog!.fields['reason'], 'permanently_denied');
+
+      // Arrange: flip to foreground granted so background denial is evaluated.
+      permissionGateway.foregroundStatus = PermissionStatus.granted;
+
+      // Act: request background tracking while permanently denied.
+      final backgroundResult = await controller.startBackgroundTracking();
+
+      // Assert: background request was not issued and settings guidance remains.
+      expect(permissionGateway.backgroundRequestCount, 0);
+      expect(backgroundResult, TrackingStartResult.permissionDeniedForever);
+      expect(controller.uiState.actionKey, LocaleKeys.location_action_open_settings);
+      expect(locationGateway.activeListeners, 0);
+      final backgroundLog = logger.entryFor('permission_background_denied');
+      expect(backgroundLog, isNotNull);
+      expect(backgroundLog!.fields['reason'], 'permanently_denied');
+    });
+
     test('Permission revoked while tracking running', () async {
       // Arrange: start with foreground permission granted and services enabled.
       final permissionGateway = FakePermissionGateway(
@@ -383,7 +482,62 @@ void main() {
         platformInfo: FakePlatformInfo(
           isAndroid: true,
           isIOS: false,
-          androidSdkInt: 33,
+          androidSdkInt: 36,
+        ),
+        logger: logger,
+      );
+      final controller = TrackingController(repository: repository);
+
+      // Act: start foreground tracking successfully.
+      final startResult = await controller.startForegroundTracking();
+
+      // Assert: tracking is active and a listener was attached.
+      expect(startResult, TrackingStartResult.startedForeground);
+      expect(controller.currentState, TrackingState.trackingActiveForeground);
+      expect(locationGateway.activeListeners, 1);
+
+      // Act: trigger a resume check without changing permissions.
+      await controller.onAppResumed();
+
+      // Assert: listeners are not duplicated on resume.
+      expect(locationGateway.activeListeners, 1);
+
+      // Arrange: simulate permission revocation while tracking is active.
+      permissionGateway.foregroundStatus = PermissionStatus.denied;
+
+      // Act: re-check permissions on resume.
+      await controller.onAppResumed();
+
+      // Assert: tracking stops and logs indicate permission revocation.
+      expect(controller.currentState, TrackingState.trackingStoppedPermissionRevoked);
+      expect(locationGateway.activeListeners, 0);
+      expect(
+        controller.uiState.statusKey,
+        LocaleKeys.location_status_permission_denied,
+      );
+      final revokedLog = logger.entryFor('permission_revoked');
+      expect(revokedLog, isNotNull);
+      expect(revokedLog!.fields['scope'], 'foreground');
+    });
+
+    test('Permission revoked while tracking running (iOS)', () async {
+      // Arrange: start with foreground permission granted and services enabled.
+      final permissionGateway = FakePermissionGateway(
+        foregroundStatus: PermissionStatus.granted,
+        backgroundStatus: PermissionStatus.denied,
+      );
+      final locationGateway = FakeLocationServicesGateway(
+        servicesEnabled: true,
+        notificationsAllowed: false,
+      );
+      final logger = FakeLogger();
+      final repository = LocationTrackingRepository(
+        permissionGateway: permissionGateway,
+        locationServicesGateway: locationGateway,
+        platformInfo: FakePlatformInfo(
+          isAndroid: false,
+          isIOS: true,
+          androidSdkInt: null,
         ),
         logger: logger,
       );

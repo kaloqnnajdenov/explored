@@ -33,6 +33,7 @@ Future<void> main() async {
     ),
     permissionService: PermissionHandlerLocationPermissionService(
       client: PermissionHandlerClientImpl(),
+      geolocatorClient: GeolocatorPermissionClientImpl(),
       platformInfo: platformInfo,
     ),
     storageService: SharedPreferencesLocationStorageService(),
