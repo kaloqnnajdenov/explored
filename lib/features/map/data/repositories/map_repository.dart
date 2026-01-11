@@ -24,6 +24,7 @@ class MapRepository {
     return MapConfig(
       initialCenter: const LatLng(0, 0),
       initialZoom: 2.5,
+      recenterZoom: 10.5,
       tileSource: tileSource,
     );
   }

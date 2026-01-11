@@ -96,6 +96,29 @@ class MapViewModel extends ChangeNotifier {
     _backgroundNotification = notification;
   }
 
+  /// Updates the map overlay visibility based on user interaction.
+  void setLocationPanelVisibility(bool visible) {
+    if (_state.isLocationPanelVisible == visible) {
+      return;
+    }
+    _state = _state.copyWith(isLocationPanelVisible: visible);
+    notifyListeners();
+  }
+
+  /// Convenience helper used by the view to toggle the tracking panel.
+  void toggleLocationPanelVisibility() {
+    setLocationPanelVisibility(!_state.isLocationPanelVisible);
+  }
+
+  /// Updates the zoom level to use when recentering the map.
+  void setRecenterZoom(double zoom) {
+    if (_state.recenterZoom == zoom) {
+      return;
+    }
+    _state = _state.copyWith(recenterZoom: zoom);
+    notifyListeners();
+  }
+
   /// Requests foreground-only location permission from the OS.
   Future<void> requestForegroundPermission() async {
     await _requestPermission(() async {

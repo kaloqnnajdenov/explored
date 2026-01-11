@@ -12,6 +12,8 @@ class MapViewState {
     required this.tileSource,
     required this.locationTracking,
     required this.isLoading,
+    required this.isLocationPanelVisible,
+    required this.recenterZoom,
     this.error,
   });
 
@@ -23,6 +25,8 @@ class MapViewState {
       tileSource: config.tileSource,
       locationTracking: LocationTrackingState.initial(),
       isLoading: true,
+      isLocationPanelVisible: true,
+      recenterZoom: config.recenterZoom,
     );
   }
 
@@ -31,6 +35,8 @@ class MapViewState {
   final MapTileSource tileSource;
   final LocationTrackingState locationTracking;
   final bool isLoading;
+  final bool isLocationPanelVisible;
+  final double recenterZoom;
   final Object? error;
 
   /// Create a new state with selective overrides; errors can be cleared.
@@ -40,6 +46,8 @@ class MapViewState {
     MapTileSource? tileSource,
     LocationTrackingState? locationTracking,
     bool? isLoading,
+    bool? isLocationPanelVisible,
+    double? recenterZoom,
     Object? error,
     bool clearError = false,
   }) {
@@ -49,6 +57,9 @@ class MapViewState {
       tileSource: tileSource ?? this.tileSource,
       locationTracking: locationTracking ?? this.locationTracking,
       isLoading: isLoading ?? this.isLoading,
+      isLocationPanelVisible:
+          isLocationPanelVisible ?? this.isLocationPanelVisible,
+      recenterZoom: recenterZoom ?? this.recenterZoom,
       error: clearError ? null : (error ?? this.error),
     );
   }

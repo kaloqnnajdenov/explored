@@ -8,9 +8,11 @@ class MapConfig {
     required this.initialCenter,
     required this.initialZoom,
     required this.tileSource,
+    required this.recenterZoom,
   });
 
   final LatLng initialCenter;
   final double initialZoom;
   final MapTileSource tileSource;
+  final double recenterZoom;
 }

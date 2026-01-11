@@ -235,4 +235,70 @@ void main() {
       viewModel.dispose();
     },
   );
+
+  test('Location panel visibility toggles via ViewModel', () {
+    final permissionService = FakeLocationPermissionService(
+      permissionLevel: LocationPermissionLevel.denied,
+      serviceEnabled: true,
+      notificationGranted: true,
+      notificationRequired: false,
+    );
+    final locationRepository = LocationRepository(
+      foregroundLocationService: FakeForegroundLocationService(),
+      backgroundLocationService: FakeBackgroundTrackingService(),
+      permissionService: permissionService,
+      storageService: FakeLocationStorageService(),
+    );
+    final mapRepository = MapRepository(
+      tileService: FakeMapTileService(),
+      attributionService: FakeMapAttributionService(),
+    );
+    final viewModel = MapViewModel(
+      mapRepository: mapRepository,
+      locationRepository: locationRepository,
+    );
+
+    expect(viewModel.state.isLocationPanelVisible, isTrue);
+
+    viewModel.setLocationPanelVisibility(false);
+    expect(viewModel.state.isLocationPanelVisible, isFalse);
+
+    viewModel.toggleLocationPanelVisibility();
+    expect(viewModel.state.isLocationPanelVisible, isTrue);
+
+    viewModel.dispose();
+  });
+
+  test('Recenter zoom can be updated via ViewModel', () {
+    final permissionService = FakeLocationPermissionService(
+      permissionLevel: LocationPermissionLevel.denied,
+      serviceEnabled: true,
+      notificationGranted: true,
+      notificationRequired: false,
+    );
+    final locationRepository = LocationRepository(
+      foregroundLocationService: FakeForegroundLocationService(),
+      backgroundLocationService: FakeBackgroundTrackingService(),
+      permissionService: permissionService,
+      storageService: FakeLocationStorageService(),
+    );
+    final mapRepository = MapRepository(
+      tileService: FakeMapTileService(),
+      attributionService: FakeMapAttributionService(),
+    );
+    final viewModel = MapViewModel(
+      mapRepository: mapRepository,
+      locationRepository: locationRepository,
+    );
+
+    expect(viewModel.state.recenterZoom, equals(10.5));
+
+    viewModel.setRecenterZoom(12.3);
+    expect(viewModel.state.recenterZoom, equals(12.3));
+
+    viewModel.setRecenterZoom(12.3);
+    expect(viewModel.state.recenterZoom, equals(12.3));
+
+    viewModel.dispose();
+  });
 }

@@ -6,6 +6,7 @@ abstract class LocaleKeys {
   static const app_title = 'app_title';
   static const map_attribution = 'map_attribution';
   static const map_attribution_source = 'map_attribution_source';
+  static const map_action_recenter_location = 'map_action_recenter_location';
   static const location_panel_title = 'location_panel_title';
   static const location_status_label = 'location_status_label';
   static const location_permission_label = 'location_permission_label';
@@ -18,6 +19,10 @@ abstract class LocaleKeys {
   static const location_tracking_label = 'location_tracking_label';
   static const location_last_location_empty = 'location_last_location_empty';
   static const location_last_location_value = 'location_last_location_value';
+  static const location_panel_collapse_tooltip =
+      'location_panel_collapse_tooltip';
+  static const location_panel_expand_tooltip =
+      'location_panel_expand_tooltip';
   static const location_battery_optimization_hint =
       'location_battery_optimization_hint';
   static const location_action_start_foreground =
@@ -40,7 +45,8 @@ abstract class LocaleKeys {
   static const location_permission_denied = 'location_permission_denied';
   static const location_permission_denied_forever =
       'location_permission_denied_forever';
-  static const location_permission_restricted = 'location_permission_restricted';
+  static const location_permission_restricted =
+      'location_permission_restricted';
   static const location_permission_foreground = 'location_permission_foreground';
   static const location_permission_background = 'location_permission_background';
   static const location_tracking_off = 'location_tracking_off';
@@ -65,7 +71,8 @@ abstract class LocaleKeys {
       'location_status_tracking_started_foreground';
   static const location_status_tracking_started_background =
       'location_status_tracking_started_background';
-  static const location_status_tracking_stopped = 'location_status_tracking_stopped';
+  static const location_status_tracking_stopped =
+      'location_status_tracking_stopped';
   static const location_status_error = 'location_status_error';
   static const location_notification_title = 'location_notification_title';
   static const location_notification_message_foreground =
