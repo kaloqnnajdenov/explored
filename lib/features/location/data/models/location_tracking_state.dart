@@ -1,7 +1,7 @@
 import 'location_permission_level.dart';
 import 'location_status.dart';
 import 'location_tracking_mode.dart';
-import 'location_update.dart';
+import 'lat_lng_sample.dart';
 
 /// Aggregates UI-facing state for location tracking status and data.
 class LocationTrackingState {
@@ -33,7 +33,7 @@ class LocationTrackingState {
   final bool isActionInProgress;
   final bool isServiceEnabled;
   final bool isNotificationPermissionGranted;
-  final LocationUpdate? lastLocation;
+  final LatLngSample? lastLocation;
 
   bool get isTracking => trackingMode != LocationTrackingMode.none;
 
@@ -52,7 +52,7 @@ class LocationTrackingState {
     bool? isActionInProgress,
     bool? isServiceEnabled,
     bool? isNotificationPermissionGranted,
-    LocationUpdate? lastLocation,
+    LatLngSample? lastLocation,
     bool clearLastLocation = false,
   }) {
     return LocationTrackingState(

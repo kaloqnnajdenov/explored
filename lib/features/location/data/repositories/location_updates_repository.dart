@@ -1,0 +1,146 @@
+import 'package:flutter/foundation.dart';
+
+import '../models/lat_lng_sample.dart';
+import '../models/location_permission_level.dart';
+import '../services/location_permission_service.dart';
+import '../services/location_tracking_service.dart';
+import '../services/platform_info.dart';
+
+/// Repository contract for consuming location update streams.
+abstract class LocationUpdatesRepository {
+  Stream<LatLngSample> get locationUpdates;
+
+  Future<void> startTracking();
+
+  Future<void> stopTracking();
+
+  bool get isRunning;
+}
+
+/// Default repository that checks permissions then starts tracking.
+class DefaultLocationUpdatesRepository implements LocationUpdatesRepository {
+  DefaultLocationUpdatesRepository({
+    required LocationTrackingService trackingService,
+    required LocationPermissionService permissionService,
+    required PlatformInfo platformInfo,
+  })  : _trackingService = trackingService,
+        _permissionService = permissionService,
+        _platformInfo = platformInfo;
+
+  final LocationTrackingService _trackingService;
+  final LocationPermissionService _permissionService;
+  final PlatformInfo _platformInfo;
+
+  @override
+  Stream<LatLngSample> get locationUpdates => _trackingService.stream;
+
+  @override
+  bool get isRunning => _trackingService.isRunning;
+
+  @override
+  Future<void> startTracking() async {
+    if (_trackingService.isRunning) {
+      return;
+    }
+
+    final canStart = await _safeCanStartTracking();
+    if (!canStart) {
+      return;
+    }
+
+    try {
+      await _trackingService.start();
+    } catch (error) {
+      debugPrint('Failed to start location tracking: $error');
+    }
+  }
+
+  @override
+  Future<void> stopTracking() async {
+    try {
+      await _trackingService.stop();
+    } catch (error) {
+      debugPrint('Failed to stop location tracking: $error');
+    }
+  }
+
+  Future<bool> _safeCanStartTracking() async {
+    try {
+      return await _canStartTracking();
+    } catch (error) {
+      debugPrint('Failed to check tracking permissions: $error');
+      return false;
+    }
+  }
+
+  Future<bool> _canStartTracking() async {
+    if (!_platformInfo.isAndroid && !_platformInfo.isIOS) {
+      _logPermission('Unsupported platform.');
+      return false;
+    }
+
+    final serviceEnabled = await _permissionService.isLocationServiceEnabled();
+    if (!serviceEnabled) {
+      _logPermission(
+        'Location services are disabled. Enable location services to start tracking.',
+      );
+      return false;
+    }
+
+    final permissionLevel = await _permissionService.checkPermissionLevel();
+    if (!_hasRequiredPermission(permissionLevel)) {
+      _logPermission(_permissionMessage(permissionLevel));
+      return false;
+    }
+
+    if (_permissionService.isNotificationPermissionRequired) {
+      final granted = await _permissionService.isNotificationPermissionGranted();
+      if (!granted) {
+        _logPermission(
+          'Notification permission is required to start tracking.',
+        );
+        return false;
+      }
+    }
+
+    return true;
+  }
+
+  bool _hasRequiredPermission(LocationPermissionLevel level) {
+    if (_requiresBackgroundPermission()) {
+      return level == LocationPermissionLevel.background;
+    }
+    return level == LocationPermissionLevel.foreground ||
+        level == LocationPermissionLevel.background;
+  }
+
+  String _permissionMessage(LocationPermissionLevel level) {
+    if (_requiresBackgroundPermission()) {
+      return 'Background location permission is required to start tracking.';
+    }
+    switch (level) {
+      case LocationPermissionLevel.denied:
+      case LocationPermissionLevel.deniedForever:
+      case LocationPermissionLevel.restricted:
+      case LocationPermissionLevel.unknown:
+        return 'Foreground location permission is required to start tracking.';
+      case LocationPermissionLevel.foreground:
+      case LocationPermissionLevel.background:
+        return 'Foreground location permission is required to start tracking.';
+    }
+  }
+
+  bool _requiresBackgroundPermission() {
+    if (_platformInfo.isIOS) {
+      return true;
+    }
+    if (_platformInfo.isAndroid) {
+      return (_platformInfo.androidSdkInt ?? 0) >= 29;
+    }
+    return false;
+  }
+
+  void _logPermission(String message) {
+    debugPrint('Location tracking not started: $message');
+  }
+}

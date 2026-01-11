@@ -1,29 +1,20 @@
 import 'package:easy_localization/easy_localization.dart';
 import 'package:flutter/material.dart';
 
-import '../../../location/data/models/location_permission_level.dart';
+import '../../../location/data/models/lat_lng_sample.dart';
 import '../../../location/data/models/location_status.dart';
 import '../../../location/data/models/location_tracking_mode.dart';
 import '../../../location/data/models/location_tracking_state.dart';
-import '../../../location/data/models/location_update.dart';
 import '../../../../translations/locale_keys.g.dart';
 
-/// Compact control surface for managing location tracking on the map screen.
+/// Compact status surface for location tracking on the map screen.
 class LocationTrackingPanel extends StatelessWidget {
   const LocationTrackingPanel({
     required this.state,
-    required this.onRequestForegroundPermission,
-    required this.onRequestBackgroundPermission,
-    required this.onRequestNotificationPermission,
-    required this.onOpenSettings,
     super.key,
   });
 
   final LocationTrackingState state;
-  final VoidCallback onRequestForegroundPermission;
-  final VoidCallback onRequestBackgroundPermission;
-  final VoidCallback onRequestNotificationPermission;
-  final VoidCallback onOpenSettings;
 
   @override
   Widget build(BuildContext context) {
@@ -43,40 +34,6 @@ class LocationTrackingPanel extends StatelessWidget {
             Text(
               LocaleKeys.location_status_label
                   .tr(namedArgs: {'status': _statusText(state.status)}),
-              maxLines: 2,
-              overflow: TextOverflow.ellipsis,
-            ),
-            const SizedBox(height: 4),
-            Text(
-              LocaleKeys.location_permission_foreground_label.tr(
-                namedArgs: {
-                  'status': _grantedText(
-                    _isForegroundGranted(state.permissionLevel),
-                  ),
-                },
-              ),
-              maxLines: 2,
-              overflow: TextOverflow.ellipsis,
-            ),
-            const SizedBox(height: 4),
-            Text(
-              LocaleKeys.location_permission_background_label.tr(
-                namedArgs: {
-                  'status': _grantedText(
-                    _isBackgroundGranted(state.permissionLevel),
-                  ),
-                },
-              ),
-              maxLines: 2,
-              overflow: TextOverflow.ellipsis,
-            ),
-            const SizedBox(height: 4),
-            Text(
-              LocaleKeys.location_permission_notification_label.tr(
-                namedArgs: {
-                  'status': _grantedText(state.isNotificationPermissionGranted),
-                },
-              ),
               maxLines: 2,
               overflow: TextOverflow.ellipsis,
             ),
@@ -105,52 +62,10 @@ class LocationTrackingPanel extends StatelessWidget {
                   overflow: TextOverflow.ellipsis,
                 ),
               ),
-            const SizedBox(height: 8),
-            Wrap(
-              spacing: 8,
-              runSpacing: 8,
-              children: [
-                ElevatedButton(
-                  onPressed:
-                      state.isActionInProgress ? null : onRequestForegroundPermission,
-                  child: Text(LocaleKeys.location_action_request_foreground.tr()),
-                ),
-                ElevatedButton(
-                  onPressed:
-                      state.isActionInProgress ? null : onRequestBackgroundPermission,
-                  child: Text(LocaleKeys.location_action_request_background.tr()),
-                ),
-                OutlinedButton(
-                  onPressed:
-                      state.isActionInProgress ? null : onRequestNotificationPermission,
-                  child: Text(LocaleKeys.location_action_request_notifications.tr()),
-                ),
-                if (state.shouldShowOpenSettings)
-                  TextButton(
-                    onPressed: state.isActionInProgress ? null : onOpenSettings,
-                    child: Text(LocaleKeys.location_action_open_settings.tr()),
-                  ),
-              ],
-            ),
           ],
         ),
       ),
     );
-  }
-
-  bool _isForegroundGranted(LocationPermissionLevel level) {
-    return level == LocationPermissionLevel.foreground ||
-        level == LocationPermissionLevel.background;
-  }
-
-  bool _isBackgroundGranted(LocationPermissionLevel level) {
-    return level == LocationPermissionLevel.background;
-  }
-
-  String _grantedText(bool granted) {
-    return granted
-        ? LocaleKeys.location_permission_status_granted.tr()
-        : LocaleKeys.location_permission_status_not_granted.tr();
   }
 
   String _trackingText(LocationTrackingMode mode) {
@@ -193,18 +108,16 @@ class LocationTrackingPanel extends StatelessWidget {
     }
   }
 
-  String _lastLocationText(LocationUpdate? location) {
+  String _lastLocationText(LatLngSample? location) {
     if (location == null) {
       return LocaleKeys.location_last_location_empty.tr();
     }
     final latitude = location.latitude.toStringAsFixed(5);
     final longitude = location.longitude.toStringAsFixed(5);
-    final accuracy = location.accuracy.toStringAsFixed(1);
     return LocaleKeys.location_last_location_value.tr(
       namedArgs: {
         'lat': latitude,
         'lng': longitude,
-        'accuracy': accuracy,
       },
     );
   }

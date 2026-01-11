@@ -2,12 +2,11 @@ import 'package:easy_localization/easy_localization.dart';
 import 'package:flutter/material.dart';
 
 import 'app/explored_app.dart';
-import 'features/location/data/repositories/location_repository.dart';
+import 'features/location/data/location_tracking_config.dart';
+import 'features/location/data/repositories/location_updates_repository.dart';
 import 'features/location/data/services/background_location_client.dart';
-import 'features/location/data/services/background_location_service.dart';
-import 'features/location/data/services/foreground_location_service.dart';
 import 'features/location/data/services/location_permission_service.dart';
-import 'features/location/data/services/location_storage_service.dart';
+import 'features/location/data/services/location_tracking_service_factory.dart';
 import 'features/location/data/services/platform_info.dart';
 import 'features/map/data/repositories/map_repository.dart';
 import 'features/map/data/services/map_attribution_service.dart';
@@ -23,24 +22,24 @@ Future<void> main() async {
     attributionService: UrlLauncherMapAttributionService(),
   );
   final platformInfo = DevicePlatformInfo();
-  final locationRepository = LocationRepository(
-    foregroundLocationService: GeolocatorForegroundLocationService(
-      client: GeolocatorClientImpl(),
-    ),
-    backgroundLocationService: BackgroundLocationService(
-      client: BackgroundLocationPluginClient(),
-      platformInfo: platformInfo,
-    ),
+  final locationTrackingConfig = LocationTrackingConfig();
+  final trackingService = LocationTrackingServiceFactory.create(
+    client: BackgroundLocationPluginClient(),
+    config: locationTrackingConfig,
+  );
+  final locationUpdatesRepository = DefaultLocationUpdatesRepository(
+    trackingService: trackingService,
     permissionService: PermissionHandlerLocationPermissionService(
       client: PermissionHandlerClientImpl(),
       geolocatorClient: GeolocatorPermissionClientImpl(),
       platformInfo: platformInfo,
     ),
-    storageService: SharedPreferencesLocationStorageService(),
+    platformInfo: platformInfo,
   );
+  await locationUpdatesRepository.startTracking();
   final mapViewModel = MapViewModel(
     mapRepository: mapRepository,
-    locationRepository: locationRepository,
+    locationUpdatesRepository: locationUpdatesRepository,
   );
 
   runApp(

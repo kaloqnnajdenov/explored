@@ -11,7 +11,7 @@
   "location_permission_notification_label": "Notification permission: {status}",
   "location_tracking_label": "Tracking: {status}",
   "location_last_location_empty": "Last location: unavailable",
-  "location_last_location_value": "Last location: {lat}, {lng} (+/- {accuracy} m)",
+  "location_last_location_value": "Last location: {lat}, {lng}",
   "location_panel_collapse_tooltip": "Hide location controls",
   "location_panel_expand_tooltip": "Show location controls",
   "location_battery_optimization_hint": "Background updates may pause with battery optimizations. Disable if needed.",
