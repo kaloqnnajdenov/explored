@@ -38,10 +38,13 @@ class LocationTrackingState {
   bool get isTracking => trackingMode != LocationTrackingMode.none;
 
   bool get shouldShowOpenSettings {
-    return permissionLevel == LocationPermissionLevel.deniedForever ||
+    return permissionLevel == LocationPermissionLevel.denied ||
+        permissionLevel == LocationPermissionLevel.deniedForever ||
         permissionLevel == LocationPermissionLevel.restricted ||
+        status == LocationStatus.permissionDenied ||
         status == LocationStatus.backgroundPermissionDenied ||
-        status == LocationStatus.notificationPermissionDenied;
+        status == LocationStatus.notificationPermissionDenied ||
+        !isNotificationPermissionGranted;
   }
 
   /// Creates a new state instance with selective overrides.

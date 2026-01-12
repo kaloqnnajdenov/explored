@@ -7,10 +7,12 @@ class AndroidLocationTrackingService extends LocationTrackingServiceBase {
   AndroidLocationTrackingService({
     required BackgroundLocationClient client,
     required LocationTrackingConfig config,
+    DateTime Function()? nowProvider,
   }) : super(
           client: client,
           config: config,
           platformLabel: 'android',
+          nowProvider: nowProvider,
         );
 
   @override

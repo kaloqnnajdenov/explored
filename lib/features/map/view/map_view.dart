@@ -152,6 +152,13 @@ class _MapViewState extends State<MapView> {
         LocationTrackingPanel(
           key: const ValueKey('tracking-panel'),
           state: state.locationTracking,
+          onRequestForegroundPermission:
+              widget.viewModel.requestForegroundPermission,
+          onRequestBackgroundPermission:
+              widget.viewModel.requestBackgroundPermission,
+          onRequestNotificationPermission:
+              widget.viewModel.requestNotificationPermission,
+          onOpenSettings: widget.viewModel.openAppSettings,
         ),
         Positioned(
           top: -8,

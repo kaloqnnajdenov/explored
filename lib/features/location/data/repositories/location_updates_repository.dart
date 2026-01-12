@@ -14,6 +14,29 @@ abstract class LocationUpdatesRepository {
 
   Future<void> stopTracking();
 
+  /// Re-checks permissions and stops tracking if they are revoked.
+  Future<void> refreshPermissions();
+
+  Future<LocationPermissionLevel> checkPermissionLevel();
+
+  Future<LocationPermissionLevel> requestForegroundPermission();
+
+  Future<LocationPermissionLevel> requestBackgroundPermission();
+
+  Future<bool> isLocationServiceEnabled();
+
+  Future<bool> isNotificationPermissionGranted();
+
+  Future<bool> requestNotificationPermission();
+
+  bool get isNotificationPermissionRequired;
+
+  Future<bool> openAppSettings();
+
+  Future<bool> openNotificationSettings();
+
+  bool get requiresBackgroundPermission;
+
   bool get isRunning;
 }
 
@@ -36,6 +59,56 @@ class DefaultLocationUpdatesRepository implements LocationUpdatesRepository {
 
   @override
   bool get isRunning => _trackingService.isRunning;
+
+  @override
+  Future<LocationPermissionLevel> checkPermissionLevel() {
+    return _permissionService.checkPermissionLevel();
+  }
+
+  @override
+  Future<LocationPermissionLevel> requestForegroundPermission() {
+    return _permissionService.requestForegroundPermission();
+  }
+
+  @override
+  Future<LocationPermissionLevel> requestBackgroundPermission() {
+    return _permissionService.requestBackgroundPermission();
+  }
+
+  @override
+  Future<bool> isLocationServiceEnabled() {
+    return _permissionService.isLocationServiceEnabled();
+  }
+
+  @override
+  Future<bool> isNotificationPermissionGranted() {
+    return _permissionService.isNotificationPermissionGranted();
+  }
+
+  @override
+  Future<bool> requestNotificationPermission() {
+    return _permissionService.requestNotificationPermission();
+  }
+
+  @override
+  bool get isNotificationPermissionRequired {
+    return _permissionService.isNotificationPermissionRequired;
+  }
+
+  @override
+  Future<bool> openAppSettings() {
+    return _permissionService.openAppSettings();
+  }
+
+  @override
+  Future<bool> openNotificationSettings() {
+    return _permissionService.openNotificationSettings();
+  }
+
+  @override
+  bool get requiresBackgroundPermission {
+    return _requiresBackgroundPermission();
+  }
 
   @override
   Future<void> startTracking() async {
@@ -61,6 +134,22 @@ class DefaultLocationUpdatesRepository implements LocationUpdatesRepository {
       await _trackingService.stop();
     } catch (error) {
       debugPrint('Failed to stop location tracking: $error');
+    }
+  }
+
+  @override
+  Future<void> refreshPermissions() async {
+    if (!_trackingService.isRunning) {
+      return;
+    }
+
+    final canContinue = await _safeCanStartTracking();
+    if (!canContinue) {
+      try {
+        await _trackingService.stop();
+      } catch (error) {
+        debugPrint('Failed to stop location tracking: $error');
+      }
     }
   }
 

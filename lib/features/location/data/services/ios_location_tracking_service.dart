@@ -7,10 +7,12 @@ class IOSLocationTrackingService extends LocationTrackingServiceBase {
   IOSLocationTrackingService({
     required BackgroundLocationClient client,
     required LocationTrackingConfig config,
+    DateTime Function()? nowProvider,
   }) : super(
           client: client,
           config: config,
           platformLabel: 'ios',
+          nowProvider: nowProvider,
         );
 
   @override

@@ -3,6 +3,7 @@ import 'dart:async';
 import 'package:flutter_test/flutter_test.dart';
 
 import 'package:explored/features/location/data/models/lat_lng_sample.dart';
+import 'package:explored/features/location/data/models/location_permission_level.dart';
 import 'package:explored/features/location/data/models/location_status.dart';
 import 'package:explored/features/location/data/models/location_tracking_mode.dart';
 import 'package:explored/features/location/data/repositories/location_updates_repository.dart';
@@ -33,9 +34,26 @@ class FakeMapAttributionService implements MapAttributionService {
 }
 
 class FakeLocationUpdatesRepository implements LocationUpdatesRepository {
+  FakeLocationUpdatesRepository({
+    this.permissionLevel = LocationPermissionLevel.foreground,
+    this.serviceEnabled = true,
+    this.notificationRequired = false,
+    this.notificationGranted = true,
+    this.requiresBackgroundPermissionFlag = false,
+  });
+
   final StreamController<LatLngSample> _controller =
       StreamController<LatLngSample>.broadcast();
   bool _isRunning = false;
+  LocationPermissionLevel permissionLevel;
+  bool serviceEnabled;
+  bool notificationRequired;
+  bool notificationGranted;
+  bool requiresBackgroundPermissionFlag;
+  int startTrackingCalls = 0;
+  int requestForegroundCalls = 0;
+  int openAppSettingsCalls = 0;
+  int openNotificationSettingsCalls = 0;
 
   @override
   Stream<LatLngSample> get locationUpdates => _controller.stream;
@@ -46,12 +64,65 @@ class FakeLocationUpdatesRepository implements LocationUpdatesRepository {
   @override
   Future<void> startTracking() async {
     _isRunning = true;
+    startTrackingCalls += 1;
   }
 
   @override
   Future<void> stopTracking() async {
     _isRunning = false;
   }
+
+  @override
+  Future<void> refreshPermissions() async {}
+
+  @override
+  Future<LocationPermissionLevel> checkPermissionLevel() async {
+    return permissionLevel;
+  }
+
+  @override
+  Future<LocationPermissionLevel> requestForegroundPermission() async {
+    requestForegroundCalls += 1;
+    return permissionLevel;
+  }
+
+  @override
+  Future<LocationPermissionLevel> requestBackgroundPermission() async {
+    return permissionLevel;
+  }
+
+  @override
+  Future<bool> isLocationServiceEnabled() async {
+    return serviceEnabled;
+  }
+
+  @override
+  Future<bool> isNotificationPermissionGranted() async {
+    return notificationGranted;
+  }
+
+  @override
+  Future<bool> requestNotificationPermission() async {
+    return notificationGranted;
+  }
+
+  @override
+  bool get isNotificationPermissionRequired => notificationRequired;
+
+  @override
+  Future<bool> openAppSettings() async {
+    openAppSettingsCalls += 1;
+    return true;
+  }
+
+  @override
+  Future<bool> openNotificationSettings() async {
+    openNotificationSettingsCalls += 1;
+    return true;
+  }
+
+  @override
+  bool get requiresBackgroundPermission => requiresBackgroundPermissionFlag;
 
   void emit(LatLngSample sample) {
     _controller.add(sample);
@@ -132,6 +203,110 @@ void main() {
     final initialZoom = viewModel.state.recenterZoom;
     viewModel.setRecenterZoom(initialZoom + 1);
     expect(viewModel.state.recenterZoom, initialZoom + 1);
+
+    viewModel.dispose();
+  });
+
+  test('Initialize sets permission denied status when missing', () async {
+    final locationRepository = FakeLocationUpdatesRepository(
+      permissionLevel: LocationPermissionLevel.denied,
+    );
+    final mapRepository = MapRepository(
+      tileService: FakeMapTileService(),
+      attributionService: FakeMapAttributionService(),
+    );
+    final viewModel = MapViewModel(
+      mapRepository: mapRepository,
+      locationUpdatesRepository: locationRepository,
+    );
+
+    await viewModel.initialize();
+
+    expect(
+      viewModel.state.locationTracking.status,
+      LocationStatus.permissionDenied,
+    );
+
+    viewModel.dispose();
+  });
+
+  test('Initialize flags notification permission when required', () async {
+    final locationRepository = FakeLocationUpdatesRepository(
+      permissionLevel: LocationPermissionLevel.background,
+      notificationRequired: true,
+      notificationGranted: false,
+    );
+    final mapRepository = MapRepository(
+      tileService: FakeMapTileService(),
+      attributionService: FakeMapAttributionService(),
+    );
+    final viewModel = MapViewModel(
+      mapRepository: mapRepository,
+      locationUpdatesRepository: locationRepository,
+    );
+
+    await viewModel.initialize();
+
+    expect(
+      viewModel.state.locationTracking.status,
+      LocationStatus.notificationPermissionDenied,
+    );
+    expect(
+      viewModel.state.locationTracking.isNotificationPermissionGranted,
+      isFalse,
+    );
+
+    viewModel.dispose();
+  });
+
+  test('Requesting foreground permission triggers tracking restart', () async {
+    final locationRepository = FakeLocationUpdatesRepository(
+      permissionLevel: LocationPermissionLevel.denied,
+    );
+    final mapRepository = MapRepository(
+      tileService: FakeMapTileService(),
+      attributionService: FakeMapAttributionService(),
+    );
+    final viewModel = MapViewModel(
+      mapRepository: mapRepository,
+      locationUpdatesRepository: locationRepository,
+    );
+
+    await viewModel.initialize();
+    await viewModel.requestForegroundPermission();
+
+    expect(locationRepository.requestForegroundCalls, 1);
+    expect(locationRepository.startTrackingCalls, 1);
+    expect(
+      viewModel.state.locationTracking.status,
+      LocationStatus.permissionDenied,
+    );
+
+    viewModel.dispose();
+  });
+
+  test(
+      'Open settings routes to notification settings when notifications blocked',
+      () async {
+    final locationRepository = FakeLocationUpdatesRepository(
+      permissionLevel: LocationPermissionLevel.background,
+      notificationRequired: true,
+      notificationGranted: false,
+    );
+    final mapRepository = MapRepository(
+      tileService: FakeMapTileService(),
+      attributionService: FakeMapAttributionService(),
+    );
+    final viewModel = MapViewModel(
+      mapRepository: mapRepository,
+      locationUpdatesRepository: locationRepository,
+    );
+
+    await viewModel.initialize();
+    await viewModel.openAppSettings();
+
+    expect(locationRepository.openNotificationSettingsCalls, 1);
+    expect(locationRepository.openAppSettingsCalls, 0);
 
     viewModel.dispose();
   });

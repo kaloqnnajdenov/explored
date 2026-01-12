@@ -82,6 +82,11 @@ class FakePermissionHandlerClient implements PermissionHandlerClient {
   Future<bool> openAppSettings() async {
     return true;
   }
+
+  @override
+  Future<bool> openNotificationSettings() async {
+    return true;
+  }
 }
 
 class FakeGeolocatorPermissionClient implements GeolocatorPermissionClient {

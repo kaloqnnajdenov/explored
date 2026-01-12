@@ -2,6 +2,7 @@ import 'dart:async';
 
 import 'package:flutter/material.dart';
 
+import '../../location/data/models/location_permission_level.dart';
 import '../../location/data/models/location_status.dart';
 import '../../location/data/models/location_tracking_mode.dart';
 import '../../location/data/models/lat_lng_sample.dart';
@@ -71,7 +72,36 @@ class MapViewModel extends ChangeNotifier {
     }
 
     notifyListeners();
+    await _refreshTrackingState();
     _attachLocationUpdates();
+  }
+
+  Future<void> requestForegroundPermission() async {
+    await _performPermissionAction(
+      () async => _locationUpdatesRepository.requestForegroundPermission(),
+    );
+  }
+
+  Future<void> requestBackgroundPermission() async {
+    await _performPermissionAction(
+      () async => _locationUpdatesRepository.requestBackgroundPermission(),
+    );
+  }
+
+  Future<void> requestNotificationPermission() async {
+    await _performPermissionAction(
+      () async => _locationUpdatesRepository.requestNotificationPermission(),
+    );
+  }
+
+  Future<void> openAppSettings() async {
+    final shouldOpenNotifications =
+        !_state.locationTracking.isNotificationPermissionGranted;
+    await _performPermissionAction(
+      () async => shouldOpenNotifications
+          ? _locationUpdatesRepository.openNotificationSettings()
+          : _locationUpdatesRepository.openAppSettings(),
+    );
   }
 
   /// Opens the map attribution link; errors are logged without altering state.
@@ -132,12 +162,20 @@ class MapViewModel extends ChangeNotifier {
     LocationTrackingMode? trackingMode,
     LocationStatus? status,
     LatLngSample? lastLocation,
+    LocationPermissionLevel? permissionLevel,
+    bool? isActionInProgress,
+    bool? isServiceEnabled,
+    bool? isNotificationPermissionGranted,
   }) {
     _state = _state.copyWith(
       locationTracking: _state.locationTracking.copyWith(
         trackingMode: trackingMode,
         status: status,
         lastLocation: lastLocation,
+        permissionLevel: permissionLevel,
+        isActionInProgress: isActionInProgress,
+        isServiceEnabled: isServiceEnabled,
+        isNotificationPermissionGranted: isNotificationPermissionGranted,
       ),
     );
     notifyListeners();
@@ -149,5 +187,104 @@ class MapViewModel extends ChangeNotifier {
       status: LocationStatus.trackingStartedBackground,
       lastLocation: location,
     );
+  }
+
+  Future<void> _performPermissionAction(
+    Future<void> Function() action,
+  ) async {
+    if (_state.locationTracking.isActionInProgress) {
+      return;
+    }
+
+    _updateLocationState(
+      isActionInProgress: true,
+      status: LocationStatus.requestingPermission,
+    );
+
+    try {
+      await action();
+      await _locationUpdatesRepository.startTracking();
+    } catch (error) {
+      debugPrint('Permission request failed: $error');
+    }
+
+    await _refreshTrackingState();
+  }
+
+  Future<void> _refreshTrackingState() async {
+    try {
+      final isServiceEnabled =
+          await _locationUpdatesRepository.isLocationServiceEnabled();
+      final permissionLevel =
+          await _locationUpdatesRepository.checkPermissionLevel();
+      final notificationRequired =
+          _locationUpdatesRepository.isNotificationPermissionRequired;
+      final notificationGranted =
+          await _locationUpdatesRepository.isNotificationPermissionGranted();
+
+      final status = _resolveStatus(
+        isServiceEnabled: isServiceEnabled,
+        permissionLevel: permissionLevel,
+        notificationRequired: notificationRequired,
+        notificationGranted: notificationGranted,
+      );
+
+      final trackingMode = _locationUpdatesRepository.isRunning
+          ? LocationTrackingMode.background
+          : LocationTrackingMode.none;
+
+      _updateLocationState(
+        permissionLevel: permissionLevel,
+        isServiceEnabled: isServiceEnabled,
+        isNotificationPermissionGranted: notificationGranted,
+        status: status,
+        trackingMode: trackingMode,
+        isActionInProgress: false,
+      );
+    } catch (error) {
+      debugPrint('Failed to refresh tracking state: $error');
+      _updateLocationState(
+        status: LocationStatus.error,
+        isActionInProgress: false,
+      );
+    }
+  }
+
+  LocationStatus _resolveStatus({
+    required bool isServiceEnabled,
+    required LocationPermissionLevel permissionLevel,
+    required bool notificationRequired,
+    required bool notificationGranted,
+  }) {
+    if (!isServiceEnabled) {
+      return LocationStatus.locationServicesDisabled;
+    }
+
+    if (permissionLevel == LocationPermissionLevel.deniedForever) {
+      return LocationStatus.permissionDeniedForever;
+    }
+
+    if (permissionLevel == LocationPermissionLevel.restricted) {
+      return LocationStatus.permissionRestricted;
+    }
+
+    if (_locationUpdatesRepository.requiresBackgroundPermission) {
+      if (permissionLevel != LocationPermissionLevel.background) {
+        return LocationStatus.backgroundPermissionDenied;
+      }
+    } else if (permissionLevel == LocationPermissionLevel.denied ||
+        permissionLevel == LocationPermissionLevel.unknown) {
+      return LocationStatus.permissionDenied;
+    }
+
+    if (notificationRequired && !notificationGranted) {
+      return LocationStatus.notificationPermissionDenied;
+    }
+
+    if (_locationUpdatesRepository.isRunning) {
+      return LocationStatus.trackingStartedBackground;
+    }
+
+    return LocationStatus.idle;
   }
 }

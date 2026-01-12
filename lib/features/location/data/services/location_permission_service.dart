@@ -21,6 +21,8 @@ abstract class LocationPermissionService {
   bool get isNotificationPermissionRequired;
 
   Future<bool> openAppSettings();
+
+  Future<bool> openNotificationSettings();
 }
 
 /// Minimal abstraction over permission_handler for testable permission flows.
@@ -38,6 +40,8 @@ abstract class PermissionHandlerClient {
   );
 
   Future<bool> openAppSettings();
+
+  Future<bool> openNotificationSettings();
 }
 
 /// Minimal abstraction over geolocator for iOS permission prompts.
@@ -92,6 +96,11 @@ class PermissionHandlerClientImpl implements PermissionHandlerClient {
 
   @override
   Future<bool> openAppSettings() {
+    return permission_handler.openAppSettings();
+  }
+
+  @override
+  Future<bool> openNotificationSettings() {
     return permission_handler.openAppSettings();
   }
 }
@@ -179,6 +188,11 @@ class PermissionHandlerLocationPermissionService
   @override
   Future<bool> openAppSettings() {
     return _client.openAppSettings();
+  }
+
+  @override
+  Future<bool> openNotificationSettings() {
+    return _client.openNotificationSettings();
   }
 
   @override

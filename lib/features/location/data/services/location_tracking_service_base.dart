@@ -1,16 +1,9 @@
 import 'dart:async';
-import 'dart:math' as math;
-
 import '../location_tracking_config.dart';
 import '../models/lat_lng_sample.dart';
+import 'adaptive_tracking_policy.dart';
 import 'background_location_client.dart';
 import 'location_tracking_service.dart';
-
-/// Indicates which trigger caused a sample emission.
-enum LocationEmitTrigger {
-  interval,
-  distance,
-}
 
 /// Base implementation that filters raw updates using OR policy + watchdog.
 abstract class LocationTrackingServiceBase implements LocationTrackingService {
@@ -18,20 +11,27 @@ abstract class LocationTrackingServiceBase implements LocationTrackingService {
     required this.client,
     required this.config,
     required String platformLabel,
-  }) : _platformLabel = platformLabel;
+    DateTime Function()? nowProvider,
+  })  : _platformLabel = platformLabel,
+        _now = nowProvider ?? DateTime.now,
+        _policy = AdaptiveTrackingPolicy(
+          config: config,
+          log: (message) => _logMessage(platformLabel, message),
+        );
 
   final BackgroundLocationClient client;
   final LocationTrackingConfig config;
 
   final String _platformLabel;
+  final DateTime Function() _now;
+  final AdaptiveTrackingPolicy _policy;
   final StreamController<LatLngSample> _controller =
       StreamController<LatLngSample>.broadcast();
 
   bool _isRunning = false;
   bool _isListening = false;
+  bool _isBackground = false;
   Timer? _watchdogTimer;
-  DateTime? _lastEmitTime;
-  _RawPoint? _lastEmitPoint;
   DateTime? _lastUpdateReceivedAt;
   DateTime? _lastWatchdogNoticeAt;
 
@@ -51,6 +51,8 @@ abstract class LocationTrackingServiceBase implements LocationTrackingService {
     }
     _ensureListening();
     await configurePlatform();
+    _policy.reset();
+    _isBackground = config.assumeBackground;
     _isRunning = true;
     try {
       await client.startLocationService(
@@ -71,10 +73,9 @@ abstract class LocationTrackingServiceBase implements LocationTrackingService {
     }
     await client.stopLocationService();
     _isRunning = false;
+    _policy.reset();
     _watchdogTimer?.cancel();
     _watchdogTimer = null;
-    _lastEmitTime = null;
-    _lastEmitPoint = null;
     _lastUpdateReceivedAt = null;
     _lastWatchdogNoticeAt = null;
     _log('Location tracking stopped');
@@ -94,56 +95,20 @@ abstract class LocationTrackingServiceBase implements LocationTrackingService {
       if (!_isRunning) {
         return;
       }
-      final now = DateTime.now();
+      final now = _now();
       _lastUpdateReceivedAt = now;
-      final timestamp = _timestampFor(data);
-      final latitude = data.latitude;
-      final longitude = data.longitude;
-
-      final trigger = _triggerFor(latitude, longitude, now);
-      if (trigger == null) {
+      final decision = _policy.updateWithRawLocation(
+        raw: data,
+        now: now,
+        isBackground: _isBackground,
+      );
+      if (!decision.shouldEmit || decision.sample == null) {
         return;
       }
-
-      final sample = LatLngSample(
-        latitude: _roundTo5(latitude),
-        longitude: _roundTo5(longitude),
-        timestamp: timestamp,
-      );
-      _lastEmitTime = now;
-      _lastEmitPoint = _RawPoint(latitude, longitude);
-      _controller.add(sample);
-      _logEmit(sample, trigger);
+      _controller.add(decision.sample!);
     } catch (error) {
       _log('Location update failed: $error');
     }
-  }
-
-  LocationEmitTrigger? _triggerFor(
-    double latitude,
-    double longitude,
-    DateTime now,
-  ) {
-    if (_lastEmitTime == null || _lastEmitPoint == null) {
-      return LocationEmitTrigger.interval;
-    }
-
-    final elapsed = now.difference(_lastEmitTime!);
-    final intervalReached = elapsed >= config.updateInterval;
-    if (intervalReached) {
-      return LocationEmitTrigger.interval;
-    }
-
-    final distanceMeters = _distanceMeters(
-      _lastEmitPoint!,
-      _RawPoint(latitude, longitude),
-    );
-    final distanceReached = distanceMeters >= config.distanceFilterMeters;
-    if (distanceReached) {
-      return LocationEmitTrigger.distance;
-    }
-
-    return null;
   }
 
   void _startWatchdog() {
@@ -152,7 +117,7 @@ abstract class LocationTrackingServiceBase implements LocationTrackingService {
       if (!_isRunning) {
         return;
       }
-      final now = DateTime.now();
+      final now = _now();
       final lastReceived = _lastUpdateReceivedAt;
       final threshold = config.noUpdateThreshold;
 
@@ -170,16 +135,6 @@ abstract class LocationTrackingServiceBase implements LocationTrackingService {
     });
   }
 
-  void _logEmit(LatLngSample sample, LocationEmitTrigger trigger) {
-    final latitude = sample.latitude.toStringAsFixed(5);
-    final longitude = sample.longitude.toStringAsFixed(5);
-    final timestamp = sample.timestamp.toIso8601String();
-    _log(
-      'Location update $timestamp lat=$latitude lng=$longitude '
-      'trigger=${_triggerLabel(trigger)}',
-    );
-  }
-
   void _logNoUpdates(DateTime? lastReceived, Duration threshold) {
     final lastSeen = lastReceived?.toIso8601String() ?? 'never';
     _log(
@@ -188,43 +143,6 @@ abstract class LocationTrackingServiceBase implements LocationTrackingService {
     );
   }
 
-  String _triggerLabel(LocationEmitTrigger trigger) {
-    switch (trigger) {
-      case LocationEmitTrigger.interval:
-        return 'interval';
-      case LocationEmitTrigger.distance:
-        return 'distance';
-    }
-  }
-
-  DateTime _timestampFor(RawLocationData data) {
-    final timestampMs = data.time.round();
-    if (timestampMs <= 0) {
-      return DateTime.now();
-    }
-    return DateTime.fromMillisecondsSinceEpoch(timestampMs);
-  }
-
-  // Rounds coordinates to 5 decimal places as required by the stream contract.
-  double _roundTo5(double value) {
-    return (value * 100000).roundToDouble() / 100000;
-  }
-
-  double _distanceMeters(_RawPoint start, _RawPoint end) {
-    const earthRadiusMeters = 6371000;
-    final dLat = _degToRad(end.latitude - start.latitude);
-    final dLng = _degToRad(end.longitude - start.longitude);
-    final lat1 = _degToRad(start.latitude);
-    final lat2 = _degToRad(end.latitude);
-
-    final a = math.pow(math.sin(dLat / 2), 2) +
-        math.cos(lat1) * math.cos(lat2) * math.pow(math.sin(dLng / 2), 2);
-    final c = 2 * math.asin(math.sqrt(a.toDouble()));
-    return earthRadiusMeters * c;
-  }
-
-  double _degToRad(double degrees) => degrees * (math.pi / 180);
-
   void _log(String message) {
     // Console-only logging for now, per requirements.
     // ignore: avoid_print
@@ -232,9 +150,8 @@ abstract class LocationTrackingServiceBase implements LocationTrackingService {
   }
 }
 
-class _RawPoint {
-  const _RawPoint(this.latitude, this.longitude);
-
-  final double latitude;
-  final double longitude;
+void _logMessage(String platformLabel, String message) {
+  // Console-only logging for now, per requirements.
+  // ignore: avoid_print
+  print('[LocationTracking][$platformLabel] $message');
 }
