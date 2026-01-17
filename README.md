@@ -22,21 +22,20 @@ Service) so location logic stays testable and platform IO stays isolated.
   shows an attribution banner; tapping the attribution uses `url_launcher`.
 
 ### Location tracking
-- The ViewModel exposes commands for all user actions (request permissions,
-  open settings, start/stop tracking) and owns the `LocationTrackingState`.
-- `handleAppLifecycleState` keeps tracking in sync: foreground when the app is
-  active, background when it is paused, and none when permissions or services
-  are missing.
-- `LocationRepository` switches between two Services:
-  - `GeolocatorForegroundLocationService` for foreground location streams.
-  - `BackgroundLocationService` for background tracking via a foreground
-    service and notification on Android.
-- The View layer constructs localized notification text and passes it to the
-  ViewModel, keeping translations out of lower layers per MVVC rules.
-- Each location update is cached via `LocationStorageService` so the last known
-  location can be restored on startup and displayed in the panel.
-- A watchdog timer re-checks permissions every 5 seconds to catch revokes or
-  Settings changes while the app is running.
+- `MapViewModel` exposes commands for permission prompts and settings access,
+  and owns the `LocationTrackingState` rendered by the map panel.
+- Tracking starts in `lib/main.dart` via
+  `DefaultLocationUpdatesRepository.startTracking()` after wiring services.
+- `DefaultLocationUpdatesRepository` gates tracking on:
+  - Location services being enabled.
+  - Required permission level (background on iOS + Android SDK >= 29).
+  - Notification permission when required (Android 13+).
+- `LocationTrackingServiceFactory` creates the platform-specific
+  `LocationTrackingService`, which wraps the `background_location` plugin.
+- `LocationTrackingServiceBase` filters raw updates through the adaptive policy
+  (distance/interval) and logs when updates stop for too long.
+- `MapViewModel` subscribes to `locationUpdatesRepository.locationUpdates` and
+  updates the last known map location in UI state.
 
 ### Localization
 - All user-facing strings live in `assets/translations/en.json` and are accessed
@@ -52,10 +51,9 @@ Service) so location logic stays testable and platform IO stays isolated.
 - `background_location` (local fork in `packages/background_location`): background
   GPS updates with foreground service support; fork avoids deprecated v1
   embedding references.
-- `geolocator`: foreground location stream with high accuracy.
+- `geolocator`: iOS permission + service status checks.
 - `permission_handler`: location + notification permission prompts and
   Settings deep-link.
-- `shared_preferences`: store last known location for quick restore on launch.
 - `flutter_map`: map rendering with OpenStreetMap tiles.
 - `latlong2`: LatLng model used by `flutter_map`.
 - `url_launcher`: open OpenStreetMap attribution links.
@@ -66,10 +64,8 @@ Service) so location logic stays testable and platform IO stays isolated.
   persistent notification, and POST_NOTIFICATIONS on Android 13+).
 - Handling the permission matrix across iOS and Android (when-in-use vs always,
   notification permissions, and "denied forever" flows).
-- Swapping foreground/background tracking on lifecycle changes without leaking
-  streams or leaving services running.
-- Keeping tracking resilient to Settings changes, which required periodic
-  permission checks and careful state transitions.
+- Balancing accuracy and battery with adaptive update filtering + watchdog logs.
+- Normalizing permission/service checks before starting background tracking.
 - Working around deprecated embedding references in the upstream background
   location plugin by maintaining a small local fork.
 - Communicating battery optimization constraints to users because background

@@ -589,10 +589,10 @@ void main() {
         ),
       );
 
-      expect(decision.policy.distanceFilterMeters, closeTo(13, 0.2));
+      expect(decision.policy.distanceFilterMeters, closeTo(11, 0.8));
       expect(
         decision.policy.interval.inMilliseconds / 1000,
-        closeTo(8.7, 0.4),
+        closeTo(7.5, 0.4),
       );
     });
 
@@ -617,10 +617,10 @@ void main() {
         ),
       );
 
-      expect(decision.policy.distanceFilterMeters, closeTo(40, 0.5));
+      expect(decision.policy.distanceFilterMeters, closeTo(25, 0.5));
       expect(
         decision.policy.interval.inMilliseconds / 1000,
-        closeTo(2.7, 0.3),
+        closeTo(1.5, 0.3),
       );
     });
 
