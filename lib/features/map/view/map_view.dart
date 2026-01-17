@@ -8,6 +8,7 @@ import 'package:flutter_map/flutter_map.dart';
 import 'package:latlong2/latlong.dart';
 
 import '../../../translations/locale_keys.g.dart';
+import '../../visited_grid/data/models/visited_grid_bounds.dart';
 import '../view_model/map_view_model.dart';
 import 'widgets/attribution_banner.dart';
 import 'widgets/location_tracking_panel.dart';
@@ -67,6 +68,23 @@ class _MapViewState extends State<MapView> {
                 options: MapOptions(
                   initialCenter: state.center,
                   initialZoom: state.zoom,
+                  onMapReady: () {
+                    _handleCameraIdle(_mapController.camera);
+                  },
+                  onPositionChanged: (camera, hasGesture) {
+                    _handleCameraChanged(camera);
+                    if (!hasGesture) {
+                      _handleCameraIdle(camera);
+                    }
+                  },
+                  onMapEvent: (event) {
+                    if (event is MapEventMoveEnd ||
+                        event is MapEventFlingAnimationEnd ||
+                        event is MapEventDoubleTapZoomEnd ||
+                        event is MapEventRotateEnd) {
+                      _handleCameraIdle(event.camera);
+                    }
+                  },
                 ),
                 children: [
                   TileLayer(
@@ -75,6 +93,10 @@ class _MapViewState extends State<MapView> {
                     userAgentPackageName: state.tileSource.userAgentPackageName,
                     tileProvider: state.tileSource.tileProvider,
                   ),
+                  if (state.visitedCellPolygons.isNotEmpty)
+                    PolygonLayer(
+                      polygons: _buildVisitedPolygons(context, state),
+                    ),
                   if (lastLocation != null)
                     MarkerLayer(
                       markers: [
@@ -203,7 +225,7 @@ class _MapViewState extends State<MapView> {
           border: Border.all(color: Colors.white, width: 2),
           boxShadow: [
             BoxShadow(
-              color: Colors.blue.shade200.withOpacity(0.8),
+              color: Colors.blue.shade200.withValues(alpha: 0.8),
               blurRadius: 8,
               spreadRadius: 2,
             ),
@@ -217,6 +239,47 @@ class _MapViewState extends State<MapView> {
           ),
         ),
       ),
+    );
+  }
+
+  List<Polygon> _buildVisitedPolygons(
+    BuildContext context,
+    MapViewState state,
+  ) {
+    final fill = Theme.of(context).colorScheme.primary.withValues(alpha: 0.25);
+    final border = Theme.of(context).colorScheme.primary.withValues(alpha: 0.55);
+    return state.visitedCellPolygons
+        .map(
+          (points) => Polygon(
+            points: points,
+            color: fill,
+            borderColor: border,
+            borderStrokeWidth: 0.7,
+          ),
+        )
+        .toList(growable: false);
+  }
+
+  void _handleCameraChanged(MapCamera camera) {
+    widget.viewModel.onCameraChanged(
+      bounds: _boundsFromCamera(camera),
+      zoom: camera.zoom,
+    );
+  }
+
+  void _handleCameraIdle(MapCamera camera) {
+    widget.viewModel.onCameraIdle(
+      bounds: _boundsFromCamera(camera),
+      zoom: camera.zoom,
+    );
+  }
+
+  VisitedGridBounds _boundsFromCamera(MapCamera camera) {
+    return VisitedGridBounds(
+      north: camera.visibleBounds.north,
+      south: camera.visibleBounds.south,
+      east: camera.visibleBounds.east,
+      west: camera.visibleBounds.west,
     );
   }
 

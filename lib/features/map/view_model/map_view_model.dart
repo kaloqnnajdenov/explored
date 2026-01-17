@@ -2,11 +2,18 @@ import 'dart:async';
 
 import 'package:flutter/material.dart';
 
+import '../../../domain/usecases/h3_overlay_worker.dart';
 import '../../location/data/models/location_permission_level.dart';
 import '../../location/data/models/location_status.dart';
 import '../../location/data/models/location_tracking_mode.dart';
 import '../../location/data/models/lat_lng_sample.dart';
 import '../../location/data/repositories/location_updates_repository.dart';
+import '../../visited_grid/data/models/visited_grid_bounds.dart';
+import '../../visited_grid/data/models/visited_overlay_mode.dart';
+import '../../visited_grid/data/models/visited_time_filter.dart';
+import '../../visited_grid/data/repositories/visited_grid_repository.dart';
+import '../../visited_grid/view_model/h3_boundary_cache.dart';
+import '../../visited_grid/view_model/visited_overlay_controller.dart';
 import '../data/models/map_config.dart';
 import '../data/models/map_view_state.dart';
 import '../data/repositories/map_repository.dart';
@@ -17,27 +24,61 @@ class MapViewModel extends ChangeNotifier {
   factory MapViewModel({
     required MapRepository mapRepository,
     required LocationUpdatesRepository locationUpdatesRepository,
+    required VisitedGridRepository visitedGridRepository,
+    required VisitedOverlayWorker overlayWorker,
+    required CellBoundaryResolver boundaryResolver,
+    H3BoundaryCache? boundaryCache,
+    Duration overlayDebounce = const Duration(milliseconds: 200),
+    DateTime Function()? nowProvider,
   }) {
     final config = mapRepository.getMapConfig();
     return MapViewModel._(
       mapRepository: mapRepository,
       locationUpdatesRepository: locationUpdatesRepository,
+      visitedGridRepository: visitedGridRepository,
+      overlayWorker: overlayWorker,
+      boundaryResolver: boundaryResolver,
+      boundaryCache: boundaryCache ?? H3BoundaryCache(),
+      overlayDebounce: overlayDebounce,
       config: config,
+      nowProvider: nowProvider,
     );
   }
 
   MapViewModel._({
     required MapRepository mapRepository,
     required LocationUpdatesRepository locationUpdatesRepository,
+    required VisitedGridRepository visitedGridRepository,
+    required VisitedOverlayWorker overlayWorker,
+    required CellBoundaryResolver boundaryResolver,
+    required H3BoundaryCache boundaryCache,
+    required Duration overlayDebounce,
     required MapConfig config,
+    DateTime Function()? nowProvider,
   })  : _mapRepository = mapRepository,
         _locationUpdatesRepository = locationUpdatesRepository,
+        _visitedGridRepository = visitedGridRepository,
         _config = config,
-        _state = MapViewState.initial(config);
+        _now = nowProvider ?? DateTime.now,
+        _state = MapViewState.initial(config) {
+    _overlayController = VisitedOverlayController(
+      worker: overlayWorker,
+      boundaryResolver: boundaryResolver,
+      boundaryCache: boundaryCache,
+      debounceDuration: overlayDebounce,
+      initialMode: _overlayModeForFilter(_state.visitedTimeFilter),
+      onOverlayUpdated: _handleOverlayUpdate,
+      onOverlayError: _handleOverlayError,
+      onLoadingChanged: _handleOverlayLoadingChanged,
+    );
+  }
 
   final MapRepository _mapRepository;
   final LocationUpdatesRepository _locationUpdatesRepository;
+  final VisitedGridRepository _visitedGridRepository;
   final MapConfig _config;
+  final DateTime Function() _now;
+  late final VisitedOverlayController _overlayController;
 
   MapViewState _state;
   bool _hasInitialized = false;
@@ -72,8 +113,10 @@ class MapViewModel extends ChangeNotifier {
     }
 
     notifyListeners();
+    _overlayController.setMode(_overlayModeForFilter(_state.visitedTimeFilter));
     await _refreshTrackingState();
     _attachLocationUpdates();
+    await _visitedGridRepository.start();
   }
 
   Future<void> requestForegroundPermission() async {
@@ -139,6 +182,8 @@ class MapViewModel extends ChangeNotifier {
   @override
   void dispose() {
     _locationSubscription?.cancel();
+    _visitedGridRepository.dispose();
+    unawaited(_overlayController.dispose());
     super.dispose();
   }
 
@@ -187,6 +232,90 @@ class MapViewModel extends ChangeNotifier {
       status: LocationStatus.trackingStartedBackground,
       lastLocation: location,
     );
+  }
+
+  void onCameraChanged({
+    required VisitedGridBounds bounds,
+    required double zoom,
+  }) {
+    _overlayController.onCameraChanged(
+      CameraState(bounds: bounds, zoom: zoom),
+    );
+  }
+
+  void onCameraIdle({
+    required VisitedGridBounds bounds,
+    required double zoom,
+  }) {
+    _overlayController.onCameraIdle(
+      CameraState(bounds: bounds, zoom: zoom),
+    );
+  }
+
+  void patchVisitedCell({
+    required String cellId,
+    required int resolution,
+  }) {
+    _overlayController.patchVisitedCell(
+      cellId: cellId,
+      resolution: resolution,
+    );
+  }
+
+  void setVisitedTimeFilter(VisitedTimeFilter filter) {
+    if (_state.visitedTimeFilter == filter) {
+      return;
+    }
+
+    _state = _state.copyWith(visitedTimeFilter: filter);
+    notifyListeners();
+    _overlayController.setMode(_overlayModeForFilter(filter));
+  }
+
+  void _handleOverlayUpdate(VisitedOverlayUpdate update) {
+    _state = _state.copyWith(
+      visitedCellPolygons: update.polygons,
+      overlayResolution: update.resolution,
+      clearOverlayError: true,
+    );
+    notifyListeners();
+  }
+
+  void _handleOverlayError(Object error) {
+    _state = _state.copyWith(
+      isOverlayLoading: false,
+      overlayError: error,
+      clearOverlayError: false,
+    );
+    notifyListeners();
+  }
+
+  void _handleOverlayLoadingChanged(bool isLoading) {
+    if (_state.isOverlayLoading == isLoading) {
+      return;
+    }
+    _state = _state.copyWith(
+      isOverlayLoading: isLoading,
+      clearOverlayError: isLoading,
+    );
+    notifyListeners();
+  }
+
+  OverlayMode _overlayModeForFilter(VisitedTimeFilter filter) {
+    if (filter == VisitedTimeFilter.allTime) {
+      return const OverlayModeAllTime();
+    }
+
+    final now = _now().toLocal();
+    final endDay = _dayKey(now);
+    final window = filter.dayWindow ?? 0;
+    final startDay = _dayKey(now.subtract(Duration(days: window)));
+    return OverlayMode.dateRange(fromDay: startDay, toDay: endDay);
+  }
+
+  int _dayKey(DateTime timestamp) {
+    final local = timestamp.toLocal();
+    return local.year * 10000 + local.month * 100 + local.day;
   }
 
   Future<void> _performPermissionAction(

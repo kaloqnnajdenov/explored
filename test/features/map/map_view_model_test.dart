@@ -1,7 +1,9 @@
 import 'dart:async';
 
 import 'package:flutter_test/flutter_test.dart';
+import 'package:latlong2/latlong.dart';
 
+import 'package:explored/domain/usecases/h3_overlay_worker.dart';
 import 'package:explored/features/location/data/models/lat_lng_sample.dart';
 import 'package:explored/features/location/data/models/location_permission_level.dart';
 import 'package:explored/features/location/data/models/location_status.dart';
@@ -12,6 +14,11 @@ import 'package:explored/features/map/data/repositories/map_repository.dart';
 import 'package:explored/features/map/data/services/map_attribution_service.dart';
 import 'package:explored/features/map/data/services/map_tile_service.dart';
 import 'package:explored/features/map/view_model/map_view_model.dart';
+import 'package:explored/features/visited_grid/data/models/visited_grid_bounds.dart';
+import 'package:explored/features/visited_grid/data/models/visited_grid_overlay.dart';
+import 'package:explored/features/visited_grid/data/models/visited_overlay_mode.dart';
+import 'package:explored/features/visited_grid/data/models/visited_time_filter.dart';
+import 'package:explored/features/visited_grid/data/repositories/visited_grid_repository.dart';
 
 class FakeMapTileService implements MapTileService {
   @override
@@ -129,6 +136,52 @@ class FakeLocationUpdatesRepository implements LocationUpdatesRepository {
   }
 }
 
+class FakeVisitedGridRepository implements VisitedGridRepository {
+  int startCalls = 0;
+
+  @override
+  Future<void> start() async {
+    startCalls += 1;
+  }
+
+  @override
+  Future<void> stop() async {}
+
+  @override
+  Future<void> dispose() async {}
+
+  @override
+  Future<VisitedGridOverlay> loadOverlay({
+    required VisitedGridBounds bounds,
+    required double zoom,
+    required VisitedTimeFilter timeFilter,
+  }) async {
+    return const VisitedGridOverlay(resolution: 0, polygons: []);
+  }
+}
+
+class FakeVisitedOverlayWorker implements VisitedOverlayWorker {
+  @override
+  Future<H3OverlayResult> queryOverlay({
+    required int requestId,
+    required VisitedGridBounds bounds,
+    required double zoom,
+    required OverlayMode mode,
+  }) async {
+    return H3OverlayResult(
+      requestId: requestId,
+      resolution: 0,
+      visitedCellIds: <String>{},
+      candidateCellIds: <String>{},
+    );
+  }
+
+  @override
+  Future<void> dispose() async {}
+}
+
+List<LatLng> fakeBoundaryResolver(String cellId) => const [];
+
 void main() {
   test('Location updates update the map state', () async {
     final locationRepository = FakeLocationUpdatesRepository();
@@ -139,6 +192,9 @@ void main() {
     final viewModel = MapViewModel(
       mapRepository: mapRepository,
       locationUpdatesRepository: locationRepository,
+      visitedGridRepository: FakeVisitedGridRepository(),
+      overlayWorker: FakeVisitedOverlayWorker(),
+      boundaryResolver: fakeBoundaryResolver,
     );
 
     await viewModel.initialize();
@@ -176,6 +232,9 @@ void main() {
     final viewModel = MapViewModel(
       mapRepository: mapRepository,
       locationUpdatesRepository: locationRepository,
+      visitedGridRepository: FakeVisitedGridRepository(),
+      overlayWorker: FakeVisitedOverlayWorker(),
+      boundaryResolver: fakeBoundaryResolver,
     );
 
     expect(viewModel.state.isLocationPanelVisible, isTrue);
@@ -198,6 +257,9 @@ void main() {
     final viewModel = MapViewModel(
       mapRepository: mapRepository,
       locationUpdatesRepository: locationRepository,
+      visitedGridRepository: FakeVisitedGridRepository(),
+      overlayWorker: FakeVisitedOverlayWorker(),
+      boundaryResolver: fakeBoundaryResolver,
     );
 
     final initialZoom = viewModel.state.recenterZoom;
@@ -218,6 +280,9 @@ void main() {
     final viewModel = MapViewModel(
       mapRepository: mapRepository,
       locationUpdatesRepository: locationRepository,
+      visitedGridRepository: FakeVisitedGridRepository(),
+      overlayWorker: FakeVisitedOverlayWorker(),
+      boundaryResolver: fakeBoundaryResolver,
     );
 
     await viewModel.initialize();
@@ -243,6 +308,9 @@ void main() {
     final viewModel = MapViewModel(
       mapRepository: mapRepository,
       locationUpdatesRepository: locationRepository,
+      visitedGridRepository: FakeVisitedGridRepository(),
+      overlayWorker: FakeVisitedOverlayWorker(),
+      boundaryResolver: fakeBoundaryResolver,
     );
 
     await viewModel.initialize();
@@ -270,6 +338,9 @@ void main() {
     final viewModel = MapViewModel(
       mapRepository: mapRepository,
       locationUpdatesRepository: locationRepository,
+      visitedGridRepository: FakeVisitedGridRepository(),
+      overlayWorker: FakeVisitedOverlayWorker(),
+      boundaryResolver: fakeBoundaryResolver,
     );
 
     await viewModel.initialize();
@@ -300,6 +371,9 @@ void main() {
     final viewModel = MapViewModel(
       mapRepository: mapRepository,
       locationUpdatesRepository: locationRepository,
+      visitedGridRepository: FakeVisitedGridRepository(),
+      overlayWorker: FakeVisitedOverlayWorker(),
+      boundaryResolver: fakeBoundaryResolver,
     );
 
     await viewModel.initialize();

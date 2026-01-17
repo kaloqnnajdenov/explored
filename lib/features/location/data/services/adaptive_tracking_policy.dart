@@ -130,7 +130,7 @@ class AdaptiveTrackingPolicy {
         : _GeoPoint(_lastRaw!.latitude, _lastRaw!.longitude);
     final dtSeconds = _deltaSeconds(_lastRawAt, now);
     final distanceRaw =
-        lastPoint == null ? 0.0 : haversineMeters(lastPoint, currentPoint);
+        lastPoint == null ? 0.0 : _haversineMeters(lastPoint, currentPoint);
     final accuracyMeters = _normalizeAccuracy(raw.accuracy);
     final noiseThreshold = _noiseThresholdMeters(accuracyMeters);
     final distanceForSpeed = distanceRaw < noiseThreshold ? 0.0 : distanceRaw;
@@ -441,7 +441,7 @@ class AdaptiveTrackingPolicy {
         distanceRaw < config.minBearingDistanceMeters) {
       return null;
     }
-    return bearingDegrees(lastPoint, currentPoint);
+    return _bearingDegrees(lastPoint, currentPoint);
   }
 
   AdaptiveTrackingPolicySnapshot _computePolicy({
@@ -516,7 +516,7 @@ class AdaptiveTrackingPolicy {
     required bool turnDetected,
   }) {
     if (_lastEmitAt == null || _lastEmitPoint == null) {
-      final sample = _buildSample(currentPoint, timestamp);
+      final sample = _buildSample(currentPoint, timestamp, accuracyMeters);
       return AdaptiveTrackingDecision(
         shouldEmit: true,
         sample: sample,
@@ -526,7 +526,7 @@ class AdaptiveTrackingPolicy {
     }
 
     final distanceSinceEmit =
-        haversineMeters(_lastEmitPoint!, currentPoint);
+        _haversineMeters(_lastEmitPoint!, currentPoint);
     final intervalReached =
         now.difference(_lastEmitAt!) >= policy.interval;
     final distanceReached = distanceSinceEmit >= policy.distanceFilterMeters;
@@ -558,7 +558,9 @@ class AdaptiveTrackingPolicy {
       }
     }
 
-    final sample = shouldEmit ? _buildSample(currentPoint, timestamp) : null;
+    final sample = shouldEmit
+        ? _buildSample(currentPoint, timestamp, accuracyMeters)
+        : null;
     return AdaptiveTrackingDecision(
       shouldEmit: shouldEmit,
       sample: sample,
@@ -567,11 +569,16 @@ class AdaptiveTrackingPolicy {
     );
   }
 
-  LatLngSample _buildSample(_GeoPoint point, DateTime timestamp) {
+  LatLngSample _buildSample(
+    _GeoPoint point,
+    DateTime timestamp,
+    double? accuracyMeters,
+  ) {
     return LatLngSample(
       latitude: _roundTo5(point.latitude),
       longitude: _roundTo5(point.longitude),
       timestamp: timestamp,
+      accuracyMeters: accuracyMeters,
     );
   }
 
@@ -746,7 +753,7 @@ class _GeoPoint {
   final double longitude;
 }
 
-double haversineMeters(_GeoPoint start, _GeoPoint end) {
+double _haversineMeters(_GeoPoint start, _GeoPoint end) {
   const earthRadiusMeters = 6371000;
   final dLat = _degToRad(end.latitude - start.latitude);
   final dLng = _degToRad(_wrapDeltaDegrees(end.longitude - start.longitude));
@@ -759,7 +766,7 @@ double haversineMeters(_GeoPoint start, _GeoPoint end) {
   return earthRadiusMeters * c;
 }
 
-double bearingDegrees(_GeoPoint start, _GeoPoint end) {
+double _bearingDegrees(_GeoPoint start, _GeoPoint end) {
   final lat1 = _degToRad(start.latitude);
   final lat2 = _degToRad(end.latitude);
   final dLng = _degToRad(_wrapDeltaDegrees(end.longitude - start.longitude));

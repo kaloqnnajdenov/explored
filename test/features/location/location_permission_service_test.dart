@@ -111,8 +111,9 @@ class FakeGeolocatorPermissionClient implements GeolocatorPermissionClient {
   @override
   Future<LocationPermission> checkPermission() async {
     checkCount += 1;
-    if (_checkResults != null && _checkResults!.isNotEmpty) {
-      checkPermissionResult = _checkResults!.removeAt(0);
+    final checkResults = _checkResults;
+    if (checkResults != null && checkResults.isNotEmpty) {
+      checkPermissionResult = checkResults.removeAt(0);
     }
     return checkPermissionResult;
   }

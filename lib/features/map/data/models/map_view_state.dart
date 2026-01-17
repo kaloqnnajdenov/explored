@@ -3,6 +3,7 @@ import 'package:latlong2/latlong.dart';
 import 'map_config.dart';
 import 'map_tile_source.dart';
 import '../../../location/data/models/location_tracking_state.dart';
+import '../../../visited_grid/data/models/visited_time_filter.dart';
 
 /// Immutable UI state snapshot for the map screen.
 class MapViewState {
@@ -14,7 +15,12 @@ class MapViewState {
     required this.isLoading,
     required this.isLocationPanelVisible,
     required this.recenterZoom,
+    required this.visitedCellPolygons,
+    required this.isOverlayLoading,
+    required this.visitedTimeFilter,
+    required this.overlayResolution,
     this.error,
+    this.overlayError,
   });
 
   /// Seed state using the map config before async work finishes.
@@ -27,6 +33,10 @@ class MapViewState {
       isLoading: true,
       isLocationPanelVisible: true,
       recenterZoom: config.recenterZoom,
+      visitedCellPolygons: const [],
+      isOverlayLoading: false,
+      visitedTimeFilter: VisitedTimeFilter.allTime,
+      overlayResolution: null,
     );
   }
 
@@ -38,6 +48,11 @@ class MapViewState {
   final bool isLocationPanelVisible;
   final double recenterZoom;
   final Object? error;
+  final List<List<LatLng>> visitedCellPolygons;
+  final bool isOverlayLoading;
+  final VisitedTimeFilter visitedTimeFilter;
+  final int? overlayResolution;
+  final Object? overlayError;
 
   /// Create a new state with selective overrides; errors can be cleared.
   MapViewState copyWith({
@@ -50,6 +65,12 @@ class MapViewState {
     double? recenterZoom,
     Object? error,
     bool clearError = false,
+    List<List<LatLng>>? visitedCellPolygons,
+    bool? isOverlayLoading,
+    VisitedTimeFilter? visitedTimeFilter,
+    int? overlayResolution,
+    Object? overlayError,
+    bool clearOverlayError = false,
   }) {
     return MapViewState(
       center: center ?? this.center,
@@ -61,6 +82,13 @@ class MapViewState {
           isLocationPanelVisible ?? this.isLocationPanelVisible,
       recenterZoom: recenterZoom ?? this.recenterZoom,
       error: clearError ? null : (error ?? this.error),
+      visitedCellPolygons:
+          visitedCellPolygons ?? this.visitedCellPolygons,
+      isOverlayLoading: isOverlayLoading ?? this.isOverlayLoading,
+      visitedTimeFilter: visitedTimeFilter ?? this.visitedTimeFilter,
+      overlayResolution: overlayResolution ?? this.overlayResolution,
+      overlayError:
+          clearOverlayError ? null : (overlayError ?? this.overlayError),
     );
   }
 }

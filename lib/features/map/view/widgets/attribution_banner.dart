@@ -33,7 +33,8 @@ class AttributionBanner extends StatelessWidget {
       child: Align(
         alignment: Alignment.bottomLeft,
         child: Material(
-          color: theme.colorScheme.surfaceVariant.withValues(alpha: 0.65),
+          color:
+              theme.colorScheme.surfaceContainerHighest.withValues(alpha: 0.65),
           borderRadius: BorderRadius.circular(999),
           child: Padding(
             padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),

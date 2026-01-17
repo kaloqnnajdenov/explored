@@ -464,6 +464,52 @@ void main() {
       expect(decision.sample!.longitude, 13.40495);
     });
 
+    test('Rounds negative coordinates to 5 decimals', () {
+      final policy = AdaptiveTrackingPolicy(
+        config: _basePolicyConfig(),
+        log: (_) {},
+      );
+      final clock = TestClock(DateTime(2024, 1, 1));
+
+      final decision = _updatePolicy(
+        policy: policy,
+        clock: clock,
+        raw: _rawAt(
+          time: clock.now,
+          latitude: -12.345678,
+          longitude: -98.765432,
+          speed: 2,
+        ),
+      );
+
+      expect(decision.sample, isNotNull);
+      expect(decision.sample!.latitude, -12.34568);
+      expect(decision.sample!.longitude, -98.76543);
+    });
+
+    test('Propagates accuracy meters into samples', () {
+      final policy = AdaptiveTrackingPolicy(
+        config: _basePolicyConfig(),
+        log: (_) {},
+      );
+      final clock = TestClock(DateTime(2024, 1, 1));
+
+      final decision = _updatePolicy(
+        policy: policy,
+        clock: clock,
+        raw: _rawAt(
+          time: clock.now,
+          latitude: 1,
+          longitude: 2,
+          speed: 2,
+          accuracy: 12.3,
+        ),
+      );
+
+      expect(decision.sample, isNotNull);
+      expect(decision.sample!.accuracyMeters, 12.3);
+    });
+
     test('Invalid coordinates are ignored with warning', () {
       final logs = <String>[];
       final policy = AdaptiveTrackingPolicy(
@@ -1592,6 +1638,46 @@ void main() {
         () => _updatePolicy(policy: policy, clock: clock, raw: raw),
         returnsNormally,
       );
+    });
+
+    test('Out-of-order raw timestamp still emits with raw time', () {
+      final policy = AdaptiveTrackingPolicy(
+        config: _basePolicyConfig(
+          stillSpeedMaxMps: 100,
+          driveSpeedMinMps: 200,
+        ),
+        log: (_) {},
+      );
+      final clock = TestClock(DateTime(2024, 1, 1, 12, 0, 0));
+
+      final first = _updatePolicy(
+        policy: policy,
+        clock: clock,
+        raw: _rawAt(
+          time: clock.now,
+          latitude: 0,
+          longitude: 0,
+          speed: 2,
+        ),
+      );
+      expect(first.shouldEmit, isTrue);
+
+      final olderTimestamp = clock.now.subtract(const Duration(minutes: 5));
+      final decision = _updatePolicy(
+        policy: policy,
+        clock: clock,
+        advanceBy: const Duration(seconds: 10),
+        raw: _rawAt(
+          time: olderTimestamp,
+          latitude: latDeltaForMeters(30),
+          longitude: 0,
+          speed: 2,
+        ),
+      );
+
+      expect(decision.shouldEmit, isTrue);
+      expect(decision.sample, isNotNull);
+      expect(decision.sample!.timestamp, olderTimestamp);
     });
 
     test('Antimeridian crossing does not emit huge distance', () {

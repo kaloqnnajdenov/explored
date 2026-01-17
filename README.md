@@ -37,6 +37,90 @@ Service) so location logic stays testable and platform IO stays isolated.
 - `MapViewModel` subscribes to `locationUpdatesRepository.locationUpdates` and
   updates the last known map location in UI state.
 
+### Visited grid overlay (H3)
+- Every `LatLngSample` is processed immediately in
+  `DefaultVisitedGridRepository` (no deferred jobs). The per-sample pipeline:
+  1) Accuracy gate: if a sample carries `accuracyMeters` and it's > 50m, skip.
+     Samples without accuracy are accepted by default.
+  2) Compute base H3 cell (res 12 by default) and skip the write if the base
+     cell AND hour-of-day match the last persisted sample.
+  3) Convert to E5 ints and `epochSeconds` (`ts.millisecondsSinceEpoch ~/ 1000`)
+     to preserve second-level precision.
+  4) Upsert into `visits_daily` and `visits_lifetime` for the base resolution
+     and all parent resolutions (`[11, 10, 9, 8, 7, 6]`) in a single
+     transaction; increment `days_visited` via the dedupe table
+     `visits_lifetime_days`.
+  5) Cleanup `visits_daily` older than 180 days only when the last cleanup is
+     older than the configured interval (default 6 hours).
+- Incremental aggregation is handled per sample: each resolution row is
+  updated immediately, so there are no deferred rollups.
+- Zoom -> H3 resolution mapping lives in `VisitedGridConfig.resolutionForZoom`.
+- Rendering path only:
+  - Viewport bounds -> H3 `polygonToCells` (polyfill).
+  - Query `visits_daily` for "today/last 7 days" or `visits_lifetime` for
+    "all time" (chunked `IN (...)` lists).
+  - Draw visited cell boundaries using `PolygonLayer` (no heatmap).
+  - If the polyfill exceeds 2500 cells, the resolution is reduced until it fits.
+- Battery efficiency techniques:
+  - Sample writes are skipped when the base cell + hour haven't changed.
+  - Writes are coalesced while a DB transaction is in flight.
+  - All per-sample updates happen in one transaction with upserts.
+  - Cleanup is rate-limited by a persisted `last_cleanup_ts`.
+- Overlay refresh triggers on camera idle or a short debounce, with request-id
+  guards to ignore stale work during fast pans.
+- Timestamps: all stored timestamps (`first_ts`, `last_ts`, `last_cleanup_ts`)
+  are Unix epoch **seconds**, preserving second-level precision end-to-end.
+
+### Visited overlay integration
+- Wire camera changes to `MapViewModel.onCameraChanged` and idle events to
+  `MapViewModel.onCameraIdle`; the overlay work runs off the UI thread and
+  applies diffs with boundary caching.
+
+```dart
+FlutterMap(
+  options: MapOptions(
+    onPositionChanged: (camera, hasGesture) {
+      viewModel.onCameraChanged(
+        bounds: VisitedGridBounds(
+          north: camera.visibleBounds.north,
+          south: camera.visibleBounds.south,
+          east: camera.visibleBounds.east,
+          west: camera.visibleBounds.west,
+        ),
+        zoom: camera.zoom,
+      );
+      if (!hasGesture) {
+        viewModel.onCameraIdle(
+          bounds: VisitedGridBounds(
+            north: camera.visibleBounds.north,
+            south: camera.visibleBounds.south,
+            east: camera.visibleBounds.east,
+            west: camera.visibleBounds.west,
+          ),
+          zoom: camera.zoom,
+        );
+      }
+    },
+    onMapEvent: (event) {
+      if (event is MapEventMoveEnd ||
+          event is MapEventFlingAnimationEnd ||
+          event is MapEventDoubleTapZoomEnd ||
+          event is MapEventRotateEnd) {
+        viewModel.onCameraIdle(
+          bounds: VisitedGridBounds(
+            north: event.camera.visibleBounds.north,
+            south: event.camera.visibleBounds.south,
+            east: event.camera.visibleBounds.east,
+            west: event.camera.visibleBounds.west,
+          ),
+          zoom: event.camera.zoom,
+        );
+      }
+    },
+  ),
+);
+```
+
 ### Localization
 - All user-facing strings live in `assets/translations/en.json` and are accessed
   via `LocaleKeys.*` with `easy_localization`.
@@ -57,6 +141,8 @@ Service) so location logic stays testable and platform IO stays isolated.
 - `flutter_map`: map rendering with OpenStreetMap tiles.
 - `latlong2`: LatLng model used by `flutter_map`.
 - `url_launcher`: open OpenStreetMap attribution links.
+- `drift`, `drift_flutter`: SQLite persistence for visited H3 cells.
+- `h3_flutter`: H3 indexing + polygon boundaries.
 - `flutter_test`, `flutter_lints`: testing and linting during development.
 
 ## Challenges faced
