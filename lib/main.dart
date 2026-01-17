@@ -40,6 +40,7 @@ Future<void> main() async {
       platformInfo: platformInfo,
     ),
     platformInfo: platformInfo,
+    config: locationTrackingConfig,
   );
   await locationUpdatesRepository.startTracking();
   const visitedGridConfig = VisitedGridConfig();

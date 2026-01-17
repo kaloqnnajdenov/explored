@@ -134,7 +134,7 @@ void main() {
       await _tearDownHarness(harness);
     });
 
-    test('Coalesces in-flight writes to latest pending sample', () async {
+    test('Queues samples while writes are in flight', () async {
       final harness = await _buildHarness();
       final gate = Completer<void>();
       harness.dao.upsertGate = gate;
@@ -167,10 +167,10 @@ void main() {
             ..where((tbl) => tbl.res.equals(12)))
           .get();
       final latValues = dailyRows.map((row) => row.latE5).toSet();
-      expect(dailyRows, hasLength(2));
+      expect(dailyRows, hasLength(3));
       expect(latValues.contains(100000), isTrue);
+      expect(latValues.contains(200000), isTrue);
       expect(latValues.contains(300000), isTrue);
-      expect(latValues.contains(200000), isFalse);
 
       await _tearDownHarness(harness);
     });

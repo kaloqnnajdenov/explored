@@ -50,11 +50,15 @@ class LocationTrackingConfig {
     this.minRawDeltaSeconds = 0.5,
     this.minBearingDistanceMeters = 5.0,
     this.invalidCoordinateLogCooldownSeconds = 60,
+    this.gapFillIntervalSeconds = 15,
+    double? gapFillMaxDistanceMeters,
     int? noUpdateThresholdSeconds,
   })  : baseDistanceOffsetMeters =
             baseDistanceOffsetMeters ?? distanceFilterMeters,
         baseDistanceMinMeters = baseDistanceMinMeters ?? distanceFilterMeters,
         minSpeedForIntervalMps = minSpeedForIntervalMps ?? 0.5,
+        gapFillMaxDistanceMeters =
+            gapFillMaxDistanceMeters ?? distanceFilterMeters * 3,
         noUpdateThresholdSeconds = noUpdateThresholdSeconds ??
             (updateIntervalSeconds * 2 > watchdogCheckMinutes * 60
                 ? updateIntervalSeconds * 2
@@ -148,6 +152,15 @@ class LocationTrackingConfig {
   /// Cooldown for logging invalid coordinate messages.
   final int invalidCoordinateLogCooldownSeconds;
 
+  /// Expected interval used for gap filling between emitted samples.
+  /// Default is 15s to avoid overestimating missing points when the
+  /// adaptive policy emits slower (e.g., walking/background).
+  final int gapFillIntervalSeconds;
+
+  /// Max distance (meters) between consecutive points before gap filling
+  /// inserts samples, derived from the configured distance filter by default.
+  final double gapFillMaxDistanceMeters;
+
   Duration get updateInterval => Duration(seconds: updateIntervalSeconds);
 
   Duration get watchdogInterval => Duration(minutes: watchdogCheckMinutes);
@@ -155,4 +168,6 @@ class LocationTrackingConfig {
   Duration get noUpdateThreshold => Duration(seconds: noUpdateThresholdSeconds);
 
   int get updateIntervalMilliseconds => updateIntervalSeconds * 1000;
+
+  Duration get gapFillInterval => Duration(seconds: gapFillIntervalSeconds);
 }

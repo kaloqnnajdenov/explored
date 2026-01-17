@@ -1,10 +1,14 @@
+import 'dart:async';
+
 import 'package:flutter/foundation.dart';
 
+import '../location_tracking_config.dart';
 import '../models/lat_lng_sample.dart';
 import '../models/location_permission_level.dart';
 import '../services/location_permission_service.dart';
 import '../services/location_tracking_service.dart';
 import '../services/platform_info.dart';
+import 'location_gap_filler.dart';
 
 /// Repository contract for consuming location update streams.
 abstract class LocationUpdatesRepository {
@@ -46,16 +50,30 @@ class DefaultLocationUpdatesRepository implements LocationUpdatesRepository {
     required LocationTrackingService trackingService,
     required LocationPermissionService permissionService,
     required PlatformInfo platformInfo,
+    required LocationTrackingConfig config,
   })  : _trackingService = trackingService,
         _permissionService = permissionService,
-        _platformInfo = platformInfo;
+        _platformInfo = platformInfo,
+        _gapFiller = LocationGapFiller(
+          expectedInterval: config.gapFillInterval,
+          maxSpeedMps: config.speedMaxMetersPerSecond,
+          maxDistanceMeters: config.gapFillMaxDistanceMeters,
+        ) {
+    _controller = StreamController<LatLngSample>.broadcast(
+      onListen: _startListening,
+      onCancel: _stopListening,
+    );
+  }
 
   final LocationTrackingService _trackingService;
   final LocationPermissionService _permissionService;
   final PlatformInfo _platformInfo;
+  final LocationGapFiller _gapFiller;
+  late final StreamController<LatLngSample> _controller;
+  StreamSubscription<LatLngSample>? _subscription;
 
   @override
-  Stream<LatLngSample> get locationUpdates => _trackingService.stream;
+  Stream<LatLngSample> get locationUpdates => _controller.stream;
 
   @override
   bool get isRunning => _trackingService.isRunning;
@@ -123,6 +141,7 @@ class DefaultLocationUpdatesRepository implements LocationUpdatesRepository {
 
     try {
       await _trackingService.start();
+      _gapFiller.reset();
     } catch (error) {
       debugPrint('Failed to start location tracking: $error');
     }
@@ -132,6 +151,7 @@ class DefaultLocationUpdatesRepository implements LocationUpdatesRepository {
   Future<void> stopTracking() async {
     try {
       await _trackingService.stop();
+      _gapFiller.reset();
     } catch (error) {
       debugPrint('Failed to stop location tracking: $error');
     }
@@ -147,6 +167,7 @@ class DefaultLocationUpdatesRepository implements LocationUpdatesRepository {
     if (!canContinue) {
       try {
         await _trackingService.stop();
+        _gapFiller.reset();
       } catch (error) {
         debugPrint('Failed to stop location tracking: $error');
       }
@@ -231,5 +252,23 @@ class DefaultLocationUpdatesRepository implements LocationUpdatesRepository {
 
   void _logPermission(String message) {
     debugPrint('Location tracking not started: $message');
+  }
+
+  void _startListening() {
+    _subscription ??= _trackingService.stream.listen(
+      _handleSample,
+      onError: _controller.addError,
+    );
+  }
+
+  Future<void> _stopListening() async {
+    await _subscription?.cancel();
+    _subscription = null;
+  }
+
+  void _handleSample(LatLngSample sample) {
+    for (final output in _gapFiller.handleSample(sample)) {
+      _controller.add(output);
+    }
   }
 }

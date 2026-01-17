@@ -1,4 +1,5 @@
 import 'dart:async';
+import 'dart:collection';
 
 import 'package:flutter/foundation.dart';
 import 'package:latlong2/latlong.dart';
@@ -45,7 +46,8 @@ class DefaultVisitedGridRepository implements VisitedGridRepository {
 
   StreamSubscription<LatLngSample>? _subscription;
   bool _writeInFlight = false;
-  LatLngSample? _pendingSample;
+  final ListQueue<LatLngSample> _pendingSamples =
+      ListQueue<LatLngSample>();
   String? _lastPersistedCellId;
   int? _lastPersistedHour;
   int? _lastCleanupTs;
@@ -69,6 +71,7 @@ class DefaultVisitedGridRepository implements VisitedGridRepository {
   Future<void> stop() async {
     await _subscription?.cancel();
     _subscription = null;
+    _pendingSamples.clear();
   }
 
   @override
@@ -124,23 +127,30 @@ class DefaultVisitedGridRepository implements VisitedGridRepository {
   }
 
   Future<void> _handleSample(LatLngSample sample) async {
-    // Coalesce bursts by only processing the latest sample while a write runs.
+    // Queue bursts so interpolated samples are not dropped mid-write.
+    _pendingSamples.add(sample);
+    _kickDrain();
+  }
+
+  void _kickDrain() {
     if (_writeInFlight) {
-      _pendingSample = sample;
       return;
     }
-
     _writeInFlight = true;
+    unawaited(_drainQueue());
+  }
+
+  Future<void> _drainQueue() async {
     try {
-      await _processSample(sample);
+      while (_pendingSamples.isNotEmpty) {
+        final next = _pendingSamples.removeFirst();
+        await _processSample(next);
+      }
     } finally {
       _writeInFlight = false;
-    }
-
-    final pending = _pendingSample;
-    if (pending != null) {
-      _pendingSample = null;
-      await _handleSample(pending);
+      if (_pendingSamples.isNotEmpty) {
+        _kickDrain();
+      }
     }
   }
 

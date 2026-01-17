@@ -5,10 +5,12 @@ class LatLngSample {
     required this.longitude,
     required this.timestamp,
     this.accuracyMeters,
+    this.isInterpolated = false,
   });
 
   final double latitude;
   final double longitude;
   final DateTime timestamp;
   final double? accuracyMeters;
+  final bool isInterpolated;
 }
