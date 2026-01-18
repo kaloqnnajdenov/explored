@@ -2,6 +2,8 @@ import 'package:drift/drift.dart';
 import 'package:drift_flutter/drift_flutter.dart';
 
 import '../models/visited_grid_cell.dart';
+import '../models/visited_grid_cell_bounds.dart';
+import 'visited_grid_h3_service.dart';
 
 part 'visited_grid_database.g.dart';
 
@@ -50,6 +52,27 @@ class VisitsLifetimeDays extends Table {
 
 }
 
+@TableIndex(
+  name: 'cell_bounds_res_lat',
+  columns: {#res, #minLatE5, #maxLatE5},
+)
+@TableIndex(
+  name: 'cell_bounds_res_lon',
+  columns: {#res, #minLonE5, #maxLonE5},
+)
+class VisitedCellBounds extends Table {
+  IntColumn get res => integer()();
+  TextColumn get cellId => text()();
+  IntColumn get segment => integer()();
+  IntColumn get minLatE5 => integer()();
+  IntColumn get maxLatE5 => integer()();
+  IntColumn get minLonE5 => integer()();
+  IntColumn get maxLonE5 => integer()();
+
+  @override
+  Set<Column> get primaryKey => {res, cellId, segment};
+}
+
 class VisitedGridMeta extends Table {
   IntColumn get id => integer().withDefault(const Constant(0))();
   IntColumn get lastCleanupTs => integer().nullable()();
@@ -63,6 +86,7 @@ class VisitedGridMeta extends Table {
     VisitsDaily,
     VisitsLifetime,
     VisitsLifetimeDays,
+    VisitedCellBounds,
     VisitedGridMeta,
   ],
   daos: [VisitedGridDao],
@@ -83,7 +107,59 @@ class VisitedGridDatabase extends _$VisitedGridDatabase {
         );
 
   @override
-  int get schemaVersion => 1;
+  int get schemaVersion => 2;
+
+  @override
+  MigrationStrategy get migration => MigrationStrategy(
+        onUpgrade: (m, from, to) async {
+          if (from < 2) {
+            await m.createTable(visitedCellBounds);
+            await _backfillBounds();
+          }
+        },
+      );
+
+  Future<void> _backfillBounds() async {
+    final rows = await customSelect(
+      'SELECT res, cell_id FROM visits_lifetime',
+    ).get();
+    if (rows.isEmpty) {
+      return;
+    }
+
+    final h3Service = VisitedGridH3Service();
+    const batchSize = 500;
+    for (var i = 0; i < rows.length; i += batchSize) {
+      final end = i + batchSize > rows.length ? rows.length : i + batchSize;
+      final batchRows = rows.sublist(i, end);
+      final boundsRows = <VisitedCellBoundsCompanion>[];
+      for (final row in batchRows) {
+        final cellId = row.read<String>('cell_id');
+        final cell = h3Service.decodeCellId(cellId);
+        final segments = h3Service.cellBounds(cell);
+        for (final segment in segments) {
+          boundsRows.add(
+            VisitedCellBoundsCompanion(
+              res: Value(segment.resolution),
+              cellId: Value(segment.cellId),
+              segment: Value(segment.segment),
+              minLatE5: Value(segment.minLatE5),
+              maxLatE5: Value(segment.maxLatE5),
+              minLonE5: Value(segment.minLonE5),
+              maxLonE5: Value(segment.maxLonE5),
+            ),
+          );
+        }
+      }
+      await batch((b) {
+        b.insertAll(
+          visitedCellBounds,
+          boundsRows,
+          mode: InsertMode.insertOrIgnore,
+        );
+      });
+    }
+  }
 }
 
 @DriftAccessor(
@@ -91,6 +167,7 @@ class VisitedGridDatabase extends _$VisitedGridDatabase {
     VisitsDaily,
     VisitsLifetime,
     VisitsLifetimeDays,
+    VisitedCellBounds,
     VisitedGridMeta,
   ],
 )
@@ -103,6 +180,7 @@ class VisitedGridDao extends DatabaseAccessor<VisitedGridDatabase>
 
   Future<void> upsertVisit({
     required List<VisitedGridCell> cells,
+    required List<VisitedGridCellBounds> cellBounds,
     required int day,
     required int hourMask,
     required int epochSeconds,
@@ -204,6 +282,72 @@ WHERE res = ? AND cell_id = ?
           );
         }
       }
+
+      for (final bounds in cellBounds) {
+        await customStatement(
+          '''
+INSERT OR IGNORE INTO visited_cell_bounds (
+  res,
+  cell_id,
+  segment,
+  min_lat_e5,
+  max_lat_e5,
+  min_lon_e5,
+  max_lon_e5
+) VALUES (?, ?, ?, ?, ?, ?, ?)
+''',
+          [
+            bounds.resolution,
+            bounds.cellId,
+            bounds.segment,
+            bounds.minLatE5,
+            bounds.maxLatE5,
+            bounds.minLonE5,
+            bounds.maxLonE5,
+          ],
+        );
+      }
+    });
+  }
+
+  Future<int> countBoundsForResolution(int resolution) async {
+    final row = await customSelect(
+      'SELECT COUNT(*) AS total FROM visited_cell_bounds WHERE res = ?',
+      variables: [Variable.withInt(resolution)],
+    ).getSingle();
+    return row.read<int>('total');
+  }
+
+  Future<List<String>> fetchLifetimeCellIds(int resolution) async {
+    final rows = await customSelect(
+      'SELECT cell_id FROM visits_lifetime WHERE res = ?',
+      variables: [Variable.withInt(resolution)],
+    ).get();
+    return [for (final row in rows) row.read<String>('cell_id')];
+  }
+
+  Future<void> insertCellBounds(List<VisitedGridCellBounds> bounds) async {
+    if (bounds.isEmpty) {
+      return;
+    }
+    final companions = [
+      for (final segment in bounds)
+        VisitedCellBoundsCompanion(
+          res: Value(segment.resolution),
+          cellId: Value(segment.cellId),
+          segment: Value(segment.segment),
+          minLatE5: Value(segment.minLatE5),
+          maxLatE5: Value(segment.maxLatE5),
+          minLonE5: Value(segment.minLonE5),
+          maxLonE5: Value(segment.maxLonE5),
+        ),
+    ];
+    await batch((batch) {
+      batch.insertAll(
+        visitedCellBounds,
+        companions,
+        mode: InsertMode.insertOrIgnore,
+      );
     });
   }
 
@@ -265,6 +409,42 @@ WHERE res = ?
     return result;
   }
 
+  Future<Set<String>> fetchVisitedDailyInBounds({
+    required int resolution,
+    required int startDay,
+    required int endDay,
+    required int southLatE5,
+    required int northLatE5,
+    required int westLonE5,
+    required int eastLonE5,
+  }) async {
+    final query = '''
+SELECT DISTINCT b.cell_id
+FROM visited_cell_bounds b
+JOIN visits_daily d
+  ON d.res = b.res AND d.cell_id = b.cell_id
+WHERE b.res = ?
+  AND d.day_yyyy_mmdd BETWEEN ? AND ?
+  AND b.max_lat_e5 >= ?
+  AND b.min_lat_e5 <= ?
+  AND b.max_lon_e5 >= ?
+  AND b.min_lon_e5 <= ?
+''';
+    final variables = <Variable>[
+      Variable.withInt(resolution),
+      Variable.withInt(startDay),
+      Variable.withInt(endDay),
+      Variable.withInt(southLatE5),
+      Variable.withInt(northLatE5),
+      Variable.withInt(westLonE5),
+      Variable.withInt(eastLonE5),
+    ];
+    final rows = await customSelect(query, variables: variables).get();
+    return {
+      for (final row in rows) row.read<String>('cell_id'),
+    };
+  }
+
   Future<Set<String>> fetchVisitedLifetimeCells({
     required int resolution,
     required List<String> cellIds,
@@ -293,6 +473,37 @@ WHERE res = ?
     }
 
     return result;
+  }
+
+  Future<Set<String>> fetchVisitedLifetimeInBounds({
+    required int resolution,
+    required int southLatE5,
+    required int northLatE5,
+    required int westLonE5,
+    required int eastLonE5,
+  }) async {
+    final query = '''
+SELECT DISTINCT b.cell_id
+FROM visited_cell_bounds b
+JOIN visits_lifetime v
+  ON v.res = b.res AND v.cell_id = b.cell_id
+WHERE b.res = ?
+  AND b.max_lat_e5 >= ?
+  AND b.min_lat_e5 <= ?
+  AND b.max_lon_e5 >= ?
+  AND b.min_lon_e5 <= ?
+''';
+    final variables = <Variable>[
+      Variable.withInt(resolution),
+      Variable.withInt(southLatE5),
+      Variable.withInt(northLatE5),
+      Variable.withInt(westLonE5),
+      Variable.withInt(eastLonE5),
+    ];
+    final rows = await customSelect(query, variables: variables).get();
+    return {
+      for (final row in rows) row.read<String>('cell_id'),
+    };
   }
 
   Iterable<List<T>> _chunk<T>(List<T> input, int size) sync* {

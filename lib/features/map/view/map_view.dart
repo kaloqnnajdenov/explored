@@ -9,6 +9,7 @@ import 'package:latlong2/latlong.dart';
 
 import '../../../translations/locale_keys.g.dart';
 import '../../visited_grid/data/models/visited_grid_bounds.dart';
+import '../../visited_grid/data/models/visited_overlay_polygon.dart';
 import '../view_model/map_view_model.dart';
 import 'widgets/attribution_banner.dart';
 import 'widgets/location_tracking_panel.dart';
@@ -93,9 +94,10 @@ class _MapViewState extends State<MapView> {
                     userAgentPackageName: state.tileSource.userAgentPackageName,
                     tileProvider: state.tileSource.tileProvider,
                   ),
-                  if (state.visitedCellPolygons.isNotEmpty)
+                  if (state.visitedOverlayPolygons.isNotEmpty)
                     PolygonLayer(
                       polygons: _buildVisitedPolygons(context, state),
+                      polygonCulling: false,
                     ),
                   if (lastLocation != null)
                     MarkerLayer(
@@ -248,10 +250,11 @@ class _MapViewState extends State<MapView> {
   ) {
     final fill = Theme.of(context).colorScheme.primary.withValues(alpha: 0.25);
     final border = Theme.of(context).colorScheme.primary.withValues(alpha: 0.55);
-    return state.visitedCellPolygons
+    return state.visitedOverlayPolygons
         .map(
-          (points) => Polygon(
-            points: points,
+          (polygon) => Polygon(
+            points: polygon.outer,
+            holePointsList: polygon.holes.isEmpty ? null : polygon.holes,
             color: fill,
             borderColor: border,
             borderStrokeWidth: 0.7,

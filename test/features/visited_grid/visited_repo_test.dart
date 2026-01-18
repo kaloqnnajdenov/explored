@@ -1,20 +1,45 @@
 import 'package:flutter_test/flutter_test.dart';
 
+import 'package:explored/features/visited_grid/data/models/visited_grid_bounds.dart';
 import 'package:explored/features/visited_grid/data/repositories/visited_repo.dart';
+import 'package:explored/features/visited_grid/data/services/visited_grid_database.dart';
+
+import 'visited_grid_test_utils.dart';
 
 void main() {
-  test('chunkBySize splits input into fixed-size chunks', () {
-    final input = List.generate(10, (index) => index);
-    final chunks = chunkBySize(input, 3).toList();
+  test('DriftVisitedRepo splits antimeridian bounds and unions results', () async {
+    final db = buildTestDb();
+    final repo = DriftVisitedRepo(visitedGridDao: db.visitedGridDao);
 
-    expect(chunks, hasLength(4));
-    expect(chunks[0], [0, 1, 2]);
-    expect(chunks[1], [3, 4, 5]);
-    expect(chunks[2], [6, 7, 8]);
-    expect(chunks[3], [9]);
-  });
+    await db.customStatement(
+      '''
+INSERT INTO visits_lifetime (
+  res, cell_id, first_ts, last_ts, samples, days_visited, lat_e5, lon_e5
+) VALUES (?, ?, ?, ?, ?, ?, ?, ?)
+''',
+      [12, 'cell_dateline', 1, 1, 1, 1, 0, 0],
+    );
+    await db.customStatement(
+      '''
+INSERT INTO visited_cell_bounds (
+  res, cell_id, segment, min_lat_e5, max_lat_e5, min_lon_e5, max_lon_e5
+) VALUES (?, ?, ?, ?, ?, ?, ?)
+''',
+      [12, 'cell_dateline', 0, -100000, 100000, 17900000, 18000000],
+    );
 
-  test('chunkBySize throws when size is not positive', () {
-    expect(() => chunkBySize([1], 0).toList(), throwsArgumentError);
+    final visited = await repo.fetchLifetimeVisitedInBounds(
+      resolution: 12,
+      bounds: const VisitedGridBounds(
+        north: 1,
+        south: -1,
+        east: -170,
+        west: 170,
+      ),
+    );
+
+    expect(visited, {'cell_dateline'});
+
+    await db.close();
   });
 }

@@ -274,7 +274,7 @@ class MapViewModel extends ChangeNotifier {
 
   void _handleOverlayUpdate(VisitedOverlayUpdate update) {
     _state = _state.copyWith(
-      visitedCellPolygons: update.polygons,
+      visitedOverlayPolygons: update.polygons,
       overlayResolution: update.resolution,
       clearOverlayError: true,
     );

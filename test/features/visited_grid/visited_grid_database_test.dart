@@ -1,6 +1,7 @@
 import 'package:flutter_test/flutter_test.dart';
 
 import 'package:explored/features/visited_grid/data/models/visited_grid_cell.dart';
+import 'package:explored/features/visited_grid/data/models/visited_grid_cell_bounds.dart';
 import 'package:explored/features/visited_grid/data/services/visited_grid_database.dart';
 
 import 'visited_grid_test_utils.dart';
@@ -29,6 +30,20 @@ Future<Set<String>> _tableColumns(
   return rows.map((row) => row.read<String>('name')).toSet();
 }
 
+List<VisitedGridCellBounds> _boundsFor(VisitedGridCell cell) {
+  return [
+    VisitedGridCellBounds(
+      resolution: cell.resolution,
+      cellId: cell.cellId,
+      segment: 0,
+      minLatE5: 0,
+      maxLatE5: 0,
+      minLonE5: 0,
+      maxLonE5: 0,
+    ),
+  ];
+}
+
 void main() {
   group('VisitedGridDao upserts', () {
     late VisitedGridDatabase db;
@@ -50,6 +65,7 @@ void main() {
 
       await dao.upsertVisit(
         cells: [cell],
+        cellBounds: _boundsFor(cell),
         day: day,
         hourMask: 1 << 3,
         epochSeconds: 100,
@@ -58,6 +74,7 @@ void main() {
       );
       await dao.upsertVisit(
         cells: [cell],
+        cellBounds: _boundsFor(cell),
         day: day,
         hourMask: 1 << 5,
         epochSeconds: 200,
@@ -102,6 +119,7 @@ void main() {
 
       await dao.upsertVisit(
         cells: [cell],
+        cellBounds: _boundsFor(cell),
         day: 20240101,
         hourMask: 1 << 1,
         epochSeconds: 100,
@@ -110,6 +128,7 @@ void main() {
       );
       await dao.upsertVisit(
         cells: [cell],
+        cellBounds: _boundsFor(cell),
         day: 20240101,
         hourMask: 1 << 2,
         epochSeconds: 200,
@@ -118,6 +137,7 @@ void main() {
       );
       await dao.upsertVisit(
         cells: [cell],
+        cellBounds: _boundsFor(cell),
         day: 20240102,
         hourMask: 1 << 3,
         epochSeconds: 300,
@@ -213,6 +233,69 @@ INSERT INTO visits_lifetime (
       expect(visited.contains('cell_0'), isTrue);
       expect(visited.contains('cell_900'), isTrue);
     });
+
+    test('Fetches lifetime cells within bounds', () async {
+      const res = 12;
+      await db.customStatement(
+        '''
+INSERT INTO visits_lifetime (
+  res, cell_id, first_ts, last_ts, samples, days_visited, lat_e5, lon_e5
+) VALUES (?, ?, ?, ?, ?, ?, ?, ?)
+''',
+        [res, 'cell_a', 1, 1, 1, 1, 0, 0],
+      );
+      await db.customStatement(
+        '''
+INSERT INTO visited_cell_bounds (
+  res, cell_id, segment, min_lat_e5, max_lat_e5, min_lon_e5, max_lon_e5
+) VALUES (?, ?, ?, ?, ?, ?, ?)
+''',
+        [res, 'cell_a', 0, 0, 100000, 0, 100000],
+      );
+
+      final visited = await dao.fetchVisitedLifetimeInBounds(
+        resolution: res,
+        southLatE5: -50000,
+        northLatE5: 150000,
+        westLonE5: -50000,
+        eastLonE5: 150000,
+      );
+
+      expect(visited, {'cell_a'});
+    });
+
+    test('Fetches daily cells within bounds and date range', () async {
+      const res = 12;
+      const day = 20240101;
+      await db.customStatement(
+        '''
+INSERT INTO visits_daily (
+  res, cell_id, day_yyyy_mmdd, hour_mask, first_ts, last_ts, samples, lat_e5, lon_e5
+) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
+''',
+        [res, 'cell_b', day, 1, 1, 1, 1, 0, 0],
+      );
+      await db.customStatement(
+        '''
+INSERT INTO visited_cell_bounds (
+  res, cell_id, segment, min_lat_e5, max_lat_e5, min_lon_e5, max_lon_e5
+) VALUES (?, ?, ?, ?, ?, ?, ?)
+''',
+        [res, 'cell_b', 0, 0, 100000, 0, 100000],
+      );
+
+      final visited = await dao.fetchVisitedDailyInBounds(
+        resolution: res,
+        startDay: day,
+        endDay: day,
+        southLatE5: -50000,
+        northLatE5: 150000,
+        westLonE5: -50000,
+        eastLonE5: 150000,
+      );
+
+      expect(visited, {'cell_b'});
+    });
   });
 
   group('VisitedGridDao transactions', () {
@@ -233,6 +316,7 @@ INSERT INTO visits_lifetime (
       expect(
         () => dao.upsertVisit(
           cells: [cell],
+          cellBounds: _boundsFor(cell),
           day: 20240101,
           hourMask: 1,
           epochSeconds: 100,
@@ -245,9 +329,11 @@ INSERT INTO visits_lifetime (
       final dailyRows = await db.select(db.visitsDaily).get();
       final lifetimeRows = await db.select(db.visitsLifetime).get();
       final dayRows = await db.select(db.visitsLifetimeDays).get();
+      final boundsRows = await db.select(db.visitedCellBounds).get();
       expect(dailyRows, isEmpty);
       expect(lifetimeRows, isEmpty);
       expect(dayRows, isEmpty);
+      expect(boundsRows, isEmpty);
     });
   });
 
@@ -271,6 +357,7 @@ INSERT INTO visits_lifetime (
         'visits_daily',
         'visits_lifetime',
         'visits_lifetime_days',
+        'visited_cell_bounds',
         'visited_grid_meta',
       };
       final filtered = names.where((name) {
@@ -319,6 +406,20 @@ INSERT INTO visits_lifetime (
           'res',
           'cell_id',
           'day_yyyy_mmdd',
+        },
+      );
+
+      final boundsColumns = await _tableColumns(db, 'visited_cell_bounds');
+      expect(
+        boundsColumns,
+        {
+          'res',
+          'cell_id',
+          'segment',
+          'min_lat_e5',
+          'max_lat_e5',
+          'min_lon_e5',
+          'max_lon_e5',
         },
       );
 

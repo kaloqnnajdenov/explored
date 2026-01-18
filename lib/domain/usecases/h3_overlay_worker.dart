@@ -4,9 +4,12 @@ import 'dart:ui';
 
 import 'package:drift_flutter/drift_flutter.dart';
 import 'package:flutter/services.dart';
+import 'package:h3_flutter/h3_flutter.dart';
 
 import 'package:explored/features/visited_grid/data/models/visited_grid_bounds.dart';
+import 'package:explored/features/visited_grid/data/models/visited_grid_cell_bounds.dart';
 import 'package:explored/features/visited_grid/data/models/visited_overlay_mode.dart';
+import 'package:explored/features/visited_grid/data/models/visited_overlay_render_mode.dart';
 import 'package:explored/features/visited_grid/data/repositories/visited_repo.dart';
 import 'package:explored/features/visited_grid/data/services/visited_grid_database.dart';
 import 'package:explored/features/visited_grid/data/services/visited_grid_h3_service.dart';
@@ -160,36 +163,32 @@ class H3OverlayWorker implements VisitedOverlayWorker {
 
 class H3OverlayWorkerConfig {
   const H3OverlayWorkerConfig({
-    this.maxCandidate = 2500,
     this.minResolution = 6,
     this.baseResolution = 12,
-    this.maxQueryChunkSize = 800,
+    this.mergeThreshold = 2000,
     this.paddingFactor = 1.25,
     this.databaseName = 'visited_grid',
   });
 
-  final int maxCandidate;
   final int minResolution;
   final int baseResolution;
-  final int maxQueryChunkSize;
+  final int mergeThreshold;
   final double paddingFactor;
   final String databaseName;
 
   Map<String, Object?> toMap() => {
-        'maxCandidate': maxCandidate,
         'minResolution': minResolution,
         'baseResolution': baseResolution,
-        'maxQueryChunkSize': maxQueryChunkSize,
+        'mergeThreshold': mergeThreshold,
         'paddingFactor': paddingFactor,
         'databaseName': databaseName,
       };
 
   static H3OverlayWorkerConfig fromMap(Map<String, Object?> map) {
     return H3OverlayWorkerConfig(
-      maxCandidate: map['maxCandidate'] as int,
       minResolution: map['minResolution'] as int,
       baseResolution: map['baseResolution'] as int,
-      maxQueryChunkSize: map['maxQueryChunkSize'] as int,
+      mergeThreshold: map['mergeThreshold'] as int,
       paddingFactor: (map['paddingFactor'] as num).toDouble(),
       databaseName: map['databaseName'] as String,
     );
@@ -201,13 +200,15 @@ class H3OverlayResult {
     required this.requestId,
     required this.resolution,
     required this.visitedCellIds,
-    required this.candidateCellIds,
+    required this.renderMode,
+    required this.mergedPolygons,
   });
 
   final int requestId;
   final int resolution;
   final Set<String> visitedCellIds;
-  final Set<String> candidateCellIds;
+  final VisitedOverlayRenderMode renderMode;
+  final List<List<List<List<double>>>> mergedPolygons;
 
   static H3OverlayResult fromMap(Map<dynamic, dynamic> map) {
     return H3OverlayResult(
@@ -216,9 +217,24 @@ class H3OverlayResult {
       visitedCellIds: Set<String>.from(
         (map['visitedIds'] as List).cast<String>(),
       ),
-      candidateCellIds: Set<String>.from(
-        (map['candidateIds'] as List).cast<String>(),
+      renderMode: VisitedOverlayRenderMode.fromWire(
+        map['renderMode'] as String,
       ),
+      mergedPolygons: (map['mergedPolygons'] as List)
+          .map(
+            (polygon) => (polygon as List)
+                .map(
+                  (ring) => (ring as List)
+                      .map(
+                        (coord) => (coord as List)
+                            .map((value) => (value as num).toDouble())
+                            .toList(growable: false),
+                      )
+                      .toList(growable: false),
+                )
+                .toList(growable: false),
+          )
+          .toList(growable: false),
     );
   }
 }
@@ -246,7 +262,6 @@ void _overlayWorkerMain(Map<String, Object?> message) {
   );
   final repo = DriftVisitedRepo(
     visitedGridDao: database.visitedGridDao,
-    maxChunkSize: config.maxQueryChunkSize,
   );
 
   requestPort.listen((dynamic rawMessage) async {
@@ -289,80 +304,83 @@ Future<Map<String, Object?>> _handleRequest(
     east: (boundsMap['east'] as num).toDouble(),
     west: (boundsMap['west'] as num).toDouble(),
   );
-  final zoom = (message['zoom'] as num).toDouble();
   final mode = OverlayMode.fromMap(
     (message['mode'] as Map).cast<String, Object?>(),
   );
 
   final paddedBounds = _padBounds(bounds, config.paddingFactor);
-  var resolution = H3OverlayWorker.desiredResForZoom(
-    zoom: zoom,
-    baseResolution: config.baseResolution,
-    minResolution: config.minResolution,
-  );
-
-  var candidates = h3Service.polygonToCells(
-    bounds: paddedBounds,
+  final resolution = config.baseResolution;
+  await _ensureBoundsForResolution(
     resolution: resolution,
+    repo: repo,
+    h3Service: h3Service,
   );
 
-  while (candidates.length > config.maxCandidate &&
-      resolution > config.minResolution) {
-    resolution -= 1;
-    candidates = h3Service.polygonToCells(
-      bounds: paddedBounds,
-      resolution: resolution,
-    );
-  }
-
-  if (candidates.length > config.maxCandidate) {
-    candidates = candidates.sublist(0, config.maxCandidate);
-  }
-
-  final candidateIds =
-      candidates.map(h3Service.encodeCellId).toList(growable: false);
   Set<String> visitedIds;
-  if (candidateIds.isEmpty) {
-    visitedIds = <String>{};
-  } else if (mode is OverlayModeAllTime) {
-    visitedIds = await repo.fetchLifetimeVisited(
+  if (mode is OverlayModeAllTime) {
+    visitedIds = await repo.fetchLifetimeVisitedInBounds(
       resolution: resolution,
-      candidateIds: candidateIds,
+      bounds: paddedBounds,
     );
   } else if (mode is OverlayModeDateRange) {
-    visitedIds = await repo.fetchDailyVisited(
+    visitedIds = await repo.fetchDailyVisitedInBounds(
       resolution: resolution,
       fromDay: mode.fromDay,
       toDay: mode.toDay,
-      candidateIds: candidateIds,
+      bounds: paddedBounds,
     );
   } else {
     visitedIds = <String>{};
+  }
+
+  final renderMode = visitedIds.length > config.mergeThreshold
+      ? VisitedOverlayRenderMode.merged
+      : VisitedOverlayRenderMode.perCell;
+
+  List<List<List<List<double>>>> mergedPolygons = const [];
+  if (renderMode == VisitedOverlayRenderMode.merged &&
+      visitedIds.isNotEmpty) {
+    final cells = visitedIds
+        .map(h3Service.decodeCellId)
+        .toList(growable: false);
+    final multi = h3Service.cellsToMultiPolygon(cells);
+    mergedPolygons = _serializeMultiPolygon(multi);
   }
 
   return {
     'requestId': message['requestId'] as int,
     'resolution': resolution,
     'visitedIds': visitedIds.toList(growable: false),
-    'candidateIds': candidateIds,
+    'renderMode': renderMode.toWire(),
+    'mergedPolygons': mergedPolygons,
   };
 }
 
 VisitedGridBounds _padBounds(VisitedGridBounds bounds, double factor) {
+  if (factor <= 1) {
+    return bounds;
+  }
+
   final latSpan = (bounds.north - bounds.south).abs();
-  final lonSpan = (bounds.east - bounds.west).abs();
   final paddedLatSpan = latSpan * factor;
-  final paddedLonSpan = lonSpan * factor;
   final centerLat = (bounds.north + bounds.south) / 2;
-  final centerLon = (bounds.east + bounds.west) / 2;
   final halfLat = paddedLatSpan / 2;
+
+  final west = bounds.west;
+  final east = bounds.east;
+  final lonSpan = east >= west
+      ? (east - west)
+      : (180 - west) + (east + 180);
+  final paddedLonSpan = lonSpan * factor;
   final halfLon = paddedLonSpan / 2;
+  var centerLon = west + lonSpan / 2;
+  centerLon = _wrapLon(centerLon);
 
   return VisitedGridBounds(
     north: _clamp(centerLat + halfLat, -90, 90),
     south: _clamp(centerLat - halfLat, -90, 90),
-    east: _clamp(centerLon + halfLon, -180, 180),
-    west: _clamp(centerLon - halfLon, -180, 180),
+    east: _wrapLon(centerLon + halfLon),
+    west: _wrapLon(centerLon - halfLon),
   );
 }
 
@@ -374,4 +392,114 @@ double _clamp(double value, double min, double max) {
     return max;
   }
   return value;
+}
+
+double _wrapLon(double lon) {
+  var wrapped = lon;
+  while (wrapped > 180) {
+    wrapped -= 360;
+  }
+  while (wrapped < -180) {
+    wrapped += 360;
+  }
+  return wrapped;
+}
+
+final Map<int, Future<void>> _boundsEnsureTasks = <int, Future<void>>{};
+
+Future<void> _ensureBoundsForResolution({
+  required int resolution,
+  required VisitedRepo repo,
+  required VisitedGridH3Service h3Service,
+}) {
+  final existing = _boundsEnsureTasks[resolution];
+  if (existing != null) {
+    return existing;
+  }
+  final task = _ensureBoundsForResolutionInternal(
+    resolution: resolution,
+    repo: repo,
+    h3Service: h3Service,
+  );
+  _boundsEnsureTasks[resolution] = task;
+  task.catchError((_) {
+    _boundsEnsureTasks.remove(resolution);
+  });
+  return task;
+}
+
+Future<void> _ensureBoundsForResolutionInternal({
+  required int resolution,
+  required VisitedRepo repo,
+  required VisitedGridH3Service h3Service,
+}) async {
+  final count = await repo.countBoundsForResolution(resolution: resolution);
+  if (count > 0) {
+    return;
+  }
+
+  final cellIds = await repo.fetchLifetimeCellIds(resolution: resolution);
+  if (cellIds.isEmpty) {
+    return;
+  }
+
+  const batchSize = 500;
+  for (var i = 0; i < cellIds.length; i += batchSize) {
+    final end = i + batchSize > cellIds.length ? cellIds.length : i + batchSize;
+    final batch = cellIds.sublist(i, end);
+    final bounds = <VisitedGridCellBounds>[];
+    for (final cellId in batch) {
+      final cell = h3Service.decodeCellId(cellId);
+      bounds.addAll(h3Service.cellBounds(cell));
+    }
+    await repo.upsertCellBounds(bounds: bounds);
+  }
+}
+
+List<List<List<List<double>>>> _serializeMultiPolygon(
+  List<List<List<GeoCoord>>> polygons,
+) {
+  return polygons
+      .map(
+        (polygon) => polygon
+            .map(_serializeRing)
+            .where((ring) => ring.isNotEmpty)
+            .toList(growable: false),
+      )
+      .where((polygon) => polygon.isNotEmpty)
+      .toList(growable: false);
+}
+
+List<List<double>> _serializeRing(List<GeoCoord> ring) {
+  if (ring.isEmpty) {
+    return const [];
+  }
+  final points = [
+    for (final coord in ring) [coord.lat, coord.lon],
+  ];
+  return _unwrapRingCoordinates(points);
+}
+
+List<List<double>> _unwrapRingCoordinates(List<List<double>> ring) {
+  if (ring.isEmpty) {
+    return ring;
+  }
+  final unwrapped = <List<double>>[];
+  var prevLon = ring.first[1];
+  var offset = 0.0;
+  unwrapped.add([ring.first[0], prevLon]);
+  for (var i = 1; i < ring.length; i++) {
+    var lon = ring[i][1] + offset;
+    final delta = lon - prevLon;
+    if (delta > 180) {
+      offset -= 360;
+      lon -= 360;
+    } else if (delta < -180) {
+      offset += 360;
+      lon += 360;
+    }
+    unwrapped.add([ring[i][0], lon]);
+    prevLon = lon;
+  }
+  return unwrapped;
 }

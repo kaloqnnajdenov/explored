@@ -4,6 +4,7 @@ import 'map_config.dart';
 import 'map_tile_source.dart';
 import '../../../location/data/models/location_tracking_state.dart';
 import '../../../visited_grid/data/models/visited_time_filter.dart';
+import '../../../visited_grid/data/models/visited_overlay_polygon.dart';
 
 /// Immutable UI state snapshot for the map screen.
 class MapViewState {
@@ -15,7 +16,7 @@ class MapViewState {
     required this.isLoading,
     required this.isLocationPanelVisible,
     required this.recenterZoom,
-    required this.visitedCellPolygons,
+    required this.visitedOverlayPolygons,
     required this.isOverlayLoading,
     required this.visitedTimeFilter,
     required this.overlayResolution,
@@ -33,7 +34,7 @@ class MapViewState {
       isLoading: true,
       isLocationPanelVisible: true,
       recenterZoom: config.recenterZoom,
-      visitedCellPolygons: const [],
+      visitedOverlayPolygons: const [],
       isOverlayLoading: false,
       visitedTimeFilter: VisitedTimeFilter.allTime,
       overlayResolution: null,
@@ -48,7 +49,7 @@ class MapViewState {
   final bool isLocationPanelVisible;
   final double recenterZoom;
   final Object? error;
-  final List<List<LatLng>> visitedCellPolygons;
+  final List<VisitedOverlayPolygon> visitedOverlayPolygons;
   final bool isOverlayLoading;
   final VisitedTimeFilter visitedTimeFilter;
   final int? overlayResolution;
@@ -65,7 +66,7 @@ class MapViewState {
     double? recenterZoom,
     Object? error,
     bool clearError = false,
-    List<List<LatLng>>? visitedCellPolygons,
+    List<VisitedOverlayPolygon>? visitedOverlayPolygons,
     bool? isOverlayLoading,
     VisitedTimeFilter? visitedTimeFilter,
     int? overlayResolution,
@@ -82,8 +83,8 @@ class MapViewState {
           isLocationPanelVisible ?? this.isLocationPanelVisible,
       recenterZoom: recenterZoom ?? this.recenterZoom,
       error: clearError ? null : (error ?? this.error),
-      visitedCellPolygons:
-          visitedCellPolygons ?? this.visitedCellPolygons,
+      visitedOverlayPolygons:
+          visitedOverlayPolygons ?? this.visitedOverlayPolygons,
       isOverlayLoading: isOverlayLoading ?? this.isOverlayLoading,
       visitedTimeFilter: visitedTimeFilter ?? this.visitedTimeFilter,
       overlayResolution: overlayResolution ?? this.overlayResolution,

@@ -369,37 +369,27 @@ INSERT INTO visits_daily (
   });
 
   group('VisitedGridRepository read path', () {
-    test('Reduces resolution when candidate count is too large', () async {
-      final harness = await _buildHarness(
-        config: const VisitedGridConfig(
-          maxCandidateCells: 2,
-          minRenderResolution: 10,
-        ),
-      );
-      final cell12 = harness.h3.fakeCell(
+    test('Uses base resolution for overlay regardless of zoom', () async {
+      final harness = await _buildHarness();
+      final cell = harness.h3.fakeCell(
         latitude: 1,
         longitude: 1,
         resolution: 12,
       );
-      final cell11 = harness.h3.fakeCell(
-        latitude: 1,
-        longitude: 1,
-        resolution: 11,
-      );
-      harness.h3.polygonCellsByResolution[12] = [
-        cell12,
-        harness.h3.fakeCell(latitude: 2, longitude: 2, resolution: 12),
-        harness.h3.fakeCell(latitude: 3, longitude: 3, resolution: 12),
-      ];
-      harness.h3.polygonCellsByResolution[11] = [cell11];
+      harness.h3.setBoundary(cell, const [
+        LatLng(1, 1),
+        LatLng(1, 2),
+        LatLng(2, 2),
+      ]);
 
       await harness.dao.upsertVisit(
         cells: [
           VisitedGridCell(
-            resolution: 11,
-            cellId: harness.h3.encodeCellId(cell11),
+            resolution: 12,
+            cellId: harness.h3.encodeCellId(cell),
           ),
         ],
+        cellBounds: harness.h3.cellBounds(cell),
         day: 20240101,
         hourMask: 1,
         epochSeconds: 100,
@@ -409,17 +399,16 @@ INSERT INTO visits_daily (
 
       final overlay = await harness.repository.loadOverlay(
         bounds: const VisitedGridBounds(
-          north: 1,
+          north: 2,
           south: 0,
-          east: 1,
+          east: 2,
           west: 0,
         ),
-        zoom: 16,
+        zoom: 8,
         timeFilter: VisitedTimeFilter.allTime,
       );
 
-      expect(overlay.resolution, 11);
-      expect(harness.h3.polygonResolutions, [12, 11]);
+      expect(overlay.resolution, 12);
       expect(overlay.polygons, hasLength(1));
 
       await _tearDownHarness(harness);
@@ -433,7 +422,26 @@ INSERT INTO visits_daily (
         longitude: 1,
         resolution: 12,
       );
-      harness.h3.polygonCellsByResolution[12] = [cell];
+      final bounds = harness.h3.cellBounds(cell);
+
+      for (final segment in bounds) {
+        await harness.db.customStatement(
+          '''
+INSERT INTO visited_cell_bounds (
+  res, cell_id, segment, min_lat_e5, max_lat_e5, min_lon_e5, max_lon_e5
+) VALUES (?, ?, ?, ?, ?, ?, ?)
+''',
+          [
+            segment.resolution,
+            segment.cellId,
+            segment.segment,
+            segment.minLatE5,
+            segment.maxLatE5,
+            segment.minLonE5,
+            segment.maxLonE5,
+          ],
+        );
+      }
 
       await harness.db.customStatement(
         '''
@@ -489,7 +497,26 @@ INSERT INTO visits_daily (
         longitude: 1,
         resolution: 12,
       );
-      harness.h3.polygonCellsByResolution[12] = [cell];
+      final bounds = harness.h3.cellBounds(cell);
+
+      for (final segment in bounds) {
+        await harness.db.customStatement(
+          '''
+INSERT INTO visited_cell_bounds (
+  res, cell_id, segment, min_lat_e5, max_lat_e5, min_lon_e5, max_lon_e5
+) VALUES (?, ?, ?, ?, ?, ?, ?)
+''',
+          [
+            segment.resolution,
+            segment.cellId,
+            segment.segment,
+            segment.minLatE5,
+            segment.maxLatE5,
+            segment.minLonE5,
+            segment.maxLonE5,
+          ],
+        );
+      }
 
       await harness.db.customStatement(
         '''
@@ -558,6 +585,7 @@ INSERT INTO visits_lifetime (
             cellId: harness.h3.encodeCellId(cell),
           ),
         ],
+        cellBounds: harness.h3.cellBounds(cell),
         day: 20240101,
         hourMask: 1,
         epochSeconds: 100,
@@ -576,8 +604,9 @@ INSERT INTO visits_lifetime (
         timeFilter: VisitedTimeFilter.allTime,
       );
 
-      expect(overlay.polygons, [boundary]);
-      expect(harness.h3.cellBoundaryCalls, 1);
+      expect(overlay.polygons, hasLength(1));
+      expect(overlay.polygons.first.outer, boundary);
+      expect(harness.h3.cellBoundaryCalls, 2);
 
       await _tearDownHarness(harness);
     });

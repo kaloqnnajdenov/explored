@@ -56,7 +56,7 @@ Future<void> main() async {
     config: H3OverlayWorkerConfig(
       baseResolution: visitedGridConfig.baseResolution,
       minResolution: visitedGridConfig.minRenderResolution,
-      maxCandidate: visitedGridConfig.maxCandidateCells,
+      mergeThreshold: visitedGridConfig.maxCandidateCells,
     ),
   );
   final boundaryResolver = (String cellId) {

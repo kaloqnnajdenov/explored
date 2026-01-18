@@ -10,6 +10,7 @@ import 'package:explored/features/location/data/models/location_permission_level
 import 'package:explored/features/location/data/repositories/location_updates_repository.dart';
 import 'package:explored/features/visited_grid/data/models/visited_grid_bounds.dart';
 import 'package:explored/features/visited_grid/data/models/visited_grid_cell.dart';
+import 'package:explored/features/visited_grid/data/models/visited_grid_cell_bounds.dart';
 import 'package:explored/features/visited_grid/data/services/visited_grid_database.dart';
 import 'package:explored/features/visited_grid/data/services/visited_grid_h3_service.dart';
 
@@ -31,6 +32,7 @@ class TestVisitedGridDao extends VisitedGridDao {
   @override
   Future<void> upsertVisit({
     required List<VisitedGridCell> cells,
+    required List<VisitedGridCellBounds> cellBounds,
     required int day,
     required int hourMask,
     required int epochSeconds,
@@ -44,6 +46,7 @@ class TestVisitedGridDao extends VisitedGridDao {
     }
     return super.upsertVisit(
       cells: cells,
+      cellBounds: cellBounds,
       day: day,
       hourMask: hourMask,
       epochSeconds: epochSeconds,
@@ -76,6 +79,9 @@ class FakeVisitedGridH3Service implements VisitedGridH3Service {
   int cellForLatLngCalls = 0;
   int parentCellCalls = 0;
   int cellBoundaryCalls = 0;
+  int cellsToMultiPolygonCalls = 0;
+  int compactCellsCalls = 0;
+  int cellBoundsCalls = 0;
 
   @override
   H3Index cellForLatLng({
@@ -111,6 +117,13 @@ class FakeVisitedGridH3Service implements VisitedGridH3Service {
   }
 
   @override
+  GeoCoord cellToGeo(H3Index cell) {
+    final data = _cells[cell] ??
+        _CellData(latitude: 0, longitude: 0, resolution: 0);
+    return GeoCoord(lat: data.latitude, lon: data.longitude);
+  }
+
+  @override
   List<H3Index> polygonToCells({
     required VisitedGridBounds bounds,
     required int resolution,
@@ -118,6 +131,26 @@ class FakeVisitedGridH3Service implements VisitedGridH3Service {
     polygonCalls += 1;
     polygonResolutions.add(resolution);
     return polygonCellsByResolution[resolution] ?? const <H3Index>[];
+  }
+
+  @override
+  List<List<List<GeoCoord>>> cellsToMultiPolygon(List<H3Index> cells) {
+    cellsToMultiPolygonCalls += 1;
+    return [
+      for (final cell in cells)
+        [
+          [
+            for (final point in cellBoundary(cell))
+              GeoCoord(lat: point.latitude, lon: point.longitude),
+          ],
+        ],
+    ];
+  }
+
+  @override
+  List<H3Index> compactCells(List<H3Index> cells) {
+    compactCellsCalls += 1;
+    return cells;
   }
 
   @override
@@ -144,6 +177,46 @@ class FakeVisitedGridH3Service implements VisitedGridH3Service {
 
   @override
   H3Index decodeCellId(String cellId) => BigInt.parse(cellId);
+
+  @override
+  List<VisitedGridCellBounds> cellBounds(H3Index cell) {
+    cellBoundsCalls += 1;
+    final boundary = cellBoundary(cell);
+    if (boundary.isEmpty) {
+      return const [];
+    }
+    var minLat = boundary.first.latitude;
+    var maxLat = boundary.first.latitude;
+    var minLon = boundary.first.longitude;
+    var maxLon = boundary.first.longitude;
+    for (final point in boundary.skip(1)) {
+      if (point.latitude < minLat) {
+        minLat = point.latitude;
+      }
+      if (point.latitude > maxLat) {
+        maxLat = point.latitude;
+      }
+      if (point.longitude < minLon) {
+        minLon = point.longitude;
+      }
+      if (point.longitude > maxLon) {
+        maxLon = point.longitude;
+      }
+    }
+    final data = _cells[cell] ??
+        _CellData(latitude: 0, longitude: 0, resolution: 0);
+    return [
+      VisitedGridCellBounds(
+        resolution: data.resolution,
+        cellId: encodeCellId(cell),
+        segment: 0,
+        minLatE5: (minLat * 100000).floor(),
+        maxLatE5: (maxLat * 100000).ceil(),
+        minLonE5: (minLon * 100000).floor(),
+        maxLonE5: (maxLon * 100000).ceil(),
+      ),
+    ];
+  }
 
   H3Index fakeCell({
     required double latitude,

@@ -1,4 +1,4 @@
-import 'package:latlong2/latlong.dart';
+import 'visited_overlay_polygon.dart';
 
 class VisitedGridOverlay {
   const VisitedGridOverlay({
@@ -7,5 +7,5 @@ class VisitedGridOverlay {
   });
 
   final int resolution;
-  final List<List<LatLng>> polygons;
+  final List<VisitedOverlayPolygon> polygons;
 }

@@ -2,14 +2,14 @@ import 'dart:async';
 import 'dart:collection';
 
 import 'package:flutter/foundation.dart';
-import 'package:latlong2/latlong.dart';
-
 import '../../../location/data/models/lat_lng_sample.dart';
 import '../../../location/data/repositories/location_updates_repository.dart';
 import '../models/visited_grid_bounds.dart';
 import '../models/visited_grid_cell.dart';
+import '../models/visited_grid_cell_bounds.dart';
 import '../models/visited_grid_config.dart';
 import '../models/visited_grid_overlay.dart';
+import '../models/visited_overlay_polygon.dart';
 import '../models/visited_time_filter.dart';
 import '../services/visited_grid_database.dart';
 import '../services/visited_grid_h3_service.dart';
@@ -85,31 +85,10 @@ class DefaultVisitedGridRepository implements VisitedGridRepository {
     required double zoom,
     required VisitedTimeFilter timeFilter,
   }) async {
-    // Viewport-only polyfill with resolution degradation to cap candidate size.
-    var resolution = _config.resolutionForZoom(zoom);
-    var candidates = _h3Service.polygonToCells(
+    final resolution = _config.baseResolution;
+    final visitedIds = await _fetchVisitedCellsInBounds(
+      resolution: resolution,
       bounds: bounds,
-      resolution: resolution,
-    );
-
-    while (candidates.length > _config.maxCandidateCells &&
-        resolution > _config.minRenderResolution) {
-      resolution -= 1;
-      candidates = _h3Service.polygonToCells(
-        bounds: bounds,
-        resolution: resolution,
-      );
-    }
-
-    if (candidates.isEmpty) {
-      return VisitedGridOverlay(resolution: resolution, polygons: const []);
-    }
-
-    final candidateIds =
-        candidates.map(_h3Service.encodeCellId).toList(growable: false);
-    final visitedIds = await _fetchVisitedCells(
-      resolution: resolution,
-      candidateIds: candidateIds,
       timeFilter: timeFilter,
     );
 
@@ -117,10 +96,12 @@ class DefaultVisitedGridRepository implements VisitedGridRepository {
       return VisitedGridOverlay(resolution: resolution, polygons: const []);
     }
 
-    final polygons = <List<LatLng>>[];
+    final polygons = <VisitedOverlayPolygon>[];
     for (final cellId in visitedIds) {
       final cell = _h3Service.decodeCellId(cellId);
-      polygons.add(_h3Service.cellBoundary(cell));
+      polygons.add(
+        VisitedOverlayPolygon(outer: _h3Service.cellBoundary(cell)),
+      );
     }
 
     return VisitedGridOverlay(resolution: resolution, polygons: polygons);
@@ -188,6 +169,9 @@ class DefaultVisitedGridRepository implements VisitedGridRepository {
         cellId: baseCellId,
       ),
     ];
+    final bounds = <VisitedGridCellBounds>[
+      ..._h3Service.cellBounds(baseCell),
+    ];
     for (final resolution in _config.coarserResolutions) {
       if (resolution >= _config.baseResolution) {
         continue;
@@ -202,10 +186,12 @@ class DefaultVisitedGridRepository implements VisitedGridRepository {
           cellId: _h3Service.encodeCellId(parent),
         ),
       );
+      bounds.addAll(_h3Service.cellBounds(parent));
     }
 
     await _visitedGridDao.upsertVisit(
       cells: cells,
+      cellBounds: bounds,
       day: dayKey,
       hourMask: hourMask,
       epochSeconds: epochSeconds,
@@ -216,29 +202,47 @@ class DefaultVisitedGridRepository implements VisitedGridRepository {
     await _maybeCleanup(epochSeconds, timestamp);
   }
 
-  Future<Set<String>> _fetchVisitedCells({
+  Future<Set<String>> _fetchVisitedCellsInBounds({
     required int resolution,
-    required List<String> candidateIds,
+    required VisitedGridBounds bounds,
     required VisitedTimeFilter timeFilter,
   }) async {
-    if (candidateIds.isEmpty) {
-      return <String>{};
-    }
+    final southLatE5 = (bounds.south * 100000).floor();
+    final northLatE5 = (bounds.north * 100000).ceil();
+    final lonRanges = _lonRangesForBounds(bounds);
 
     if (timeFilter == VisitedTimeFilter.allTime) {
-      return _visitedGridDao.fetchVisitedLifetimeCells(
-        resolution: resolution,
-        cellIds: candidateIds,
-      );
+      final result = <String>{};
+      for (final range in lonRanges) {
+        result.addAll(
+          await _visitedGridDao.fetchVisitedLifetimeInBounds(
+            resolution: resolution,
+            southLatE5: southLatE5,
+            northLatE5: northLatE5,
+            westLonE5: range.westE5,
+            eastLonE5: range.eastE5,
+          ),
+        );
+      }
+      return result;
     }
 
     final range = _dayRange(timeFilter);
-    return _visitedGridDao.fetchVisitedDailyCells(
-      resolution: resolution,
-      cellIds: candidateIds,
-      startDay: range.startDay,
-      endDay: range.endDay,
-    );
+    final result = <String>{};
+    for (final lonRange in lonRanges) {
+      result.addAll(
+        await _visitedGridDao.fetchVisitedDailyInBounds(
+          resolution: resolution,
+          startDay: range.startDay,
+          endDay: range.endDay,
+          southLatE5: southLatE5,
+          northLatE5: northLatE5,
+          westLonE5: lonRange.westE5,
+          eastLonE5: lonRange.eastE5,
+        ),
+      );
+    }
+    return result;
   }
 
   _DayRange _dayRange(VisitedTimeFilter filter) {
@@ -285,4 +289,32 @@ class _DayRange {
 
   final int startDay;
   final int endDay;
+}
+
+class _LonRangeE5 {
+  const _LonRangeE5({required this.westE5, required this.eastE5});
+
+  final int westE5;
+  final int eastE5;
+}
+
+List<_LonRangeE5> _lonRangesForBounds(VisitedGridBounds bounds) {
+  if (bounds.east >= bounds.west) {
+    return [
+      _LonRangeE5(
+        westE5: (bounds.west * 100000).floor(),
+        eastE5: (bounds.east * 100000).ceil(),
+      ),
+    ];
+  }
+  return [
+    _LonRangeE5(
+      westE5: (bounds.west * 100000).floor(),
+      eastE5: 18000000,
+    ),
+    _LonRangeE5(
+      westE5: -18000000,
+      eastE5: (bounds.east * 100000).ceil(),
+    ),
+  ];
 }

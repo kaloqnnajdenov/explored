@@ -21,7 +21,7 @@ class VisitedGridConfig {
   /// Minimum seconds between cleanup runs.
   final int cleanupIntervalSeconds;
 
-  /// Maximum number of cells allowed for a viewport polyfill.
+  /// Cell count threshold to switch from per-cell to merged overlay rendering.
   final int maxCandidateCells;
 
   /// Lowest resolution allowed when degrading for large viewports.

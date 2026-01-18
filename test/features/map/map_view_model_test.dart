@@ -17,6 +17,8 @@ import 'package:explored/features/map/view_model/map_view_model.dart';
 import 'package:explored/features/visited_grid/data/models/visited_grid_bounds.dart';
 import 'package:explored/features/visited_grid/data/models/visited_grid_overlay.dart';
 import 'package:explored/features/visited_grid/data/models/visited_overlay_mode.dart';
+import 'package:explored/features/visited_grid/data/models/visited_overlay_polygon.dart';
+import 'package:explored/features/visited_grid/data/models/visited_overlay_render_mode.dart';
 import 'package:explored/features/visited_grid/data/models/visited_time_filter.dart';
 import 'package:explored/features/visited_grid/data/repositories/visited_grid_repository.dart';
 
@@ -156,7 +158,10 @@ class FakeVisitedGridRepository implements VisitedGridRepository {
     required double zoom,
     required VisitedTimeFilter timeFilter,
   }) async {
-    return const VisitedGridOverlay(resolution: 0, polygons: []);
+    return const VisitedGridOverlay(
+      resolution: 0,
+      polygons: <VisitedOverlayPolygon>[],
+    );
   }
 }
 
@@ -172,7 +177,8 @@ class FakeVisitedOverlayWorker implements VisitedOverlayWorker {
       requestId: requestId,
       resolution: 0,
       visitedCellIds: <String>{},
-      candidateCellIds: <String>{},
+      renderMode: VisitedOverlayRenderMode.perCell,
+      mergedPolygons: const [],
     );
   }
 

@@ -1342,6 +1342,465 @@ class VisitsLifetimeDaysCompanion extends UpdateCompanion<VisitsLifetimeDay> {
   }
 }
 
+class $VisitedCellBoundsTable extends VisitedCellBounds
+    with TableInfo<$VisitedCellBoundsTable, VisitedCellBound> {
+  @override
+  final GeneratedDatabase attachedDatabase;
+  final String? _alias;
+  $VisitedCellBoundsTable(this.attachedDatabase, [this._alias]);
+  static const VerificationMeta _resMeta = const VerificationMeta('res');
+  @override
+  late final GeneratedColumn<int> res = GeneratedColumn<int>(
+    'res',
+    aliasedName,
+    false,
+    type: DriftSqlType.int,
+    requiredDuringInsert: true,
+  );
+  static const VerificationMeta _cellIdMeta = const VerificationMeta('cellId');
+  @override
+  late final GeneratedColumn<String> cellId = GeneratedColumn<String>(
+    'cell_id',
+    aliasedName,
+    false,
+    type: DriftSqlType.string,
+    requiredDuringInsert: true,
+  );
+  static const VerificationMeta _segmentMeta = const VerificationMeta(
+    'segment',
+  );
+  @override
+  late final GeneratedColumn<int> segment = GeneratedColumn<int>(
+    'segment',
+    aliasedName,
+    false,
+    type: DriftSqlType.int,
+    requiredDuringInsert: true,
+  );
+  static const VerificationMeta _minLatE5Meta = const VerificationMeta(
+    'minLatE5',
+  );
+  @override
+  late final GeneratedColumn<int> minLatE5 = GeneratedColumn<int>(
+    'min_lat_e5',
+    aliasedName,
+    false,
+    type: DriftSqlType.int,
+    requiredDuringInsert: true,
+  );
+  static const VerificationMeta _maxLatE5Meta = const VerificationMeta(
+    'maxLatE5',
+  );
+  @override
+  late final GeneratedColumn<int> maxLatE5 = GeneratedColumn<int>(
+    'max_lat_e5',
+    aliasedName,
+    false,
+    type: DriftSqlType.int,
+    requiredDuringInsert: true,
+  );
+  static const VerificationMeta _minLonE5Meta = const VerificationMeta(
+    'minLonE5',
+  );
+  @override
+  late final GeneratedColumn<int> minLonE5 = GeneratedColumn<int>(
+    'min_lon_e5',
+    aliasedName,
+    false,
+    type: DriftSqlType.int,
+    requiredDuringInsert: true,
+  );
+  static const VerificationMeta _maxLonE5Meta = const VerificationMeta(
+    'maxLonE5',
+  );
+  @override
+  late final GeneratedColumn<int> maxLonE5 = GeneratedColumn<int>(
+    'max_lon_e5',
+    aliasedName,
+    false,
+    type: DriftSqlType.int,
+    requiredDuringInsert: true,
+  );
+  @override
+  List<GeneratedColumn> get $columns => [
+    res,
+    cellId,
+    segment,
+    minLatE5,
+    maxLatE5,
+    minLonE5,
+    maxLonE5,
+  ];
+  @override
+  String get aliasedName => _alias ?? actualTableName;
+  @override
+  String get actualTableName => $name;
+  static const String $name = 'visited_cell_bounds';
+  @override
+  VerificationContext validateIntegrity(
+    Insertable<VisitedCellBound> instance, {
+    bool isInserting = false,
+  }) {
+    final context = VerificationContext();
+    final data = instance.toColumns(true);
+    if (data.containsKey('res')) {
+      context.handle(
+        _resMeta,
+        res.isAcceptableOrUnknown(data['res']!, _resMeta),
+      );
+    } else if (isInserting) {
+      context.missing(_resMeta);
+    }
+    if (data.containsKey('cell_id')) {
+      context.handle(
+        _cellIdMeta,
+        cellId.isAcceptableOrUnknown(data['cell_id']!, _cellIdMeta),
+      );
+    } else if (isInserting) {
+      context.missing(_cellIdMeta);
+    }
+    if (data.containsKey('segment')) {
+      context.handle(
+        _segmentMeta,
+        segment.isAcceptableOrUnknown(data['segment']!, _segmentMeta),
+      );
+    } else if (isInserting) {
+      context.missing(_segmentMeta);
+    }
+    if (data.containsKey('min_lat_e5')) {
+      context.handle(
+        _minLatE5Meta,
+        minLatE5.isAcceptableOrUnknown(data['min_lat_e5']!, _minLatE5Meta),
+      );
+    } else if (isInserting) {
+      context.missing(_minLatE5Meta);
+    }
+    if (data.containsKey('max_lat_e5')) {
+      context.handle(
+        _maxLatE5Meta,
+        maxLatE5.isAcceptableOrUnknown(data['max_lat_e5']!, _maxLatE5Meta),
+      );
+    } else if (isInserting) {
+      context.missing(_maxLatE5Meta);
+    }
+    if (data.containsKey('min_lon_e5')) {
+      context.handle(
+        _minLonE5Meta,
+        minLonE5.isAcceptableOrUnknown(data['min_lon_e5']!, _minLonE5Meta),
+      );
+    } else if (isInserting) {
+      context.missing(_minLonE5Meta);
+    }
+    if (data.containsKey('max_lon_e5')) {
+      context.handle(
+        _maxLonE5Meta,
+        maxLonE5.isAcceptableOrUnknown(data['max_lon_e5']!, _maxLonE5Meta),
+      );
+    } else if (isInserting) {
+      context.missing(_maxLonE5Meta);
+    }
+    return context;
+  }
+
+  @override
+  Set<GeneratedColumn> get $primaryKey => {res, cellId, segment};
+  @override
+  VisitedCellBound map(Map<String, dynamic> data, {String? tablePrefix}) {
+    final effectivePrefix = tablePrefix != null ? '$tablePrefix.' : '';
+    return VisitedCellBound(
+      res: attachedDatabase.typeMapping.read(
+        DriftSqlType.int,
+        data['${effectivePrefix}res'],
+      )!,
+      cellId: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}cell_id'],
+      )!,
+      segment: attachedDatabase.typeMapping.read(
+        DriftSqlType.int,
+        data['${effectivePrefix}segment'],
+      )!,
+      minLatE5: attachedDatabase.typeMapping.read(
+        DriftSqlType.int,
+        data['${effectivePrefix}min_lat_e5'],
+      )!,
+      maxLatE5: attachedDatabase.typeMapping.read(
+        DriftSqlType.int,
+        data['${effectivePrefix}max_lat_e5'],
+      )!,
+      minLonE5: attachedDatabase.typeMapping.read(
+        DriftSqlType.int,
+        data['${effectivePrefix}min_lon_e5'],
+      )!,
+      maxLonE5: attachedDatabase.typeMapping.read(
+        DriftSqlType.int,
+        data['${effectivePrefix}max_lon_e5'],
+      )!,
+    );
+  }
+
+  @override
+  $VisitedCellBoundsTable createAlias(String alias) {
+    return $VisitedCellBoundsTable(attachedDatabase, alias);
+  }
+}
+
+class VisitedCellBound extends DataClass
+    implements Insertable<VisitedCellBound> {
+  final int res;
+  final String cellId;
+  final int segment;
+  final int minLatE5;
+  final int maxLatE5;
+  final int minLonE5;
+  final int maxLonE5;
+  const VisitedCellBound({
+    required this.res,
+    required this.cellId,
+    required this.segment,
+    required this.minLatE5,
+    required this.maxLatE5,
+    required this.minLonE5,
+    required this.maxLonE5,
+  });
+  @override
+  Map<String, Expression> toColumns(bool nullToAbsent) {
+    final map = <String, Expression>{};
+    map['res'] = Variable<int>(res);
+    map['cell_id'] = Variable<String>(cellId);
+    map['segment'] = Variable<int>(segment);
+    map['min_lat_e5'] = Variable<int>(minLatE5);
+    map['max_lat_e5'] = Variable<int>(maxLatE5);
+    map['min_lon_e5'] = Variable<int>(minLonE5);
+    map['max_lon_e5'] = Variable<int>(maxLonE5);
+    return map;
+  }
+
+  VisitedCellBoundsCompanion toCompanion(bool nullToAbsent) {
+    return VisitedCellBoundsCompanion(
+      res: Value(res),
+      cellId: Value(cellId),
+      segment: Value(segment),
+      minLatE5: Value(minLatE5),
+      maxLatE5: Value(maxLatE5),
+      minLonE5: Value(minLonE5),
+      maxLonE5: Value(maxLonE5),
+    );
+  }
+
+  factory VisitedCellBound.fromJson(
+    Map<String, dynamic> json, {
+    ValueSerializer? serializer,
+  }) {
+    serializer ??= driftRuntimeOptions.defaultSerializer;
+    return VisitedCellBound(
+      res: serializer.fromJson<int>(json['res']),
+      cellId: serializer.fromJson<String>(json['cellId']),
+      segment: serializer.fromJson<int>(json['segment']),
+      minLatE5: serializer.fromJson<int>(json['minLatE5']),
+      maxLatE5: serializer.fromJson<int>(json['maxLatE5']),
+      minLonE5: serializer.fromJson<int>(json['minLonE5']),
+      maxLonE5: serializer.fromJson<int>(json['maxLonE5']),
+    );
+  }
+  @override
+  Map<String, dynamic> toJson({ValueSerializer? serializer}) {
+    serializer ??= driftRuntimeOptions.defaultSerializer;
+    return <String, dynamic>{
+      'res': serializer.toJson<int>(res),
+      'cellId': serializer.toJson<String>(cellId),
+      'segment': serializer.toJson<int>(segment),
+      'minLatE5': serializer.toJson<int>(minLatE5),
+      'maxLatE5': serializer.toJson<int>(maxLatE5),
+      'minLonE5': serializer.toJson<int>(minLonE5),
+      'maxLonE5': serializer.toJson<int>(maxLonE5),
+    };
+  }
+
+  VisitedCellBound copyWith({
+    int? res,
+    String? cellId,
+    int? segment,
+    int? minLatE5,
+    int? maxLatE5,
+    int? minLonE5,
+    int? maxLonE5,
+  }) => VisitedCellBound(
+    res: res ?? this.res,
+    cellId: cellId ?? this.cellId,
+    segment: segment ?? this.segment,
+    minLatE5: minLatE5 ?? this.minLatE5,
+    maxLatE5: maxLatE5 ?? this.maxLatE5,
+    minLonE5: minLonE5 ?? this.minLonE5,
+    maxLonE5: maxLonE5 ?? this.maxLonE5,
+  );
+  VisitedCellBound copyWithCompanion(VisitedCellBoundsCompanion data) {
+    return VisitedCellBound(
+      res: data.res.present ? data.res.value : this.res,
+      cellId: data.cellId.present ? data.cellId.value : this.cellId,
+      segment: data.segment.present ? data.segment.value : this.segment,
+      minLatE5: data.minLatE5.present ? data.minLatE5.value : this.minLatE5,
+      maxLatE5: data.maxLatE5.present ? data.maxLatE5.value : this.maxLatE5,
+      minLonE5: data.minLonE5.present ? data.minLonE5.value : this.minLonE5,
+      maxLonE5: data.maxLonE5.present ? data.maxLonE5.value : this.maxLonE5,
+    );
+  }
+
+  @override
+  String toString() {
+    return (StringBuffer('VisitedCellBound(')
+          ..write('res: $res, ')
+          ..write('cellId: $cellId, ')
+          ..write('segment: $segment, ')
+          ..write('minLatE5: $minLatE5, ')
+          ..write('maxLatE5: $maxLatE5, ')
+          ..write('minLonE5: $minLonE5, ')
+          ..write('maxLonE5: $maxLonE5')
+          ..write(')'))
+        .toString();
+  }
+
+  @override
+  int get hashCode =>
+      Object.hash(res, cellId, segment, minLatE5, maxLatE5, minLonE5, maxLonE5);
+  @override
+  bool operator ==(Object other) =>
+      identical(this, other) ||
+      (other is VisitedCellBound &&
+          other.res == this.res &&
+          other.cellId == this.cellId &&
+          other.segment == this.segment &&
+          other.minLatE5 == this.minLatE5 &&
+          other.maxLatE5 == this.maxLatE5 &&
+          other.minLonE5 == this.minLonE5 &&
+          other.maxLonE5 == this.maxLonE5);
+}
+
+class VisitedCellBoundsCompanion extends UpdateCompanion<VisitedCellBound> {
+  final Value<int> res;
+  final Value<String> cellId;
+  final Value<int> segment;
+  final Value<int> minLatE5;
+  final Value<int> maxLatE5;
+  final Value<int> minLonE5;
+  final Value<int> maxLonE5;
+  final Value<int> rowid;
+  const VisitedCellBoundsCompanion({
+    this.res = const Value.absent(),
+    this.cellId = const Value.absent(),
+    this.segment = const Value.absent(),
+    this.minLatE5 = const Value.absent(),
+    this.maxLatE5 = const Value.absent(),
+    this.minLonE5 = const Value.absent(),
+    this.maxLonE5 = const Value.absent(),
+    this.rowid = const Value.absent(),
+  });
+  VisitedCellBoundsCompanion.insert({
+    required int res,
+    required String cellId,
+    required int segment,
+    required int minLatE5,
+    required int maxLatE5,
+    required int minLonE5,
+    required int maxLonE5,
+    this.rowid = const Value.absent(),
+  }) : res = Value(res),
+       cellId = Value(cellId),
+       segment = Value(segment),
+       minLatE5 = Value(minLatE5),
+       maxLatE5 = Value(maxLatE5),
+       minLonE5 = Value(minLonE5),
+       maxLonE5 = Value(maxLonE5);
+  static Insertable<VisitedCellBound> custom({
+    Expression<int>? res,
+    Expression<String>? cellId,
+    Expression<int>? segment,
+    Expression<int>? minLatE5,
+    Expression<int>? maxLatE5,
+    Expression<int>? minLonE5,
+    Expression<int>? maxLonE5,
+    Expression<int>? rowid,
+  }) {
+    return RawValuesInsertable({
+      if (res != null) 'res': res,
+      if (cellId != null) 'cell_id': cellId,
+      if (segment != null) 'segment': segment,
+      if (minLatE5 != null) 'min_lat_e5': minLatE5,
+      if (maxLatE5 != null) 'max_lat_e5': maxLatE5,
+      if (minLonE5 != null) 'min_lon_e5': minLonE5,
+      if (maxLonE5 != null) 'max_lon_e5': maxLonE5,
+      if (rowid != null) 'rowid': rowid,
+    });
+  }
+
+  VisitedCellBoundsCompanion copyWith({
+    Value<int>? res,
+    Value<String>? cellId,
+    Value<int>? segment,
+    Value<int>? minLatE5,
+    Value<int>? maxLatE5,
+    Value<int>? minLonE5,
+    Value<int>? maxLonE5,
+    Value<int>? rowid,
+  }) {
+    return VisitedCellBoundsCompanion(
+      res: res ?? this.res,
+      cellId: cellId ?? this.cellId,
+      segment: segment ?? this.segment,
+      minLatE5: minLatE5 ?? this.minLatE5,
+      maxLatE5: maxLatE5 ?? this.maxLatE5,
+      minLonE5: minLonE5 ?? this.minLonE5,
+      maxLonE5: maxLonE5 ?? this.maxLonE5,
+      rowid: rowid ?? this.rowid,
+    );
+  }
+
+  @override
+  Map<String, Expression> toColumns(bool nullToAbsent) {
+    final map = <String, Expression>{};
+    if (res.present) {
+      map['res'] = Variable<int>(res.value);
+    }
+    if (cellId.present) {
+      map['cell_id'] = Variable<String>(cellId.value);
+    }
+    if (segment.present) {
+      map['segment'] = Variable<int>(segment.value);
+    }
+    if (minLatE5.present) {
+      map['min_lat_e5'] = Variable<int>(minLatE5.value);
+    }
+    if (maxLatE5.present) {
+      map['max_lat_e5'] = Variable<int>(maxLatE5.value);
+    }
+    if (minLonE5.present) {
+      map['min_lon_e5'] = Variable<int>(minLonE5.value);
+    }
+    if (maxLonE5.present) {
+      map['max_lon_e5'] = Variable<int>(maxLonE5.value);
+    }
+    if (rowid.present) {
+      map['rowid'] = Variable<int>(rowid.value);
+    }
+    return map;
+  }
+
+  @override
+  String toString() {
+    return (StringBuffer('VisitedCellBoundsCompanion(')
+          ..write('res: $res, ')
+          ..write('cellId: $cellId, ')
+          ..write('segment: $segment, ')
+          ..write('minLatE5: $minLatE5, ')
+          ..write('maxLatE5: $maxLatE5, ')
+          ..write('minLonE5: $minLonE5, ')
+          ..write('maxLonE5: $maxLonE5, ')
+          ..write('rowid: $rowid')
+          ..write(')'))
+        .toString();
+  }
+}
+
 class $VisitedGridMetaTable extends VisitedGridMeta
     with TableInfo<$VisitedGridMetaTable, VisitedGridMetaData> {
   @override
@@ -1561,8 +2020,34 @@ abstract class _$VisitedGridDatabase extends GeneratedDatabase {
   late final $VisitsLifetimeTable visitsLifetime = $VisitsLifetimeTable(this);
   late final $VisitsLifetimeDaysTable visitsLifetimeDays =
       $VisitsLifetimeDaysTable(this);
+  late final $VisitedCellBoundsTable visitedCellBounds =
+      $VisitedCellBoundsTable(this);
   late final $VisitedGridMetaTable visitedGridMeta = $VisitedGridMetaTable(
     this,
+  );
+  late final Index visitsDailyResDay = Index(
+    'visits_daily_res_day',
+    'CREATE INDEX visits_daily_res_day ON visits_daily (res, day_yyyy_mmdd)',
+  );
+  late final Index visitsDailyResCell = Index(
+    'visits_daily_res_cell',
+    'CREATE INDEX visits_daily_res_cell ON visits_daily (res, cell_id)',
+  );
+  late final Index visitsLifetimeRes = Index(
+    'visits_lifetime_res',
+    'CREATE INDEX visits_lifetime_res ON visits_lifetime (res)',
+  );
+  late final Index visitsLifetimeDaysResDay = Index(
+    'visits_lifetime_days_res_day',
+    'CREATE INDEX visits_lifetime_days_res_day ON visits_lifetime_days (res, day_yyyy_mmdd)',
+  );
+  late final Index cellBoundsResLat = Index(
+    'cell_bounds_res_lat',
+    'CREATE INDEX cell_bounds_res_lat ON visited_cell_bounds (res, min_lat_e5, max_lat_e5)',
+  );
+  late final Index cellBoundsResLon = Index(
+    'cell_bounds_res_lon',
+    'CREATE INDEX cell_bounds_res_lon ON visited_cell_bounds (res, min_lon_e5, max_lon_e5)',
   );
   late final VisitedGridDao visitedGridDao = VisitedGridDao(
     this as VisitedGridDatabase,
@@ -1575,7 +2060,14 @@ abstract class _$VisitedGridDatabase extends GeneratedDatabase {
     visitsDaily,
     visitsLifetime,
     visitsLifetimeDays,
+    visitedCellBounds,
     visitedGridMeta,
+    visitsDailyResDay,
+    visitsDailyResCell,
+    visitsLifetimeRes,
+    visitsLifetimeDaysResDay,
+    cellBoundsResLat,
+    cellBoundsResLon,
   ];
 }
 
@@ -2313,6 +2805,257 @@ typedef $$VisitsLifetimeDaysTableProcessedTableManager =
       VisitsLifetimeDay,
       PrefetchHooks Function()
     >;
+typedef $$VisitedCellBoundsTableCreateCompanionBuilder =
+    VisitedCellBoundsCompanion Function({
+      required int res,
+      required String cellId,
+      required int segment,
+      required int minLatE5,
+      required int maxLatE5,
+      required int minLonE5,
+      required int maxLonE5,
+      Value<int> rowid,
+    });
+typedef $$VisitedCellBoundsTableUpdateCompanionBuilder =
+    VisitedCellBoundsCompanion Function({
+      Value<int> res,
+      Value<String> cellId,
+      Value<int> segment,
+      Value<int> minLatE5,
+      Value<int> maxLatE5,
+      Value<int> minLonE5,
+      Value<int> maxLonE5,
+      Value<int> rowid,
+    });
+
+class $$VisitedCellBoundsTableFilterComposer
+    extends Composer<_$VisitedGridDatabase, $VisitedCellBoundsTable> {
+  $$VisitedCellBoundsTableFilterComposer({
+    required super.$db,
+    required super.$table,
+    super.joinBuilder,
+    super.$addJoinBuilderToRootComposer,
+    super.$removeJoinBuilderFromRootComposer,
+  });
+  ColumnFilters<int> get res => $composableBuilder(
+    column: $table.res,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get cellId => $composableBuilder(
+    column: $table.cellId,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<int> get segment => $composableBuilder(
+    column: $table.segment,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<int> get minLatE5 => $composableBuilder(
+    column: $table.minLatE5,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<int> get maxLatE5 => $composableBuilder(
+    column: $table.maxLatE5,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<int> get minLonE5 => $composableBuilder(
+    column: $table.minLonE5,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<int> get maxLonE5 => $composableBuilder(
+    column: $table.maxLonE5,
+    builder: (column) => ColumnFilters(column),
+  );
+}
+
+class $$VisitedCellBoundsTableOrderingComposer
+    extends Composer<_$VisitedGridDatabase, $VisitedCellBoundsTable> {
+  $$VisitedCellBoundsTableOrderingComposer({
+    required super.$db,
+    required super.$table,
+    super.joinBuilder,
+    super.$addJoinBuilderToRootComposer,
+    super.$removeJoinBuilderFromRootComposer,
+  });
+  ColumnOrderings<int> get res => $composableBuilder(
+    column: $table.res,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<String> get cellId => $composableBuilder(
+    column: $table.cellId,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<int> get segment => $composableBuilder(
+    column: $table.segment,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<int> get minLatE5 => $composableBuilder(
+    column: $table.minLatE5,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<int> get maxLatE5 => $composableBuilder(
+    column: $table.maxLatE5,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<int> get minLonE5 => $composableBuilder(
+    column: $table.minLonE5,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<int> get maxLonE5 => $composableBuilder(
+    column: $table.maxLonE5,
+    builder: (column) => ColumnOrderings(column),
+  );
+}
+
+class $$VisitedCellBoundsTableAnnotationComposer
+    extends Composer<_$VisitedGridDatabase, $VisitedCellBoundsTable> {
+  $$VisitedCellBoundsTableAnnotationComposer({
+    required super.$db,
+    required super.$table,
+    super.joinBuilder,
+    super.$addJoinBuilderToRootComposer,
+    super.$removeJoinBuilderFromRootComposer,
+  });
+  GeneratedColumn<int> get res =>
+      $composableBuilder(column: $table.res, builder: (column) => column);
+
+  GeneratedColumn<String> get cellId =>
+      $composableBuilder(column: $table.cellId, builder: (column) => column);
+
+  GeneratedColumn<int> get segment =>
+      $composableBuilder(column: $table.segment, builder: (column) => column);
+
+  GeneratedColumn<int> get minLatE5 =>
+      $composableBuilder(column: $table.minLatE5, builder: (column) => column);
+
+  GeneratedColumn<int> get maxLatE5 =>
+      $composableBuilder(column: $table.maxLatE5, builder: (column) => column);
+
+  GeneratedColumn<int> get minLonE5 =>
+      $composableBuilder(column: $table.minLonE5, builder: (column) => column);
+
+  GeneratedColumn<int> get maxLonE5 =>
+      $composableBuilder(column: $table.maxLonE5, builder: (column) => column);
+}
+
+class $$VisitedCellBoundsTableTableManager
+    extends
+        RootTableManager<
+          _$VisitedGridDatabase,
+          $VisitedCellBoundsTable,
+          VisitedCellBound,
+          $$VisitedCellBoundsTableFilterComposer,
+          $$VisitedCellBoundsTableOrderingComposer,
+          $$VisitedCellBoundsTableAnnotationComposer,
+          $$VisitedCellBoundsTableCreateCompanionBuilder,
+          $$VisitedCellBoundsTableUpdateCompanionBuilder,
+          (
+            VisitedCellBound,
+            BaseReferences<
+              _$VisitedGridDatabase,
+              $VisitedCellBoundsTable,
+              VisitedCellBound
+            >,
+          ),
+          VisitedCellBound,
+          PrefetchHooks Function()
+        > {
+  $$VisitedCellBoundsTableTableManager(
+    _$VisitedGridDatabase db,
+    $VisitedCellBoundsTable table,
+  ) : super(
+        TableManagerState(
+          db: db,
+          table: table,
+          createFilteringComposer: () =>
+              $$VisitedCellBoundsTableFilterComposer($db: db, $table: table),
+          createOrderingComposer: () =>
+              $$VisitedCellBoundsTableOrderingComposer($db: db, $table: table),
+          createComputedFieldComposer: () =>
+              $$VisitedCellBoundsTableAnnotationComposer(
+                $db: db,
+                $table: table,
+              ),
+          updateCompanionCallback:
+              ({
+                Value<int> res = const Value.absent(),
+                Value<String> cellId = const Value.absent(),
+                Value<int> segment = const Value.absent(),
+                Value<int> minLatE5 = const Value.absent(),
+                Value<int> maxLatE5 = const Value.absent(),
+                Value<int> minLonE5 = const Value.absent(),
+                Value<int> maxLonE5 = const Value.absent(),
+                Value<int> rowid = const Value.absent(),
+              }) => VisitedCellBoundsCompanion(
+                res: res,
+                cellId: cellId,
+                segment: segment,
+                minLatE5: minLatE5,
+                maxLatE5: maxLatE5,
+                minLonE5: minLonE5,
+                maxLonE5: maxLonE5,
+                rowid: rowid,
+              ),
+          createCompanionCallback:
+              ({
+                required int res,
+                required String cellId,
+                required int segment,
+                required int minLatE5,
+                required int maxLatE5,
+                required int minLonE5,
+                required int maxLonE5,
+                Value<int> rowid = const Value.absent(),
+              }) => VisitedCellBoundsCompanion.insert(
+                res: res,
+                cellId: cellId,
+                segment: segment,
+                minLatE5: minLatE5,
+                maxLatE5: maxLatE5,
+                minLonE5: minLonE5,
+                maxLonE5: maxLonE5,
+                rowid: rowid,
+              ),
+          withReferenceMapper: (p0) => p0
+              .map((e) => (e.readTable(table), BaseReferences(db, table, e)))
+              .toList(),
+          prefetchHooksCallback: null,
+        ),
+      );
+}
+
+typedef $$VisitedCellBoundsTableProcessedTableManager =
+    ProcessedTableManager<
+      _$VisitedGridDatabase,
+      $VisitedCellBoundsTable,
+      VisitedCellBound,
+      $$VisitedCellBoundsTableFilterComposer,
+      $$VisitedCellBoundsTableOrderingComposer,
+      $$VisitedCellBoundsTableAnnotationComposer,
+      $$VisitedCellBoundsTableCreateCompanionBuilder,
+      $$VisitedCellBoundsTableUpdateCompanionBuilder,
+      (
+        VisitedCellBound,
+        BaseReferences<
+          _$VisitedGridDatabase,
+          $VisitedCellBoundsTable,
+          VisitedCellBound
+        >,
+      ),
+      VisitedCellBound,
+      PrefetchHooks Function()
+    >;
 typedef $$VisitedGridMetaTableCreateCompanionBuilder =
     VisitedGridMetaCompanion Function({
       Value<int> id,
@@ -2472,6 +3215,8 @@ class $VisitedGridDatabaseManager {
       $$VisitsLifetimeTableTableManager(_db, _db.visitsLifetime);
   $$VisitsLifetimeDaysTableTableManager get visitsLifetimeDays =>
       $$VisitsLifetimeDaysTableTableManager(_db, _db.visitsLifetimeDays);
+  $$VisitedCellBoundsTableTableManager get visitedCellBounds =>
+      $$VisitedCellBoundsTableTableManager(_db, _db.visitedCellBounds);
   $$VisitedGridMetaTableTableManager get visitedGridMeta =>
       $$VisitedGridMetaTableTableManager(_db, _db.visitedGridMeta);
 }
@@ -2481,6 +3226,8 @@ mixin _$VisitedGridDaoMixin on DatabaseAccessor<VisitedGridDatabase> {
   $VisitsLifetimeTable get visitsLifetime => attachedDatabase.visitsLifetime;
   $VisitsLifetimeDaysTable get visitsLifetimeDays =>
       attachedDatabase.visitsLifetimeDays;
+  $VisitedCellBoundsTable get visitedCellBounds =>
+      attachedDatabase.visitedCellBounds;
   $VisitedGridMetaTable get visitedGridMeta => attachedDatabase.visitedGridMeta;
   VisitedGridDaoManager get managers => VisitedGridDaoManager(this);
 }
@@ -2499,6 +3246,11 @@ class VisitedGridDaoManager {
       $$VisitsLifetimeDaysTableTableManager(
         _db.attachedDatabase,
         _db.visitsLifetimeDays,
+      );
+  $$VisitedCellBoundsTableTableManager get visitedCellBounds =>
+      $$VisitedCellBoundsTableTableManager(
+        _db.attachedDatabase,
+        _db.visitedCellBounds,
       );
   $$VisitedGridMetaTableTableManager get visitedGridMeta =>
       $$VisitedGridMetaTableTableManager(
