@@ -18,6 +18,7 @@ abstract class VisitedGridRepository {
   Future<void> start();
   Future<void> stop();
   Future<void> dispose();
+  Future<void> ingestSamples(Iterable<LatLngSample> samples);
   Future<VisitedGridOverlay> loadOverlay({
     required VisitedGridBounds bounds,
     required double zoom,
@@ -77,6 +78,15 @@ class DefaultVisitedGridRepository implements VisitedGridRepository {
   @override
   Future<void> dispose() async {
     await stop();
+  }
+
+  @override
+  Future<void> ingestSamples(Iterable<LatLngSample> samples) async {
+    if (samples.isEmpty) {
+      return;
+    }
+    _pendingSamples.addAll(samples);
+    _kickDrain();
   }
 
   @override

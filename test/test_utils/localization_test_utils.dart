@@ -1,0 +1,37 @@
+import 'package:easy_localization/src/localization.dart';
+import 'package:easy_localization/src/translations.dart';
+import 'package:flutter/material.dart';
+
+const Map<String, dynamic> _enTranslations = {
+  'menu_open_tooltip': 'Open menu',
+  'menu_permissions_management': 'Permissions management',
+  'menu_import_gpx': 'Import GPX file',
+  'map_scale_meters': '{value} m',
+  'map_scale_kilometers': '{value} km',
+  'permissions_title': 'Permissions',
+  'permissions_status_label': 'Status: {status}',
+  'permissions_status_granted': 'Granted',
+  'permissions_status_denied': 'Denied',
+  'permissions_action_request': 'Request',
+  'permissions_action_close': 'Close',
+  'permissions_item_location_foreground': 'Location (foreground)',
+  'permissions_item_location_background': 'Location (background)',
+  'permissions_item_notifications': 'Notifications',
+  'permissions_item_file_access': 'File access',
+  'permissions_error_generic': 'Could not update permissions. Try again.',
+  'gpx_import_processing': 'Processing GPX data...',
+  'gpx_import_success': 'Imported {count} points.',
+};
+
+Future<void> loadTestTranslations() async {
+  Localization.load(
+    const Locale('en'),
+    translations: Translations(_enTranslations),
+    fallbackTranslations: Translations(_enTranslations),
+  );
+}
+
+Future<Widget> buildLocalizedTestApp(Widget child) async {
+  await loadTestTranslations();
+  return MaterialApp(home: child);
+}

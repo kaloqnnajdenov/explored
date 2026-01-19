@@ -8,12 +8,15 @@ import 'package:explored/features/location/data/models/lat_lng_sample.dart';
 import 'package:explored/features/location/data/models/location_permission_level.dart';
 import 'package:explored/features/location/data/models/location_status.dart';
 import 'package:explored/features/location/data/models/location_tracking_mode.dart';
+import 'package:explored/features/location/data/repositories/location_history_repository.dart';
 import 'package:explored/features/location/data/repositories/location_updates_repository.dart';
 import 'package:explored/features/map/data/models/map_tile_source.dart';
 import 'package:explored/features/map/data/repositories/map_repository.dart';
 import 'package:explored/features/map/data/services/map_attribution_service.dart';
 import 'package:explored/features/map/data/services/map_tile_service.dart';
 import 'package:explored/features/map/view_model/map_view_model.dart';
+import 'package:explored/features/permissions/data/models/app_permission.dart';
+import 'package:explored/features/permissions/data/repositories/permissions_repository.dart';
 import 'package:explored/features/visited_grid/data/models/visited_grid_bounds.dart';
 import 'package:explored/features/visited_grid/data/models/visited_grid_overlay.dart';
 import 'package:explored/features/visited_grid/data/models/visited_overlay_mode.dart';
@@ -153,6 +156,9 @@ class FakeVisitedGridRepository implements VisitedGridRepository {
   Future<void> dispose() async {}
 
   @override
+  Future<void> ingestSamples(Iterable<LatLngSample> samples) async {}
+
+  @override
   Future<VisitedGridOverlay> loadOverlay({
     required VisitedGridBounds bounds,
     required double zoom,
@@ -163,6 +169,56 @@ class FakeVisitedGridRepository implements VisitedGridRepository {
       polygons: <VisitedOverlayPolygon>[],
     );
   }
+}
+
+class FakeLocationHistoryRepository implements LocationHistoryRepository {
+  final StreamController<List<LatLngSample>> _controller =
+      StreamController<List<LatLngSample>>.broadcast();
+  final List<LatLngSample> _samples = <LatLngSample>[];
+  int startCalls = 0;
+
+  @override
+  Stream<List<LatLngSample>> get historyStream => _controller.stream;
+
+  @override
+  List<LatLngSample> get currentSamples => List.unmodifiable(_samples);
+
+  @override
+  Future<void> start() async {
+    startCalls += 1;
+  }
+
+  @override
+  Future<void> stop() async {}
+
+  @override
+  Future<void> dispose() async {}
+
+  @override
+  Future<List<LatLngSample>> addImportedSamples(
+    List<LatLngSample> samples,
+  ) async {
+    _samples.addAll(samples);
+    _controller.add(List.unmodifiable(_samples));
+    return samples;
+  }
+}
+
+class FakePermissionsRepository implements PermissionsRepository {
+  int requestInitialCalls = 0;
+
+  @override
+  Future<List<AppPermissionStatus>> fetchPermissions() async {
+    return const [];
+  }
+
+  @override
+  Future<void> requestInitialPermissionsIfNeeded() async {
+    requestInitialCalls += 1;
+  }
+
+  @override
+  Future<void> requestPermission(AppPermissionType type) async {}
 }
 
 class FakeVisitedOverlayWorker implements VisitedOverlayWorker {
@@ -198,6 +254,8 @@ void main() {
     final viewModel = MapViewModel(
       mapRepository: mapRepository,
       locationUpdatesRepository: locationRepository,
+      locationHistoryRepository: FakeLocationHistoryRepository(),
+      permissionsRepository: FakePermissionsRepository(),
       visitedGridRepository: FakeVisitedGridRepository(),
       overlayWorker: FakeVisitedOverlayWorker(),
       boundaryResolver: fakeBoundaryResolver,
@@ -238,6 +296,8 @@ void main() {
     final viewModel = MapViewModel(
       mapRepository: mapRepository,
       locationUpdatesRepository: locationRepository,
+      locationHistoryRepository: FakeLocationHistoryRepository(),
+      permissionsRepository: FakePermissionsRepository(),
       visitedGridRepository: FakeVisitedGridRepository(),
       overlayWorker: FakeVisitedOverlayWorker(),
       boundaryResolver: fakeBoundaryResolver,
@@ -263,6 +323,8 @@ void main() {
     final viewModel = MapViewModel(
       mapRepository: mapRepository,
       locationUpdatesRepository: locationRepository,
+      locationHistoryRepository: FakeLocationHistoryRepository(),
+      permissionsRepository: FakePermissionsRepository(),
       visitedGridRepository: FakeVisitedGridRepository(),
       overlayWorker: FakeVisitedOverlayWorker(),
       boundaryResolver: fakeBoundaryResolver,
@@ -286,6 +348,8 @@ void main() {
     final viewModel = MapViewModel(
       mapRepository: mapRepository,
       locationUpdatesRepository: locationRepository,
+      locationHistoryRepository: FakeLocationHistoryRepository(),
+      permissionsRepository: FakePermissionsRepository(),
       visitedGridRepository: FakeVisitedGridRepository(),
       overlayWorker: FakeVisitedOverlayWorker(),
       boundaryResolver: fakeBoundaryResolver,
@@ -314,6 +378,8 @@ void main() {
     final viewModel = MapViewModel(
       mapRepository: mapRepository,
       locationUpdatesRepository: locationRepository,
+      locationHistoryRepository: FakeLocationHistoryRepository(),
+      permissionsRepository: FakePermissionsRepository(),
       visitedGridRepository: FakeVisitedGridRepository(),
       overlayWorker: FakeVisitedOverlayWorker(),
       boundaryResolver: fakeBoundaryResolver,
@@ -344,6 +410,8 @@ void main() {
     final viewModel = MapViewModel(
       mapRepository: mapRepository,
       locationUpdatesRepository: locationRepository,
+      locationHistoryRepository: FakeLocationHistoryRepository(),
+      permissionsRepository: FakePermissionsRepository(),
       visitedGridRepository: FakeVisitedGridRepository(),
       overlayWorker: FakeVisitedOverlayWorker(),
       boundaryResolver: fakeBoundaryResolver,
@@ -353,7 +421,7 @@ void main() {
     await viewModel.requestForegroundPermission();
 
     expect(locationRepository.requestForegroundCalls, 1);
-    expect(locationRepository.startTrackingCalls, 1);
+    expect(locationRepository.startTrackingCalls, 2);
     expect(
       viewModel.state.locationTracking.status,
       LocationStatus.permissionDenied,
@@ -377,6 +445,8 @@ void main() {
     final viewModel = MapViewModel(
       mapRepository: mapRepository,
       locationUpdatesRepository: locationRepository,
+      locationHistoryRepository: FakeLocationHistoryRepository(),
+      permissionsRepository: FakePermissionsRepository(),
       visitedGridRepository: FakeVisitedGridRepository(),
       overlayWorker: FakeVisitedOverlayWorker(),
       boundaryResolver: fakeBoundaryResolver,

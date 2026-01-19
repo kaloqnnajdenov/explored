@@ -22,12 +22,39 @@ class DevicePlatformInfo implements PlatformInfo {
     if (!Platform.isAndroid) {
       return null;
     }
-    // Best-effort parse of "SDK xx" from the OS version string.
-    final match =
-        RegExp(r'SDK\s*(\d+)').firstMatch(Platform.operatingSystemVersion);
-    if (match == null) {
+    return _parseAndroidSdkInt(Platform.operatingSystemVersion);
+  }
+
+  int? _parseAndroidSdkInt(String version) {
+    final apiMatch = RegExp(r'(?:SDK|API)\s*(\d+)', caseSensitive: false)
+        .firstMatch(version);
+    if (apiMatch != null) {
+      return int.tryParse(apiMatch.group(1)!);
+    }
+
+    final androidMatch =
+        RegExp(r'Android\s+(\d+)', caseSensitive: false).firstMatch(version);
+    if (androidMatch == null) {
       return null;
     }
-    return int.tryParse(match.group(1)!);
+
+    final major = int.tryParse(androidMatch.group(1)!);
+    if (major == null) {
+      return null;
+    }
+
+    if (major >= 13) {
+      return 33 + (major - 13);
+    }
+    if (major == 12) {
+      return 31;
+    }
+    if (major == 11) {
+      return 30;
+    }
+    if (major == 10) {
+      return 29;
+    }
+    return 28;
   }
 }

@@ -3,6 +3,7 @@ import 'package:latlong2/latlong.dart';
 import 'map_config.dart';
 import 'map_tile_source.dart';
 import '../../../location/data/models/location_tracking_state.dart';
+import '../../../location/data/models/lat_lng_sample.dart';
 import '../../../visited_grid/data/models/visited_time_filter.dart';
 import '../../../visited_grid/data/models/visited_overlay_polygon.dart';
 
@@ -20,6 +21,7 @@ class MapViewState {
     required this.isOverlayLoading,
     required this.visitedTimeFilter,
     required this.overlayResolution,
+    required this.importedSamples,
     this.error,
     this.overlayError,
   });
@@ -38,6 +40,7 @@ class MapViewState {
       isOverlayLoading: false,
       visitedTimeFilter: VisitedTimeFilter.allTime,
       overlayResolution: null,
+      importedSamples: const [],
     );
   }
 
@@ -53,6 +56,7 @@ class MapViewState {
   final bool isOverlayLoading;
   final VisitedTimeFilter visitedTimeFilter;
   final int? overlayResolution;
+  final List<LatLngSample> importedSamples;
   final Object? overlayError;
 
   /// Create a new state with selective overrides; errors can be cleared.
@@ -70,6 +74,7 @@ class MapViewState {
     bool? isOverlayLoading,
     VisitedTimeFilter? visitedTimeFilter,
     int? overlayResolution,
+    List<LatLngSample>? importedSamples,
     Object? overlayError,
     bool clearOverlayError = false,
   }) {
@@ -88,6 +93,7 @@ class MapViewState {
       isOverlayLoading: isOverlayLoading ?? this.isOverlayLoading,
       visitedTimeFilter: visitedTimeFilter ?? this.visitedTimeFilter,
       overlayResolution: overlayResolution ?? this.overlayResolution,
+      importedSamples: importedSamples ?? this.importedSamples,
       overlayError:
           clearOverlayError ? null : (overlayError ?? this.overlayError),
     );

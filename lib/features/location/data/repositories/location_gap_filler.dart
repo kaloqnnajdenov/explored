@@ -128,6 +128,7 @@ List<LatLngSample> interpolateMissingPoints({
         timestamp: timestamp,
         accuracyMeters: accuracyMeters,
         isInterpolated: true,
+        source: start.source,
       ),
     );
   }

@@ -6,6 +6,7 @@ class LatLngSample {
     required this.timestamp,
     this.accuracyMeters,
     this.isInterpolated = false,
+    this.source = LatLngSampleSource.live,
   });
 
   final double latitude;
@@ -13,4 +14,7 @@ class LatLngSample {
   final DateTime timestamp;
   final double? accuracyMeters;
   final bool isInterpolated;
+  final LatLngSampleSource source;
 }
+
+enum LatLngSampleSource { live, imported }

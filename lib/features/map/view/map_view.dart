@@ -7,6 +7,10 @@ import 'package:flutter/material.dart';
 import 'package:flutter_map/flutter_map.dart';
 import 'package:latlong2/latlong.dart';
 
+import '../../gpx_import/view/widgets/gpx_import_processing_overlay.dart';
+import '../../gpx_import/view_model/gpx_import_view_model.dart';
+import '../../permissions/view/permissions_management_view.dart';
+import '../../permissions/view_model/permissions_view_model.dart';
 import '../../../translations/locale_keys.g.dart';
 import '../../visited_grid/data/models/visited_grid_bounds.dart';
 import '../../visited_grid/data/models/visited_overlay_polygon.dart';
@@ -14,12 +18,21 @@ import '../view_model/map_view_model.dart';
 import 'widgets/attribution_banner.dart';
 import 'widgets/location_tracking_panel.dart';
 import 'widgets/location_tracking_panel_toggle.dart';
+import 'widgets/map_menu_button.dart';
+import 'widgets/map_scale_indicator.dart';
 
 /// Map screen view; renders state from [MapViewModel] without holding logic.
 class MapView extends StatefulWidget {
-  const MapView({required this.viewModel, super.key});
+  const MapView({
+    required this.viewModel,
+    required this.permissionsViewModel,
+    required this.gpxImportViewModel,
+    super.key,
+  });
 
   final MapViewModel viewModel;
+  final PermissionsViewModel permissionsViewModel;
+  final GpxImportViewModel gpxImportViewModel;
 
   @override
   State<MapView> createState() => _MapViewState();
@@ -29,6 +42,7 @@ class MapView extends StatefulWidget {
 class _MapViewState extends State<MapView> {
   late final MapController _mapController;
   late final TapGestureRecognizer _attributionTapRecognizer;
+  int? _lastGpxFeedbackId;
 
   @override
   void initState() {
@@ -99,6 +113,10 @@ class _MapViewState extends State<MapView> {
                       polygons: _buildVisitedPolygons(context, state),
                       polygonCulling: false,
                     ),
+                  if (state.importedSamples.isNotEmpty)
+                    CircleLayer(
+                      circles: _buildImportedCircles(state),
+                    ),
                   if (lastLocation != null)
                     MarkerLayer(
                       markers: [
@@ -110,21 +128,31 @@ class _MapViewState extends State<MapView> {
                         ),
                       ],
                     ),
+                  const MapScaleIndicator(),
                 ],
               ),
               // Keep any load errors visible without blocking the map render.
               if (state.error != null)
                 const Positioned(
                   top: 16,
-                  right: 16,
+                  right: 72,
                   child: Icon(Icons.error_outline, color: Colors.redAccent),
                 ),
               Positioned(
                 top: 16,
                 left: 16,
-                right: 16,
+                right: 72,
                 child: SafeArea(
                   child: _buildLocationPanel(state),
+                ),
+              ),
+              Positioned(
+                top: 16,
+                right: 16,
+                child: SafeArea(
+                  child: MapMenuButton(
+                    onActionSelected: _handleMenuAction,
+                  ),
                 ),
               ),
               Positioned(
@@ -150,6 +178,10 @@ class _MapViewState extends State<MapView> {
                   tapRecognizer: _attributionTapRecognizer,
                 ),
               ),
+              GpxImportProcessingOverlay(
+                viewModel: widget.gpxImportViewModel,
+              ),
+              _buildGpxFeedbackListener(),
             ],
           ),
         );
@@ -176,13 +208,6 @@ class _MapViewState extends State<MapView> {
         LocationTrackingPanel(
           key: const ValueKey('tracking-panel'),
           state: state.locationTracking,
-          onRequestForegroundPermission:
-              widget.viewModel.requestForegroundPermission,
-          onRequestBackgroundPermission:
-              widget.viewModel.requestBackgroundPermission,
-          onRequestNotificationPermission:
-              widget.viewModel.requestNotificationPermission,
-          onOpenSettings: widget.viewModel.openAppSettings,
         ),
         Positioned(
           top: -8,
@@ -263,6 +288,19 @@ class _MapViewState extends State<MapView> {
         .toList(growable: false);
   }
 
+  List<CircleMarker> _buildImportedCircles(MapViewState state) {
+    return [
+      for (final sample in state.importedSamples)
+        CircleMarker(
+          point: LatLng(sample.latitude, sample.longitude),
+          radius: 4,
+          color: Colors.orangeAccent.withValues(alpha: 0.65),
+          borderColor: Colors.white.withValues(alpha: 0.8),
+          borderStrokeWidth: 1,
+        ),
+    ];
+  }
+
   void _handleCameraChanged(MapCamera camera) {
     widget.viewModel.onCameraChanged(
       bounds: _boundsFromCamera(camera),
@@ -293,5 +331,66 @@ class _MapViewState extends State<MapView> {
     }
     final target = LatLng(lastLocation.latitude, lastLocation.longitude);
     _mapController.move(target, state.recenterZoom);
+  }
+
+  Widget _buildGpxFeedbackListener() {
+    return AnimatedBuilder(
+      animation: widget.gpxImportViewModel,
+      builder: (context, _) {
+        final feedback = widget.gpxImportViewModel.state.feedback;
+        if (feedback == null || feedback.id == _lastGpxFeedbackId) {
+          return const SizedBox.shrink();
+        }
+        _lastGpxFeedbackId = feedback.id;
+        WidgetsBinding.instance.addPostFrameCallback((_) {
+          if (!mounted) {
+            return;
+          }
+          final messenger = ScaffoldMessenger.of(context);
+          messenger.hideCurrentSnackBar();
+          messenger.showSnackBar(
+            SnackBar(
+              content: Text(
+                feedback.messageKey.tr(namedArgs: feedback.namedArgs ?? {}),
+              ),
+              backgroundColor: feedback.isError
+                  ? Theme.of(context).colorScheme.error
+                  : null,
+            ),
+          );
+        });
+        return const SizedBox.shrink();
+      },
+    );
+  }
+
+  Future<void> _handleMenuAction(MapMenuAction action) async {
+    switch (action) {
+      case MapMenuAction.permissions:
+        await _openPermissions();
+        break;
+      case MapMenuAction.importGpx:
+        await _openGpxImport();
+        break;
+    }
+  }
+
+  Future<void> _openGpxImport() async {
+    await Future<void>.delayed(Duration.zero);
+    if (!mounted) {
+      return;
+    }
+    await widget.gpxImportViewModel.importGpx();
+  }
+
+  Future<void> _openPermissions() async {
+    await showModalBottomSheet<void>(
+      context: context,
+      isScrollControlled: true,
+      showDragHandle: true,
+      builder: (_) => PermissionsManagementView(
+        viewModel: widget.permissionsViewModel,
+      ),
+    );
   }
 }

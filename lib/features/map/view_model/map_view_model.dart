@@ -8,6 +8,8 @@ import '../../location/data/models/location_status.dart';
 import '../../location/data/models/location_tracking_mode.dart';
 import '../../location/data/models/lat_lng_sample.dart';
 import '../../location/data/repositories/location_updates_repository.dart';
+import '../../location/data/repositories/location_history_repository.dart';
+import '../../permissions/data/repositories/permissions_repository.dart';
 import '../../visited_grid/data/models/visited_grid_bounds.dart';
 import '../../visited_grid/data/models/visited_overlay_mode.dart';
 import '../../visited_grid/data/models/visited_time_filter.dart';
@@ -24,6 +26,8 @@ class MapViewModel extends ChangeNotifier {
   factory MapViewModel({
     required MapRepository mapRepository,
     required LocationUpdatesRepository locationUpdatesRepository,
+    required LocationHistoryRepository locationHistoryRepository,
+    required PermissionsRepository permissionsRepository,
     required VisitedGridRepository visitedGridRepository,
     required VisitedOverlayWorker overlayWorker,
     required CellBoundaryResolver boundaryResolver,
@@ -35,6 +39,8 @@ class MapViewModel extends ChangeNotifier {
     return MapViewModel._(
       mapRepository: mapRepository,
       locationUpdatesRepository: locationUpdatesRepository,
+      locationHistoryRepository: locationHistoryRepository,
+      permissionsRepository: permissionsRepository,
       visitedGridRepository: visitedGridRepository,
       overlayWorker: overlayWorker,
       boundaryResolver: boundaryResolver,
@@ -48,6 +54,8 @@ class MapViewModel extends ChangeNotifier {
   MapViewModel._({
     required MapRepository mapRepository,
     required LocationUpdatesRepository locationUpdatesRepository,
+    required LocationHistoryRepository locationHistoryRepository,
+    required PermissionsRepository permissionsRepository,
     required VisitedGridRepository visitedGridRepository,
     required VisitedOverlayWorker overlayWorker,
     required CellBoundaryResolver boundaryResolver,
@@ -57,6 +65,8 @@ class MapViewModel extends ChangeNotifier {
     DateTime Function()? nowProvider,
   })  : _mapRepository = mapRepository,
         _locationUpdatesRepository = locationUpdatesRepository,
+        _locationHistoryRepository = locationHistoryRepository,
+        _permissionsRepository = permissionsRepository,
         _visitedGridRepository = visitedGridRepository,
         _config = config,
         _now = nowProvider ?? DateTime.now,
@@ -75,6 +85,8 @@ class MapViewModel extends ChangeNotifier {
 
   final MapRepository _mapRepository;
   final LocationUpdatesRepository _locationUpdatesRepository;
+  final LocationHistoryRepository _locationHistoryRepository;
+  final PermissionsRepository _permissionsRepository;
   final VisitedGridRepository _visitedGridRepository;
   final MapConfig _config;
   final DateTime Function() _now;
@@ -83,6 +95,10 @@ class MapViewModel extends ChangeNotifier {
   MapViewState _state;
   bool _hasInitialized = false;
   StreamSubscription<LatLngSample>? _locationSubscription;
+  StreamSubscription<List<LatLngSample>>? _historySubscription;
+  VisitedGridBounds? _lastBounds;
+  double? _lastZoom;
+  int _lastImportedCount = 0;
 
   MapViewState get state => _state;
 
@@ -114,8 +130,12 @@ class MapViewModel extends ChangeNotifier {
 
     notifyListeners();
     _overlayController.setMode(_overlayModeForFilter(_state.visitedTimeFilter));
+    await _requestInitialPermissions();
+    await _locationUpdatesRepository.startTracking();
     await _refreshTrackingState();
     _attachLocationUpdates();
+    await _locationHistoryRepository.start();
+    _attachHistoryUpdates();
     await _visitedGridRepository.start();
   }
 
@@ -182,6 +202,8 @@ class MapViewModel extends ChangeNotifier {
   @override
   void dispose() {
     _locationSubscription?.cancel();
+    _historySubscription?.cancel();
+    _locationHistoryRepository.dispose();
     _visitedGridRepository.dispose();
     unawaited(_overlayController.dispose());
     super.dispose();
@@ -201,6 +223,35 @@ class MapViewModel extends ChangeNotifier {
         _updateLocationState(status: LocationStatus.error);
       },
     );
+  }
+
+  void _attachHistoryUpdates() {
+    if (_historySubscription != null) {
+      return;
+    }
+
+    _historySubscription = _locationHistoryRepository.historyStream.listen(
+      _handleHistoryUpdate,
+      onError: (error) {
+        debugPrint('Location history error: $error');
+      },
+    );
+    _handleHistoryUpdate(_locationHistoryRepository.currentSamples);
+  }
+
+  void _handleHistoryUpdate(List<LatLngSample> samples) {
+    final importedSamples = [
+      for (final sample in samples)
+        if (sample.source == LatLngSampleSource.imported) sample,
+    ];
+
+    _state = _state.copyWith(importedSamples: importedSamples);
+    notifyListeners();
+
+    if (importedSamples.length != _lastImportedCount) {
+      _lastImportedCount = importedSamples.length;
+      _refreshOverlayIfPossible();
+    }
   }
 
   void _updateLocationState({
@@ -238,6 +289,8 @@ class MapViewModel extends ChangeNotifier {
     required VisitedGridBounds bounds,
     required double zoom,
   }) {
+    _lastBounds = bounds;
+    _lastZoom = zoom;
     _overlayController.onCameraChanged(
       CameraState(bounds: bounds, zoom: zoom),
     );
@@ -247,6 +300,8 @@ class MapViewModel extends ChangeNotifier {
     required VisitedGridBounds bounds,
     required double zoom,
   }) {
+    _lastBounds = bounds;
+    _lastZoom = zoom;
     _overlayController.onCameraIdle(
       CameraState(bounds: bounds, zoom: zoom),
     );
@@ -299,6 +354,25 @@ class MapViewModel extends ChangeNotifier {
       clearOverlayError: isLoading,
     );
     notifyListeners();
+  }
+
+  void _refreshOverlayIfPossible() {
+    final bounds = _lastBounds;
+    final zoom = _lastZoom;
+    if (bounds == null || zoom == null) {
+      return;
+    }
+    _overlayController.onCameraIdle(
+      CameraState(bounds: bounds, zoom: zoom),
+    );
+  }
+
+  Future<void> _requestInitialPermissions() async {
+    try {
+      await _permissionsRepository.requestInitialPermissionsIfNeeded();
+    } catch (error) {
+      debugPrint('Failed to request initial permissions: $error');
+    }
   }
 
   OverlayMode _overlayModeForFilter(VisitedTimeFilter filter) {
