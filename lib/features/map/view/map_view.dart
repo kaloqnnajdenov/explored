@@ -78,58 +78,69 @@ class _MapViewState extends State<MapView> {
         return Scaffold(
           body: Stack(
             children: [
-              FlutterMap(
-                mapController: _mapController,
-                options: MapOptions(
-                  initialCenter: state.center,
-                  initialZoom: state.zoom,
-                  onMapReady: () {
-                    _handleCameraIdle(_mapController.camera);
-                  },
-                  onPositionChanged: (camera, hasGesture) {
-                    _handleCameraChanged(camera);
-                    if (!hasGesture) {
-                      _handleCameraIdle(camera);
-                    }
-                  },
-                  onMapEvent: (event) {
-                    if (event is MapEventMoveEnd ||
-                        event is MapEventFlingAnimationEnd ||
-                        event is MapEventDoubleTapZoomEnd ||
-                        event is MapEventRotateEnd) {
-                      _handleCameraIdle(event.camera);
-                    }
-                  },
-                ),
-                children: [
-                  TileLayer(
-                    urlTemplate: state.tileSource.urlTemplate,
-                    subdomains: state.tileSource.subdomains,
-                    userAgentPackageName: state.tileSource.userAgentPackageName,
-                    tileProvider: state.tileSource.tileProvider,
-                  ),
-                  if (state.visitedOverlayPolygons.isNotEmpty)
-                    PolygonLayer(
-                      polygons: _buildVisitedPolygons(context, state),
-                      polygonCulling: false,
+              LayoutBuilder(
+                builder: (context, constraints) {
+                  final height = constraints.maxHeight.isFinite &&
+                          constraints.maxHeight > 0
+                      ? constraints.maxHeight
+                      : MediaQuery.sizeOf(context).height;
+                  final minZoom = _minZoomForHeight(height);
+                  return FlutterMap(
+                    mapController: _mapController,
+                    options: MapOptions(
+                      initialCenter: state.center,
+                      initialZoom: state.zoom,
+                      minZoom: minZoom,
+                      onMapReady: () {
+                        _handleCameraIdle(_mapController.camera);
+                      },
+                      onPositionChanged: (camera, hasGesture) {
+                        _handleCameraChanged(camera);
+                        if (!hasGesture) {
+                          _handleCameraIdle(camera);
+                        }
+                      },
+                      onMapEvent: (event) {
+                        if (event is MapEventMoveEnd ||
+                            event is MapEventFlingAnimationEnd ||
+                            event is MapEventDoubleTapZoomEnd ||
+                            event is MapEventRotateEnd) {
+                          _handleCameraIdle(event.camera);
+                        }
+                      },
                     ),
-                  if (state.importedSamples.isNotEmpty)
-                    CircleLayer(
-                      circles: _buildImportedCircles(state),
-                    ),
-                  if (lastLocation != null)
-                    MarkerLayer(
-                      markers: [
-                        _buildLocationMarker(
-                          LatLng(
-                            lastLocation.latitude,
-                            lastLocation.longitude,
-                          ),
+                    children: [
+                      TileLayer(
+                        urlTemplate: state.tileSource.urlTemplate,
+                        subdomains: state.tileSource.subdomains,
+                        userAgentPackageName:
+                            state.tileSource.userAgentPackageName,
+                        tileProvider: state.tileSource.tileProvider,
+                      ),
+                      if (state.visitedOverlayPolygons.isNotEmpty)
+                        PolygonLayer(
+                          polygons: _buildVisitedPolygons(context, state),
+                          polygonCulling: false,
                         ),
-                      ],
-                    ),
-                  const MapScaleIndicator(),
-                ],
+                      if (state.importedSamples.isNotEmpty)
+                        CircleLayer(
+                          circles: _buildImportedCircles(state),
+                        ),
+                      if (lastLocation != null)
+                        MarkerLayer(
+                          markers: [
+                            _buildLocationMarker(
+                              LatLng(
+                                lastLocation.latitude,
+                                lastLocation.longitude,
+                              ),
+                            ),
+                          ],
+                        ),
+                      const MapScaleIndicator(),
+                    ],
+                  );
+                },
               ),
               // Keep any load errors visible without blocking the map render.
               if (state.error != null)
@@ -322,6 +333,19 @@ class _MapViewState extends State<MapView> {
       east: camera.visibleBounds.east,
       west: camera.visibleBounds.west,
     );
+  }
+
+  double _minZoomForHeight(double height) {
+    if (height <= 0) {
+      return 0;
+    }
+
+    final zoom = const Epsg3857().zoom(height);
+    if (!zoom.isFinite) {
+      return 0;
+    }
+
+    return zoom < 0 ? 0 : zoom;
   }
 
   void _recenterToUserLocation(MapViewState state) {

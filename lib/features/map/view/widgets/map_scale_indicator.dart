@@ -7,6 +7,10 @@ import 'package:latlong2/latlong.dart';
 
 import '../../../../translations/locale_keys.g.dart';
 
+const _scaleBarPadding = EdgeInsets.symmetric(horizontal: 10, vertical: 6);
+const double _labelLineSpacing = 4;
+const double _lineHeight = 8;
+
 /// Fixed-length map scale with a live distance label.
 class MapScaleIndicator extends StatelessWidget {
   const MapScaleIndicator({
@@ -28,11 +32,22 @@ class MapScaleIndicator extends StatelessWidget {
       return const SizedBox.shrink();
     }
 
-    final centerX = size.x / 2;
-    final centerY = size.y / 2;
+    final theme = Theme.of(context);
+    final lineColor = theme.colorScheme.onSurface.withValues(alpha: 0.85);
+    final baseStyle =
+        theme.textTheme.labelSmall ?? DefaultTextStyle.of(context).style;
+    final textStyle = baseStyle.copyWith(
+      color: lineColor,
+      fontWeight: FontWeight.w600,
+    );
+    final lineCenter = _lineCenter(context, size, textStyle);
+    if (lineCenter == null) {
+      return const SizedBox.shrink();
+    }
+
     final halfLength = barLength / 2;
-    final start = Point<double>(centerX - halfLength, centerY);
-    final end = Point<double>(centerX + halfLength, centerY);
+    final start = Point<double>(lineCenter.dx - halfLength, lineCenter.dy);
+    final end = Point<double>(lineCenter.dx + halfLength, lineCenter.dy);
     const distance = Distance();
     final meters = distance.as(
       LengthUnit.Meter,
@@ -46,10 +61,69 @@ class MapScaleIndicator extends StatelessWidget {
         alignment: alignment,
         child: Padding(
           padding: padding,
-          child: _ScaleBar(label: label, length: barLength),
+          child: _ScaleBar(
+            label: label,
+            length: barLength,
+            textStyle: textStyle,
+            lineColor: lineColor,
+          ),
         ),
       ),
     );
+  }
+
+  Offset? _lineCenter(
+    BuildContext context,
+    Point<double> mapSize,
+    TextStyle textStyle,
+  ) {
+    final safePadding = MediaQuery.paddingOf(context);
+    final safeWidth = mapSize.x - safePadding.left - safePadding.right;
+    final safeHeight = mapSize.y - safePadding.top - safePadding.bottom;
+    if (safeWidth <= 0 || safeHeight <= 0) {
+      return null;
+    }
+
+    final textHeight = _measureTextHeight(context, textStyle);
+    final scaleBarSize = Size(
+      barLength + _scaleBarPadding.horizontal,
+      textHeight + _labelLineSpacing + _lineHeight + _scaleBarPadding.vertical,
+    );
+    final paddedSize = Size(
+      scaleBarSize.width + padding.horizontal,
+      scaleBarSize.height + padding.vertical,
+    );
+
+    final extraWidth = safeWidth - paddedSize.width;
+    final extraHeight = safeHeight - paddedSize.height;
+    final alignOffset = Offset(
+      (alignment.x + 1) / 2 * extraWidth,
+      (alignment.y + 1) / 2 * extraHeight,
+    );
+
+    final scaleBarTopLeft = Offset(
+      safePadding.left + alignOffset.dx + padding.left,
+      safePadding.top + alignOffset.dy + padding.top,
+    );
+
+    return Offset(
+      scaleBarTopLeft.dx + _scaleBarPadding.left + barLength / 2,
+      scaleBarTopLeft.dy +
+          _scaleBarPadding.top +
+          textHeight +
+          _labelLineSpacing +
+          _lineHeight / 2,
+    );
+  }
+
+  double _measureTextHeight(BuildContext context, TextStyle textStyle) {
+    final painter = TextPainter(
+      text: TextSpan(text: '0', style: textStyle),
+      textDirection: Directionality.of(context),
+      textScaler: MediaQuery.textScalerOf(context),
+      maxLines: 1,
+    )..layout();
+    return painter.size.height;
   }
 
   String _formatDistanceLabel(BuildContext context, double meters) {
@@ -73,38 +147,40 @@ class _ScaleBar extends StatelessWidget {
   const _ScaleBar({
     required this.label,
     required this.length,
+    required this.textStyle,
+    required this.lineColor,
   });
 
   final String label;
   final double length;
+  final TextStyle textStyle;
+  final Color lineColor;
 
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
-    final lineColor = theme.colorScheme.onSurface.withValues(alpha: 0.85);
-    final textStyle = theme.textTheme.labelSmall?.copyWith(
-      color: lineColor,
-      fontWeight: FontWeight.w600,
-    );
-
     return Material(
       color: theme.colorScheme.surfaceContainerHighest.withValues(alpha: 0.7),
       borderRadius: BorderRadius.circular(12),
       elevation: 1,
       child: Padding(
-        padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            Text(
-              label,
-              style: textStyle,
-              maxLines: 1,
-              overflow: TextOverflow.ellipsis,
-            ),
-            const SizedBox(height: 4),
-            _ScaleBarLine(length: length, color: lineColor),
-          ],
+        padding: _scaleBarPadding,
+        child: SizedBox(
+          width: length,
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Text(
+                label,
+                style: textStyle,
+                maxLines: 1,
+                overflow: TextOverflow.ellipsis,
+                textAlign: TextAlign.center,
+              ),
+              const SizedBox(height: _labelLineSpacing),
+              _ScaleBarLine(length: length, color: lineColor),
+            ],
+          ),
         ),
       ),
     );
@@ -124,7 +200,7 @@ class _ScaleBarLine extends StatelessWidget {
   Widget build(BuildContext context) {
     return SizedBox(
       width: length,
-      height: 8,
+      height: _lineHeight,
       child: Stack(
         children: [
           Positioned(
