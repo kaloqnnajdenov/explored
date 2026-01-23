@@ -28,6 +28,8 @@ void main() {
 
     expect(find.text('Permissions management'), findsOneWidget);
     expect(find.text('Import GPX file'), findsOneWidget);
+    expect(find.text('Export'), findsOneWidget);
+    expect(find.text('Download'), findsOneWidget);
     expect(selected, isNull);
     expect(tester.takeException(), isNull);
   });

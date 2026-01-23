@@ -9,6 +9,7 @@ import '../../location/data/models/location_tracking_mode.dart';
 import '../../location/data/models/lat_lng_sample.dart';
 import '../../location/data/repositories/location_updates_repository.dart';
 import '../../location/data/repositories/location_history_repository.dart';
+import '../../location/data/models/history_export_result.dart';
 import '../../permissions/data/repositories/permissions_repository.dart';
 import '../../visited_grid/data/models/visited_grid_bounds.dart';
 import '../../visited_grid/data/models/visited_overlay_mode.dart';
@@ -99,6 +100,9 @@ class MapViewModel extends ChangeNotifier {
   VisitedGridBounds? _lastBounds;
   double? _lastZoom;
   int _lastImportedCount = 0;
+  int _exportFeedbackId = 0;
+  bool _isExporting = false;
+  bool _isDownloading = false;
 
   MapViewState get state => _state;
 
@@ -199,6 +203,42 @@ class MapViewModel extends ChangeNotifier {
     notifyListeners();
   }
 
+  /// Exports the full location history as CSV and triggers native sharing.
+  Future<void> exportHistory() async {
+    if (_isExporting) {
+      return;
+    }
+    _isExporting = true;
+    _state = _state.copyWith(clearExportFeedback: true);
+    notifyListeners();
+
+    final result = await _locationHistoryRepository.exportHistory();
+    _isExporting = false;
+    if (result.outcome == HistoryExportOutcome.success) {
+      _emitHistoryFeedback('export_ready');
+    } else {
+      _emitHistoryFeedback('export_failed', isError: true);
+    }
+  }
+
+  /// Saves the full location history CSV to device storage.
+  Future<void> downloadHistory() async {
+    if (_isDownloading) {
+      return;
+    }
+    _isDownloading = true;
+    _state = _state.copyWith(clearExportFeedback: true);
+    notifyListeners();
+
+    final result = await _locationHistoryRepository.downloadHistory();
+    _isDownloading = false;
+    if (result.outcome == HistoryExportOutcome.success) {
+      _emitHistoryFeedback('download_ready');
+    } else {
+      _emitHistoryFeedback('download_failed', isError: true);
+    }
+  }
+
   @override
   void dispose() {
     _locationSubscription?.cancel();
@@ -252,6 +292,21 @@ class MapViewModel extends ChangeNotifier {
       _lastImportedCount = importedSamples.length;
       _refreshOverlayIfPossible();
     }
+  }
+
+  void _emitHistoryFeedback(
+    String messageKey, {
+    bool isError = false,
+  }) {
+    _exportFeedbackId += 1;
+    _state = _state.copyWith(
+      exportFeedback: MapViewFeedback(
+        id: _exportFeedbackId,
+        messageKey: messageKey,
+        isError: isError,
+      ),
+    );
+    notifyListeners();
   }
 
   void _updateLocationState({

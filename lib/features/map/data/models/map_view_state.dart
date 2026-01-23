@@ -22,6 +22,7 @@ class MapViewState {
     required this.visitedTimeFilter,
     required this.overlayResolution,
     required this.importedSamples,
+    this.exportFeedback,
     this.error,
     this.overlayError,
   });
@@ -41,6 +42,7 @@ class MapViewState {
       visitedTimeFilter: VisitedTimeFilter.allTime,
       overlayResolution: null,
       importedSamples: const [],
+      exportFeedback: null,
     );
   }
 
@@ -57,6 +59,7 @@ class MapViewState {
   final VisitedTimeFilter visitedTimeFilter;
   final int? overlayResolution;
   final List<LatLngSample> importedSamples;
+  final MapViewFeedback? exportFeedback;
   final Object? overlayError;
 
   /// Create a new state with selective overrides; errors can be cleared.
@@ -75,6 +78,8 @@ class MapViewState {
     VisitedTimeFilter? visitedTimeFilter,
     int? overlayResolution,
     List<LatLngSample>? importedSamples,
+    MapViewFeedback? exportFeedback,
+    bool clearExportFeedback = false,
     Object? overlayError,
     bool clearOverlayError = false,
   }) {
@@ -94,8 +99,22 @@ class MapViewState {
       visitedTimeFilter: visitedTimeFilter ?? this.visitedTimeFilter,
       overlayResolution: overlayResolution ?? this.overlayResolution,
       importedSamples: importedSamples ?? this.importedSamples,
+      exportFeedback:
+          clearExportFeedback ? null : (exportFeedback ?? this.exportFeedback),
       overlayError:
           clearOverlayError ? null : (overlayError ?? this.overlayError),
     );
   }
+}
+
+class MapViewFeedback {
+  const MapViewFeedback({
+    required this.id,
+    required this.messageKey,
+    this.isError = false,
+  });
+
+  final int id;
+  final String messageKey;
+  final bool isError;
 }

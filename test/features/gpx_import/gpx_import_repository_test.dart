@@ -8,6 +8,7 @@ import 'package:explored/features/gpx_import/data/repositories/gpx_import_reposi
 import 'package:explored/features/gpx_import/data/services/gpx_file_picker_service.dart';
 import 'package:explored/features/gpx_import/data/services/gpx_parser_service.dart';
 import 'package:explored/features/location/data/location_tracking_config.dart';
+import 'package:explored/features/location/data/models/history_export_result.dart';
 import 'package:explored/features/location/data/models/lat_lng_sample.dart';
 import 'package:explored/features/location/data/repositories/location_history_repository.dart';
 import 'package:explored/features/location/data/services/platform_info.dart';
@@ -99,6 +100,8 @@ class FakeGpxParserService implements GpxParserService {
 
 class FakeLocationHistoryRepository implements LocationHistoryRepository {
   List<LatLngSample> addedSamples = <LatLngSample>[];
+  int exportCalls = 0;
+  int downloadCalls = 0;
 
   @override
   Stream<List<LatLngSample>> get historyStream =>
@@ -122,6 +125,18 @@ class FakeLocationHistoryRepository implements LocationHistoryRepository {
   ) async {
     addedSamples = samples;
     return samples;
+  }
+
+  @override
+  Future<HistoryExportResult> exportHistory() async {
+    exportCalls += 1;
+    return const HistoryExportResult.success(filePath: 'export.csv');
+  }
+
+  @override
+  Future<HistoryExportResult> downloadHistory() async {
+    downloadCalls += 1;
+    return const HistoryExportResult.success(filePath: 'download.csv');
   }
 }
 

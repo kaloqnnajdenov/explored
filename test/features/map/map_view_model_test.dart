@@ -5,6 +5,7 @@ import 'package:latlong2/latlong.dart';
 
 import 'package:explored/domain/usecases/h3_overlay_worker.dart';
 import 'package:explored/features/location/data/models/lat_lng_sample.dart';
+import 'package:explored/features/location/data/models/history_export_result.dart';
 import 'package:explored/features/location/data/models/location_permission_level.dart';
 import 'package:explored/features/location/data/models/location_status.dart';
 import 'package:explored/features/location/data/models/location_tracking_mode.dart';
@@ -176,6 +177,12 @@ class FakeLocationHistoryRepository implements LocationHistoryRepository {
       StreamController<List<LatLngSample>>.broadcast();
   final List<LatLngSample> _samples = <LatLngSample>[];
   int startCalls = 0;
+  int exportCalls = 0;
+  int downloadCalls = 0;
+  HistoryExportResult exportResult =
+      const HistoryExportResult.success(filePath: 'export.csv');
+  HistoryExportResult downloadResult =
+      const HistoryExportResult.success(filePath: 'download.csv');
 
   @override
   Stream<List<LatLngSample>> get historyStream => _controller.stream;
@@ -201,6 +208,18 @@ class FakeLocationHistoryRepository implements LocationHistoryRepository {
     _samples.addAll(samples);
     _controller.add(List.unmodifiable(_samples));
     return samples;
+  }
+
+  @override
+  Future<HistoryExportResult> exportHistory() async {
+    exportCalls += 1;
+    return exportResult;
+  }
+
+  @override
+  Future<HistoryExportResult> downloadHistory() async {
+    downloadCalls += 1;
+    return downloadResult;
   }
 }
 
@@ -457,6 +476,116 @@ void main() {
 
     expect(locationRepository.openNotificationSettingsCalls, 1);
     expect(locationRepository.openAppSettingsCalls, 0);
+
+    viewModel.dispose();
+  });
+
+  test('exportHistory emits success feedback', () async {
+    final locationRepository = FakeLocationUpdatesRepository();
+    final mapRepository = MapRepository(
+      tileService: FakeMapTileService(),
+      attributionService: FakeMapAttributionService(),
+    );
+    final historyRepository = FakeLocationHistoryRepository()
+      ..exportResult =
+          const HistoryExportResult.success(filePath: 'export.csv');
+    final viewModel = MapViewModel(
+      mapRepository: mapRepository,
+      locationUpdatesRepository: locationRepository,
+      locationHistoryRepository: historyRepository,
+      permissionsRepository: FakePermissionsRepository(),
+      visitedGridRepository: FakeVisitedGridRepository(),
+      overlayWorker: FakeVisitedOverlayWorker(),
+      boundaryResolver: fakeBoundaryResolver,
+    );
+
+    await viewModel.exportHistory();
+
+    expect(historyRepository.exportCalls, 1);
+    expect(viewModel.state.exportFeedback?.messageKey, 'export_ready');
+    expect(viewModel.state.exportFeedback?.isError, isFalse);
+
+    viewModel.dispose();
+  });
+
+  test('exportHistory emits failure feedback', () async {
+    final locationRepository = FakeLocationUpdatesRepository();
+    final mapRepository = MapRepository(
+      tileService: FakeMapTileService(),
+      attributionService: FakeMapAttributionService(),
+    );
+    final historyRepository = FakeLocationHistoryRepository()
+      ..exportResult = const HistoryExportResult.failure(error: 'boom');
+    final viewModel = MapViewModel(
+      mapRepository: mapRepository,
+      locationUpdatesRepository: locationRepository,
+      locationHistoryRepository: historyRepository,
+      permissionsRepository: FakePermissionsRepository(),
+      visitedGridRepository: FakeVisitedGridRepository(),
+      overlayWorker: FakeVisitedOverlayWorker(),
+      boundaryResolver: fakeBoundaryResolver,
+    );
+
+    await viewModel.exportHistory();
+
+    expect(historyRepository.exportCalls, 1);
+    expect(viewModel.state.exportFeedback?.messageKey, 'export_failed');
+    expect(viewModel.state.exportFeedback?.isError, isTrue);
+
+    viewModel.dispose();
+  });
+
+  test('downloadHistory emits success feedback', () async {
+    final locationRepository = FakeLocationUpdatesRepository();
+    final mapRepository = MapRepository(
+      tileService: FakeMapTileService(),
+      attributionService: FakeMapAttributionService(),
+    );
+    final historyRepository = FakeLocationHistoryRepository()
+      ..downloadResult =
+          const HistoryExportResult.success(filePath: 'download.csv');
+    final viewModel = MapViewModel(
+      mapRepository: mapRepository,
+      locationUpdatesRepository: locationRepository,
+      locationHistoryRepository: historyRepository,
+      permissionsRepository: FakePermissionsRepository(),
+      visitedGridRepository: FakeVisitedGridRepository(),
+      overlayWorker: FakeVisitedOverlayWorker(),
+      boundaryResolver: fakeBoundaryResolver,
+    );
+
+    await viewModel.downloadHistory();
+
+    expect(historyRepository.downloadCalls, 1);
+    expect(viewModel.state.exportFeedback?.messageKey, 'download_ready');
+    expect(viewModel.state.exportFeedback?.isError, isFalse);
+
+    viewModel.dispose();
+  });
+
+  test('downloadHistory emits failure feedback', () async {
+    final locationRepository = FakeLocationUpdatesRepository();
+    final mapRepository = MapRepository(
+      tileService: FakeMapTileService(),
+      attributionService: FakeMapAttributionService(),
+    );
+    final historyRepository = FakeLocationHistoryRepository()
+      ..downloadResult = const HistoryExportResult.failure(error: 'boom');
+    final viewModel = MapViewModel(
+      mapRepository: mapRepository,
+      locationUpdatesRepository: locationRepository,
+      locationHistoryRepository: historyRepository,
+      permissionsRepository: FakePermissionsRepository(),
+      visitedGridRepository: FakeVisitedGridRepository(),
+      overlayWorker: FakeVisitedOverlayWorker(),
+      boundaryResolver: fakeBoundaryResolver,
+    );
+
+    await viewModel.downloadHistory();
+
+    expect(historyRepository.downloadCalls, 1);
+    expect(viewModel.state.exportFeedback?.messageKey, 'download_failed');
+    expect(viewModel.state.exportFeedback?.isError, isTrue);
 
     viewModel.dispose();
   });

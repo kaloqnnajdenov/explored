@@ -51,6 +51,8 @@ dependencies:
   url_launcher: ^6.3.2
   file_picker: ^8.1.2
   xml: ^6.5.0
+  path_provider: ^2.1.4
+  share_plus: ^10.0.2
 
   # Persistence + H3
   drift: ^2.30.0

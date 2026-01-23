@@ -6,6 +6,8 @@ const Map<String, dynamic> _enTranslations = {
   'menu_open_tooltip': 'Open menu',
   'menu_permissions_management': 'Permissions management',
   'menu_import_gpx': 'Import GPX file',
+  'menu_export': 'Export',
+  'menu_download': 'Download',
   'map_scale_meters': '{value} m',
   'map_scale_kilometers': '{value} km',
   'permissions_title': 'Permissions',
@@ -21,6 +23,10 @@ const Map<String, dynamic> _enTranslations = {
   'permissions_error_generic': 'Could not update permissions. Try again.',
   'gpx_import_processing': 'Processing GPX data...',
   'gpx_import_success': 'Imported {count} points.',
+  'export_ready': 'Export ready',
+  'export_failed': 'Export failed. Try again.',
+  'download_ready': 'Download ready',
+  'download_failed': 'Download failed. Try again.',
 };
 
 Future<void> loadTestTranslations() async {

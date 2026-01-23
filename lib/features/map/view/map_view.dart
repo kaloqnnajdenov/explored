@@ -43,6 +43,7 @@ class _MapViewState extends State<MapView> {
   late final MapController _mapController;
   late final TapGestureRecognizer _attributionTapRecognizer;
   int? _lastGpxFeedbackId;
+  int? _lastExportFeedbackId;
 
   @override
   void initState() {
@@ -193,6 +194,7 @@ class _MapViewState extends State<MapView> {
                 viewModel: widget.gpxImportViewModel,
               ),
               _buildGpxFeedbackListener(),
+              _buildExportFeedbackListener(),
             ],
           ),
         );
@@ -396,6 +398,12 @@ class _MapViewState extends State<MapView> {
       case MapMenuAction.importGpx:
         await _openGpxImport();
         break;
+      case MapMenuAction.exportHistory:
+        await widget.viewModel.exportHistory();
+        break;
+      case MapMenuAction.downloadHistory:
+        await widget.viewModel.downloadHistory();
+        break;
     }
   }
 
@@ -415,6 +423,35 @@ class _MapViewState extends State<MapView> {
       builder: (_) => PermissionsManagementView(
         viewModel: widget.permissionsViewModel,
       ),
+    );
+  }
+
+  Widget _buildExportFeedbackListener() {
+    return AnimatedBuilder(
+      animation: widget.viewModel,
+      builder: (context, _) {
+        final feedback = widget.viewModel.state.exportFeedback;
+        if (feedback == null || feedback.id == _lastExportFeedbackId) {
+          return const SizedBox.shrink();
+        }
+        _lastExportFeedbackId = feedback.id;
+        WidgetsBinding.instance.addPostFrameCallback((_) {
+          if (!mounted) {
+            return;
+          }
+          final messenger = ScaffoldMessenger.of(context);
+          messenger.hideCurrentSnackBar();
+          messenger.showSnackBar(
+            SnackBar(
+              content: Text(feedback.messageKey.tr()),
+              backgroundColor: feedback.isError
+                  ? Theme.of(context).colorScheme.error
+                  : null,
+            ),
+          );
+        });
+        return const SizedBox.shrink();
+      },
     );
   }
 }

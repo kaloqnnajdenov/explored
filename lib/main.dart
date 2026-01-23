@@ -12,6 +12,8 @@ import 'features/location/data/location_tracking_config.dart';
 import 'features/location/data/repositories/location_updates_repository.dart';
 import 'features/location/data/repositories/location_history_repository.dart';
 import 'features/location/data/services/background_location_client.dart';
+import 'features/location/data/services/location_history_database.dart';
+import 'features/location/data/services/location_history_export_service.dart';
 import 'features/location/data/services/location_permission_service.dart';
 import 'features/location/data/services/location_tracking_service_factory.dart';
 import 'features/location/data/services/platform_info.dart';
@@ -69,8 +71,19 @@ Future<void> main() async {
     platformInfo: platformInfo,
     config: locationTrackingConfig,
   );
+  final locationHistoryDatabase = LocationHistoryDatabase(
+    shareAcrossIsolates: true,
+  );
+  final locationHistoryExportService = LocationHistoryExportService(
+    historyDao: locationHistoryDatabase.locationHistoryDao,
+    pathProvider: PathProviderClientImpl(),
+    shareClient: SharePlusClient(),
+    fileSaveClient: FilePickerSaveClient(),
+  );
   final locationHistoryRepository = DefaultLocationHistoryRepository(
     locationUpdatesRepository: locationUpdatesRepository,
+    historyDao: locationHistoryDatabase.locationHistoryDao,
+    exportService: locationHistoryExportService,
   );
   const visitedGridConfig = VisitedGridConfig();
   final visitedGridDatabase = VisitedGridDatabase(shareAcrossIsolates: true);

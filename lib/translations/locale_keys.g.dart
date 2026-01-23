@@ -57,6 +57,8 @@ abstract class  LocaleKeys {
   static const menu_open_tooltip = 'menu_open_tooltip';
   static const menu_permissions_management = 'menu_permissions_management';
   static const menu_import_gpx = 'menu_import_gpx';
+  static const menu_export = 'menu_export';
+  static const menu_download = 'menu_download';
   static const permissions_title = 'permissions_title';
   static const permissions_status_label = 'permissions_status_label';
   static const permissions_status_granted = 'permissions_status_granted';
@@ -74,5 +76,9 @@ abstract class  LocaleKeys {
   static const gpx_import_invalid_file = 'gpx_import_invalid_file';
   static const gpx_import_no_points = 'gpx_import_no_points';
   static const gpx_import_success = 'gpx_import_success';
+  static const export_ready = 'export_ready';
+  static const export_failed = 'export_failed';
+  static const download_ready = 'download_ready';
+  static const download_failed = 'download_failed';
 
 }
