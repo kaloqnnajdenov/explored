@@ -6,9 +6,13 @@ import 'package:latlong2/latlong.dart';
 import 'package:explored/features/location/data/models/lat_lng_sample.dart';
 import 'package:explored/features/visited_grid/data/models/visited_grid_bounds.dart';
 import 'package:explored/features/visited_grid/data/models/visited_grid_cell.dart';
+import 'package:explored/features/visited_grid/data/models/visited_grid_cell_update.dart';
 import 'package:explored/features/visited_grid/data/models/visited_grid_config.dart';
+import 'package:explored/features/visited_grid/data/models/explored_area_log_entry.dart';
+import 'package:explored/features/visited_grid/data/models/visited_grid_stats.dart';
 import 'package:explored/features/visited_grid/data/models/visited_time_filter.dart';
 import 'package:explored/features/visited_grid/data/repositories/visited_grid_repository.dart';
+import 'package:explored/features/visited_grid/data/services/explored_area_logger.dart';
 import 'package:explored/features/visited_grid/data/services/visited_grid_database.dart';
 
 import 'visited_grid_test_utils.dart';
@@ -19,6 +23,7 @@ class _RepoHarness {
     required this.dao,
     required this.h3,
     required this.locationRepo,
+    required this.logger,
     required this.repository,
   });
 
@@ -26,7 +31,17 @@ class _RepoHarness {
   final TestVisitedGridDao dao;
   final FakeVisitedGridH3Service h3;
   final TestLocationUpdatesRepository locationRepo;
+  final TestExploredAreaLogger logger;
   final DefaultVisitedGridRepository repository;
+}
+
+class TestExploredAreaLogger implements ExploredAreaLogger {
+  final List<ExploredAreaLogEntry> entries = [];
+
+  @override
+  void log(ExploredAreaLogEntry entry) {
+    entries.add(entry);
+  }
 }
 
 Future<_RepoHarness> _buildHarness({
@@ -37,10 +52,14 @@ Future<_RepoHarness> _buildHarness({
   final dao = TestVisitedGridDao(db);
   final h3 = FakeVisitedGridH3Service();
   final locationRepo = TestLocationUpdatesRepository();
+  final logger = TestExploredAreaLogger();
   final repository = DefaultVisitedGridRepository(
     locationUpdatesRepository: locationRepo,
     visitedGridDao: dao,
     h3Service: h3,
+    exploredAreaLogger: logger,
+    appVersion: '1.0.0',
+    schemaVersion: 3,
     config: config,
     nowProvider: nowProvider,
   );
@@ -50,6 +69,7 @@ Future<_RepoHarness> _buildHarness({
     dao: dao,
     h3: h3,
     locationRepo: locationRepo,
+    logger: logger,
     repository: repository,
   );
 }
@@ -134,6 +154,31 @@ void main() {
       await _tearDownHarness(harness);
     });
 
+    test('ingestSamples awaits queued writes', () async {
+      final harness = await _buildHarness();
+      final gate = Completer<void>();
+      harness.dao.upsertGate = gate;
+
+      var completed = false;
+      final future = harness.repository.ingestSamples([
+        _sample(
+          latitude: 1,
+          longitude: 2,
+          timestamp: DateTime(2024, 1, 1, 10, 5),
+        ),
+      ]);
+      future.then((_) => completed = true);
+
+      await pumpEventQueue(times: 5);
+      expect(completed, isFalse);
+
+      gate.complete();
+      await future;
+      expect(completed, isTrue);
+
+      await _tearDownHarness(harness);
+    });
+
     test('Queues samples while writes are in flight', () async {
       final harness = await _buildHarness();
       final gate = Completer<void>();
@@ -187,6 +232,58 @@ void main() {
       await _drain();
 
       expect(harness.h3.polygonCalls, 0);
+
+      await _tearDownHarness(harness);
+    });
+  });
+
+  group('VisitedGridRepository stats', () {
+    test('Emits stats + cell update for new base cell', () async {
+      final harness = await _buildHarness();
+      final updates = <VisitedGridCellUpdate>[];
+      final statsUpdates = <VisitedGridStats>[];
+      final updateSub = harness.repository.cellUpdates.listen(updates.add);
+      final statsSub = harness.repository.statsUpdates.listen(statsUpdates.add);
+
+      harness.locationRepo.emit(
+        _sample(
+          latitude: 1,
+          longitude: 2,
+          timestamp: DateTime(2024, 1, 1, 10),
+        ),
+      );
+      await _drain();
+
+      expect(updates, hasLength(1));
+      expect(updates.first.deltaAreaM2, 50.0);
+      expect(updates.first.stats.cellCount, 1);
+      expect(statsUpdates.isNotEmpty, isTrue);
+      expect(statsUpdates.last.totalAreaM2, 50.0);
+
+      await updateSub.cancel();
+      await statsSub.cancel();
+      await _tearDownHarness(harness);
+    });
+
+    test('Does not increment stats for repeated cell', () async {
+      final harness = await _buildHarness();
+      final time = DateTime(2024, 1, 1, 10);
+
+      harness.locationRepo.emit(
+        _sample(latitude: 1, longitude: 2, timestamp: time),
+      );
+      harness.locationRepo.emit(
+        _sample(
+          latitude: 1,
+          longitude: 2,
+          timestamp: time.add(const Duration(minutes: 10)),
+        ),
+      );
+      await _drain();
+
+      final stats = await harness.repository.fetchStats();
+      expect(stats.cellCount, 1);
+      expect(stats.totalAreaM2, 50.0);
 
       await _tearDownHarness(harness);
     });
@@ -395,6 +492,9 @@ INSERT INTO visits_daily (
         epochSeconds: 100,
         latE5: 100000,
         lonE5: 200000,
+        baseResolution: 12,
+        baseCellId: harness.h3.encodeCellId(cell),
+        baseCellAreaM2: 50,
       );
 
       final overlay = await harness.repository.loadOverlay(
@@ -591,6 +691,9 @@ INSERT INTO visits_lifetime (
         epochSeconds: 100,
         latE5: 100000,
         lonE5: 200000,
+        baseResolution: 12,
+        baseCellId: harness.h3.encodeCellId(cell),
+        baseCellAreaM2: 50,
       );
 
       final overlay = await harness.repository.loadOverlay(

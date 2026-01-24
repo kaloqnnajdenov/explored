@@ -1,6 +1,8 @@
 import 'package:drift/drift.dart';
 import 'package:drift_flutter/drift_flutter.dart';
 
+import 'package:explored/constants.dart';
+
 import '../models/visited_grid_cell.dart';
 import '../models/visited_grid_cell_bounds.dart';
 import 'visited_grid_h3_service.dart';
@@ -81,6 +83,24 @@ class VisitedGridMeta extends Table {
   Set<Column> get primaryKey => {id};
 }
 
+@DataClassName('VisitedGridStatsRow')
+class VisitedGridStatsTable extends Table {
+  @override
+  String get tableName => 'visited_grid_stats';
+
+  IntColumn get id => integer().withDefault(const Constant(0))();
+  RealColumn get totalAreaM2 =>
+      real().withDefault(const Constant(0))();
+  IntColumn get cellCount => integer().withDefault(const Constant(0))();
+  IntColumn get canonicalVersion =>
+      integer().withDefault(const Constant(0))();
+  IntColumn get lastUpdatedTs => integer().nullable()();
+  IntColumn get lastReconciledTs => integer().nullable()();
+
+  @override
+  Set<Column> get primaryKey => {id};
+}
+
 @DriftDatabase(
   tables: [
     VisitsDaily,
@@ -88,6 +108,7 @@ class VisitedGridMeta extends Table {
     VisitsLifetimeDays,
     VisitedCellBounds,
     VisitedGridMeta,
+    VisitedGridStatsTable,
   ],
   daos: [VisitedGridDao],
 )
@@ -107,7 +128,7 @@ class VisitedGridDatabase extends _$VisitedGridDatabase {
         );
 
   @override
-  int get schemaVersion => 2;
+  int get schemaVersion => 3;
 
   @override
   MigrationStrategy get migration => MigrationStrategy(
@@ -115,6 +136,9 @@ class VisitedGridDatabase extends _$VisitedGridDatabase {
           if (from < 2) {
             await m.createTable(visitedCellBounds);
             await _backfillBounds();
+          }
+          if (from < 3) {
+            await m.createTable(visitedGridStatsTable);
           }
         },
       );
@@ -128,9 +152,10 @@ class VisitedGridDatabase extends _$VisitedGridDatabase {
     }
 
     final h3Service = VisitedGridH3Service();
-    const batchSize = 500;
-    for (var i = 0; i < rows.length; i += batchSize) {
-      final end = i + batchSize > rows.length ? rows.length : i + batchSize;
+    for (var i = 0; i < rows.length; i += kVisitedGridDaoBatchSize) {
+      final end = i + kVisitedGridDaoBatchSize > rows.length
+          ? rows.length
+          : i + kVisitedGridDaoBatchSize;
       final batchRows = rows.sublist(i, end);
       final boundsRows = <VisitedCellBoundsCompanion>[];
       for (final row in batchRows) {
@@ -162,6 +187,16 @@ class VisitedGridDatabase extends _$VisitedGridDatabase {
   }
 }
 
+class VisitedGridUpsertResult {
+  const VisitedGridUpsertResult({
+    required this.isNewBaseCell,
+    this.statsRow,
+  });
+
+  final bool isNewBaseCell;
+  final VisitedGridStatsRow? statsRow;
+}
+
 @DriftAccessor(
   tables: [
     VisitsDaily,
@@ -169,16 +204,14 @@ class VisitedGridDatabase extends _$VisitedGridDatabase {
     VisitsLifetimeDays,
     VisitedCellBounds,
     VisitedGridMeta,
+    VisitedGridStatsTable,
   ],
 )
 class VisitedGridDao extends DatabaseAccessor<VisitedGridDatabase>
     with _$VisitedGridDaoMixin {
   VisitedGridDao(super.db);
 
-  static const _metaRowId = 0;
-  static const _maxInClauseItems = 900;
-
-  Future<void> upsertVisit({
+  Future<VisitedGridUpsertResult> upsertVisit({
     required List<VisitedGridCell> cells,
     required List<VisitedGridCellBounds> cellBounds,
     required int day,
@@ -186,11 +219,15 @@ class VisitedGridDao extends DatabaseAccessor<VisitedGridDatabase>
     required int epochSeconds,
     required int latE5,
     required int lonE5,
+    required int baseResolution,
+    required String baseCellId,
+    required double baseCellAreaM2,
   }) async {
     if (cells.isEmpty) {
-      return;
+      return const VisitedGridUpsertResult(isNewBaseCell: false);
     }
 
+    var insertedBaseCell = false;
     await transaction(() async {
       for (final cell in cells) {
         await customStatement(
@@ -227,36 +264,25 @@ ON CONFLICT(res, cell_id, day_yyyy_mmdd) DO UPDATE SET
           ],
         );
 
-        await customStatement(
-          '''
-INSERT INTO visits_lifetime (
-  res,
-  cell_id,
-  first_ts,
-  last_ts,
-  samples,
-  days_visited,
-  lat_e5,
-  lon_e5
-) VALUES (?, ?, ?, ?, ?, ?, ?, ?)
-ON CONFLICT(res, cell_id) DO UPDATE SET
-  first_ts = MIN(visits_lifetime.first_ts, excluded.first_ts),
-  last_ts = MAX(visits_lifetime.last_ts, excluded.last_ts),
-  samples = visits_lifetime.samples + excluded.samples,
-  lat_e5 = excluded.lat_e5,
-  lon_e5 = excluded.lon_e5
-''',
-          [
-            cell.resolution,
-            cell.cellId,
-            epochSeconds,
-            epochSeconds,
-            1,
-            0,
-            latE5,
-            lonE5,
-          ],
+        final inserted = await _insertLifetimeRow(
+          cell: cell,
+          epochSeconds: epochSeconds,
+          latE5: latE5,
+          lonE5: lonE5,
         );
+        if (!inserted) {
+          await _updateLifetimeRow(
+            cell: cell,
+            epochSeconds: epochSeconds,
+            latE5: latE5,
+            lonE5: lonE5,
+          );
+        }
+        if (cell.resolution == baseResolution &&
+            cell.cellId == baseCellId &&
+            inserted) {
+          insertedBaseCell = true;
+        }
 
         await customStatement(
           '''
@@ -307,7 +333,119 @@ INSERT OR IGNORE INTO visited_cell_bounds (
           ],
         );
       }
+
+      if (insertedBaseCell) {
+        await _incrementStats(
+          deltaAreaM2: baseCellAreaM2,
+          epochSeconds: epochSeconds,
+        );
+      }
     });
+
+    if (!insertedBaseCell) {
+      return const VisitedGridUpsertResult(isNewBaseCell: false);
+    }
+    final stats = await fetchStats();
+    return VisitedGridUpsertResult(
+      isNewBaseCell: true,
+      statsRow: stats,
+    );
+  }
+
+  Future<bool> _insertLifetimeRow({
+    required VisitedGridCell cell,
+    required int epochSeconds,
+    required int latE5,
+    required int lonE5,
+  }) async {
+    await customStatement(
+      '''
+INSERT OR IGNORE INTO visits_lifetime (
+  res,
+  cell_id,
+  first_ts,
+  last_ts,
+  samples,
+  days_visited,
+  lat_e5,
+  lon_e5
+) VALUES (?, ?, ?, ?, ?, ?, ?, ?)
+''',
+      [
+        cell.resolution,
+        cell.cellId,
+        epochSeconds,
+        epochSeconds,
+        1,
+        0,
+        latE5,
+        lonE5,
+      ],
+    );
+    final changes =
+        await customSelect('SELECT changes() AS changes').getSingle();
+    return changes.read<int>('changes') > 0;
+  }
+
+  Future<void> _updateLifetimeRow({
+    required VisitedGridCell cell,
+    required int epochSeconds,
+    required int latE5,
+    required int lonE5,
+  }) {
+    return customStatement(
+      '''
+UPDATE visits_lifetime
+SET first_ts = MIN(first_ts, ?),
+    last_ts = MAX(last_ts, ?),
+    samples = samples + 1,
+    lat_e5 = ?,
+    lon_e5 = ?
+WHERE res = ? AND cell_id = ?
+''',
+      [
+        epochSeconds,
+        epochSeconds,
+        latE5,
+        lonE5,
+        cell.resolution,
+        cell.cellId,
+      ],
+    );
+  }
+
+  Future<void> _incrementStats({
+    required double deltaAreaM2,
+    required int epochSeconds,
+  }) {
+    return customStatement(
+      '''
+INSERT INTO visited_grid_stats (
+  id,
+  total_area_m2,
+  cell_count,
+  canonical_version,
+  last_updated_ts,
+  last_reconciled_ts
+) VALUES (0, ?, 1, 1, ?, NULL)
+ON CONFLICT(id) DO UPDATE SET
+  total_area_m2 = visited_grid_stats.total_area_m2 + excluded.total_area_m2,
+  cell_count = visited_grid_stats.cell_count + 1,
+  canonical_version = visited_grid_stats.canonical_version + 1,
+  last_updated_ts = excluded.last_updated_ts
+''',
+      [deltaAreaM2, epochSeconds],
+    );
+  }
+
+  Future<VisitedGridStatsRow?> fetchStats() {
+    return (select(visitedGridStatsTable)
+          ..where((tbl) => tbl.id.equals(kVisitedGridStatsRowId)))
+        .getSingleOrNull();
+  }
+
+  Future<void> upsertStats(VisitedGridStatsRow row) {
+    return into(visitedGridStatsTable).insertOnConflictUpdate(row);
   }
 
   Future<int> countBoundsForResolution(int resolution) async {
@@ -353,7 +491,7 @@ INSERT OR IGNORE INTO visited_cell_bounds (
 
   Future<int?> fetchLastCleanupTs() async {
     final row = await (select(visitedGridMeta)
-          ..where((tbl) => tbl.id.equals(_metaRowId)))
+          ..where((tbl) => tbl.id.equals(kVisitedGridMetaRowId)))
         .getSingleOrNull();
     return row?.lastCleanupTs;
   }
@@ -361,7 +499,7 @@ INSERT OR IGNORE INTO visited_cell_bounds (
   Future<void> setLastCleanupTs(int epochSeconds) async {
     await into(visitedGridMeta).insert(
       VisitedGridMetaCompanion(
-        id: const Value(_metaRowId),
+        id: const Value(kVisitedGridMetaRowId),
         lastCleanupTs: Value(epochSeconds),
       ),
       mode: InsertMode.insertOrReplace,
@@ -385,7 +523,7 @@ INSERT OR IGNORE INTO visited_cell_bounds (
     }
 
     final result = <String>{};
-    for (final chunk in _chunk(cellIds, _maxInClauseItems)) {
+    for (final chunk in _chunk(cellIds, kVisitedGridMaxInClauseItems)) {
       final placeholders = List.filled(chunk.length, '?').join(', ');
       final query = '''
 SELECT DISTINCT cell_id
@@ -454,7 +592,7 @@ WHERE b.res = ?
     }
 
     final result = <String>{};
-    for (final chunk in _chunk(cellIds, _maxInClauseItems)) {
+    for (final chunk in _chunk(cellIds, kVisitedGridMaxInClauseItems)) {
       final placeholders = List.filled(chunk.length, '?').join(', ');
       final query = '''
 SELECT cell_id

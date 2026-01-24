@@ -1,7 +1,10 @@
 import 'package:easy_localization/easy_localization.dart';
 import 'package:flutter/material.dart';
+import 'package:go_router/go_router.dart';
 import 'package:provider/provider.dart';
 
+import '../features/explored_area/view/explored_area_view.dart';
+import '../features/explored_area/view_model/explored_area_view_model.dart';
 import '../features/gpx_import/view_model/gpx_import_view_model.dart';
 import '../features/map/view/map_view.dart';
 import '../features/map/view_model/map_view_model.dart';
@@ -10,16 +13,36 @@ import '../translations/locale_keys.g.dart';
 
 /// Root app wiring dependencies and theming; hosts the map as the entry screen.
 class ExploredApp extends StatelessWidget {
-  const ExploredApp({
+  ExploredApp({
     required this.mapViewModel,
     required this.permissionsViewModel,
     required this.gpxImportViewModel,
+    required this.exploredAreaViewModel,
     super.key,
-  });
+  }) : _router = GoRouter(
+          routes: [
+            GoRoute(
+              path: '/',
+              builder: (_, __) => MapView(
+                viewModel: mapViewModel,
+                permissionsViewModel: permissionsViewModel,
+                gpxImportViewModel: gpxImportViewModel,
+              ),
+            ),
+            GoRoute(
+              path: '/explored-area',
+              builder: (_, __) => ExploredAreaView(
+                viewModel: exploredAreaViewModel,
+              ),
+            ),
+          ],
+        );
 
   final MapViewModel mapViewModel;
   final PermissionsViewModel permissionsViewModel;
   final GpxImportViewModel gpxImportViewModel;
+  final ExploredAreaViewModel exploredAreaViewModel;
+  final GoRouter _router;
 
   @override
   Widget build(BuildContext context) {
@@ -32,8 +55,11 @@ class ExploredApp extends StatelessWidget {
         ChangeNotifierProvider<GpxImportViewModel>.value(
           value: gpxImportViewModel,
         ),
+        ChangeNotifierProvider<ExploredAreaViewModel>.value(
+          value: exploredAreaViewModel,
+        ),
       ],
-      child: MaterialApp(
+      child: MaterialApp.router(
         onGenerateTitle: (_) => LocaleKeys.app_title.tr(),
         localizationsDelegates: context.localizationDelegates,
         supportedLocales: context.supportedLocales,
@@ -42,11 +68,7 @@ class ExploredApp extends StatelessWidget {
           colorScheme: ColorScheme.fromSeed(seedColor: Colors.green.shade700),
           useMaterial3: true,
         ),
-        home: MapView(
-          viewModel: mapViewModel,
-          permissionsViewModel: permissionsViewModel,
-          gpxImportViewModel: gpxImportViewModel,
-        ),
+        routerConfig: _router,
       ),
     );
   }

@@ -2,7 +2,6 @@ import 'package:flutter_test/flutter_test.dart';
 
 import 'package:explored/features/visited_grid/data/models/visited_grid_bounds.dart';
 import 'package:explored/features/visited_grid/data/repositories/visited_repo.dart';
-import 'package:explored/features/visited_grid/data/services/visited_grid_database.dart';
 
 import 'visited_grid_test_utils.dart';
 

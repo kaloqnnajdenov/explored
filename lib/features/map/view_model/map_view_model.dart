@@ -1,8 +1,8 @@
 import 'dart:async';
 
 import 'package:flutter/material.dart';
+import 'package:flutter_map/flutter_map.dart';
 
-import '../../../domain/usecases/h3_overlay_worker.dart';
 import '../../location/data/models/location_permission_level.dart';
 import '../../location/data/models/location_status.dart';
 import '../../location/data/models/location_tracking_mode.dart';
@@ -11,15 +11,12 @@ import '../../location/data/repositories/location_updates_repository.dart';
 import '../../location/data/repositories/location_history_repository.dart';
 import '../../location/data/models/history_export_result.dart';
 import '../../permissions/data/repositories/permissions_repository.dart';
-import '../../visited_grid/data/models/visited_grid_bounds.dart';
-import '../../visited_grid/data/models/visited_overlay_mode.dart';
-import '../../visited_grid/data/models/visited_time_filter.dart';
 import '../../visited_grid/data/repositories/visited_grid_repository.dart';
-import '../../visited_grid/view_model/h3_boundary_cache.dart';
-import '../../visited_grid/view_model/visited_overlay_controller.dart';
 import '../data/models/map_config.dart';
 import '../data/models/map_view_state.dart';
+import '../data/models/overlay_tile_size.dart';
 import '../data/repositories/map_repository.dart';
+import '../../visited_grid/view_model/fog_of_war_overlay_controller.dart';
 
 /// Owns map UI state and listens to location updates for the map screen.
 class MapViewModel extends ChangeNotifier {
@@ -30,11 +27,7 @@ class MapViewModel extends ChangeNotifier {
     required LocationHistoryRepository locationHistoryRepository,
     required PermissionsRepository permissionsRepository,
     required VisitedGridRepository visitedGridRepository,
-    required VisitedOverlayWorker overlayWorker,
-    required CellBoundaryResolver boundaryResolver,
-    H3BoundaryCache? boundaryCache,
-    Duration overlayDebounce = const Duration(milliseconds: 200),
-    DateTime Function()? nowProvider,
+    required FogOfWarOverlayController overlayController,
   }) {
     final config = mapRepository.getMapConfig();
     return MapViewModel._(
@@ -43,12 +36,8 @@ class MapViewModel extends ChangeNotifier {
       locationHistoryRepository: locationHistoryRepository,
       permissionsRepository: permissionsRepository,
       visitedGridRepository: visitedGridRepository,
-      overlayWorker: overlayWorker,
-      boundaryResolver: boundaryResolver,
-      boundaryCache: boundaryCache ?? H3BoundaryCache(),
-      overlayDebounce: overlayDebounce,
+      overlayController: overlayController,
       config: config,
-      nowProvider: nowProvider,
     );
   }
 
@@ -58,53 +47,35 @@ class MapViewModel extends ChangeNotifier {
     required LocationHistoryRepository locationHistoryRepository,
     required PermissionsRepository permissionsRepository,
     required VisitedGridRepository visitedGridRepository,
-    required VisitedOverlayWorker overlayWorker,
-    required CellBoundaryResolver boundaryResolver,
-    required H3BoundaryCache boundaryCache,
-    required Duration overlayDebounce,
+    required FogOfWarOverlayController overlayController,
     required MapConfig config,
-    DateTime Function()? nowProvider,
   })  : _mapRepository = mapRepository,
         _locationUpdatesRepository = locationUpdatesRepository,
         _locationHistoryRepository = locationHistoryRepository,
         _permissionsRepository = permissionsRepository,
         _visitedGridRepository = visitedGridRepository,
+        _overlayController = overlayController,
         _config = config,
-        _now = nowProvider ?? DateTime.now,
-        _state = MapViewState.initial(config) {
-    _overlayController = VisitedOverlayController(
-      worker: overlayWorker,
-      boundaryResolver: boundaryResolver,
-      boundaryCache: boundaryCache,
-      debounceDuration: overlayDebounce,
-      initialMode: _overlayModeForFilter(_state.visitedTimeFilter),
-      onOverlayUpdated: _handleOverlayUpdate,
-      onOverlayError: _handleOverlayError,
-      onLoadingChanged: _handleOverlayLoadingChanged,
-    );
-  }
+        _state = MapViewState.initial(config);
 
   final MapRepository _mapRepository;
   final LocationUpdatesRepository _locationUpdatesRepository;
   final LocationHistoryRepository _locationHistoryRepository;
   final PermissionsRepository _permissionsRepository;
   final VisitedGridRepository _visitedGridRepository;
+  final FogOfWarOverlayController _overlayController;
   final MapConfig _config;
-  final DateTime Function() _now;
-  late final VisitedOverlayController _overlayController;
-
   MapViewState _state;
   bool _hasInitialized = false;
   StreamSubscription<LatLngSample>? _locationSubscription;
   StreamSubscription<List<LatLngSample>>? _historySubscription;
-  VisitedGridBounds? _lastBounds;
-  double? _lastZoom;
-  int _lastImportedCount = 0;
   int _exportFeedbackId = 0;
   bool _isExporting = false;
   bool _isDownloading = false;
 
   MapViewState get state => _state;
+  TileProvider get overlayTileProvider => _overlayController.tileProvider;
+  Stream<void> get overlayResetStream => _overlayController.resetStream;
 
   /// Finalizes initial map state and attaches the location stream.
   Future<void> initialize() async {
@@ -116,10 +87,13 @@ class MapViewModel extends ChangeNotifier {
     notifyListeners();
 
     try {
+      final overlayTileSize = await _mapRepository.fetchOverlayTileSize();
+      await _overlayController.setTileSize(overlayTileSize.size);
       _state = _state.copyWith(
         center: _config.initialCenter,
         zoom: _config.initialZoom,
         tileSource: _config.tileSource,
+        overlayTileSize: overlayTileSize,
         isLoading: false,
         clearError: true,
       );
@@ -133,7 +107,6 @@ class MapViewModel extends ChangeNotifier {
     }
 
     notifyListeners();
-    _overlayController.setMode(_overlayModeForFilter(_state.visitedTimeFilter));
     await _requestInitialPermissions();
     await _locationUpdatesRepository.startTracking();
     await _refreshTrackingState();
@@ -201,6 +174,20 @@ class MapViewModel extends ChangeNotifier {
     }
     _state = _state.copyWith(recenterZoom: zoom);
     notifyListeners();
+  }
+
+  Future<void> setOverlayTileSize(OverlayTileSize size) async {
+    if (_state.overlayTileSize == size) {
+      return;
+    }
+    _state = _state.copyWith(overlayTileSize: size);
+    notifyListeners();
+    try {
+      await _mapRepository.setOverlayTileSize(size);
+      await _overlayController.setTileSize(size.size);
+    } catch (error) {
+      debugPrint('Failed to update overlay tile size: $error');
+    }
   }
 
   /// Exports the full location history as CSV and triggers native sharing.
@@ -287,11 +274,6 @@ class MapViewModel extends ChangeNotifier {
 
     _state = _state.copyWith(importedSamples: importedSamples);
     notifyListeners();
-
-    if (importedSamples.length != _lastImportedCount) {
-      _lastImportedCount = importedSamples.length;
-      _refreshOverlayIfPossible();
-    }
   }
 
   void _emitHistoryFeedback(
@@ -340,111 +322,12 @@ class MapViewModel extends ChangeNotifier {
     );
   }
 
-  void onCameraChanged({
-    required VisitedGridBounds bounds,
-    required double zoom,
-  }) {
-    _lastBounds = bounds;
-    _lastZoom = zoom;
-    _overlayController.onCameraChanged(
-      CameraState(bounds: bounds, zoom: zoom),
-    );
-  }
-
-  void onCameraIdle({
-    required VisitedGridBounds bounds,
-    required double zoom,
-  }) {
-    _lastBounds = bounds;
-    _lastZoom = zoom;
-    _overlayController.onCameraIdle(
-      CameraState(bounds: bounds, zoom: zoom),
-    );
-  }
-
-  void patchVisitedCell({
-    required String cellId,
-    required int resolution,
-  }) {
-    _overlayController.patchVisitedCell(
-      cellId: cellId,
-      resolution: resolution,
-    );
-  }
-
-  void setVisitedTimeFilter(VisitedTimeFilter filter) {
-    if (_state.visitedTimeFilter == filter) {
-      return;
-    }
-
-    _state = _state.copyWith(visitedTimeFilter: filter);
-    notifyListeners();
-    _overlayController.setMode(_overlayModeForFilter(filter));
-  }
-
-  void _handleOverlayUpdate(VisitedOverlayUpdate update) {
-    _state = _state.copyWith(
-      visitedOverlayPolygons: update.polygons,
-      overlayResolution: update.resolution,
-      clearOverlayError: true,
-    );
-    notifyListeners();
-  }
-
-  void _handleOverlayError(Object error) {
-    _state = _state.copyWith(
-      isOverlayLoading: false,
-      overlayError: error,
-      clearOverlayError: false,
-    );
-    notifyListeners();
-  }
-
-  void _handleOverlayLoadingChanged(bool isLoading) {
-    if (_state.isOverlayLoading == isLoading) {
-      return;
-    }
-    _state = _state.copyWith(
-      isOverlayLoading: isLoading,
-      clearOverlayError: isLoading,
-    );
-    notifyListeners();
-  }
-
-  void _refreshOverlayIfPossible() {
-    final bounds = _lastBounds;
-    final zoom = _lastZoom;
-    if (bounds == null || zoom == null) {
-      return;
-    }
-    _overlayController.onCameraIdle(
-      CameraState(bounds: bounds, zoom: zoom),
-    );
-  }
-
   Future<void> _requestInitialPermissions() async {
     try {
       await _permissionsRepository.requestInitialPermissionsIfNeeded();
     } catch (error) {
       debugPrint('Failed to request initial permissions: $error');
     }
-  }
-
-  OverlayMode _overlayModeForFilter(VisitedTimeFilter filter) {
-    if (filter == VisitedTimeFilter.allTime) {
-      return const OverlayModeAllTime();
-    }
-
-    final now = _now().toLocal();
-    final endDay = _dayKey(now);
-    final window = filter.dayWindow ?? 0;
-    final startDay = _dayKey(now.subtract(Duration(days: window)));
-    return OverlayMode.dateRange(fromDay: startDay, toDay: endDay);
-  }
-
-  int _dayKey(DateTime timestamp) {
-    final local = timestamp.toLocal();
-    return local.year * 10000 + local.month * 100 + local.day;
   }
 
   Future<void> _performPermissionAction(

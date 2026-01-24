@@ -1,5 +1,7 @@
 import 'dart:math' as math;
 
+import 'package:explored/constants.dart';
+
 import '../location_tracking_config.dart';
 import '../models/lat_lng_sample.dart';
 import 'background_location_client.dart';
@@ -754,7 +756,6 @@ class _GeoPoint {
 }
 
 double _haversineMeters(_GeoPoint start, _GeoPoint end) {
-  const earthRadiusMeters = 6371000;
   final dLat = _degToRad(end.latitude - start.latitude);
   final dLng = _degToRad(_wrapDeltaDegrees(end.longitude - start.longitude));
   final lat1 = _degToRad(start.latitude);
@@ -763,7 +764,7 @@ double _haversineMeters(_GeoPoint start, _GeoPoint end) {
   final a = math.pow(math.sin(dLat / 2), 2) +
       math.cos(lat1) * math.cos(lat2) * math.pow(math.sin(dLng / 2), 2);
   final c = 2 * math.asin(math.sqrt(a.toDouble()));
-  return earthRadiusMeters * c;
+  return kEarthRadiusMeters * c;
 }
 
 double _bearingDegrees(_GeoPoint start, _GeoPoint end) {

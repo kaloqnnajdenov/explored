@@ -55,6 +55,11 @@
   "menu_import_gpx": "Import GPX file",
   "menu_export": "Export",
   "menu_download": "Download",
+  "menu_explored_area": "Explored area",
+  "menu_overlay_tile_size": "Overlay tile size",
+  "overlay_tile_size_title": "Overlay tile size",
+  "overlay_tile_size_256": "256 px (lower detail)",
+  "overlay_tile_size_512": "512 px (higher detail)",
   "permissions_title": "Permissions",
   "permissions_status_label": "Status: {status}",
   "permissions_status_granted": "Granted",
@@ -75,5 +80,7 @@
   "export_ready": "Export ready",
   "export_failed": "Export failed. Try again.",
   "download_ready": "Download ready",
-  "download_failed": "Download failed. Try again."
+  "download_failed": "Download failed. Try again.",
+  "explored_area_title": "Explored area",
+  "explored_area_value": "Explored: {value} km2"
 }

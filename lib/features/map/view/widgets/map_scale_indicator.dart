@@ -5,18 +5,19 @@ import 'package:flutter/material.dart';
 import 'package:flutter_map/flutter_map.dart';
 import 'package:latlong2/latlong.dart';
 
-import '../../../../translations/locale_keys.g.dart';
+import 'package:explored/constants.dart';
 
-const _scaleBarPadding = EdgeInsets.symmetric(horizontal: 10, vertical: 6);
-const double _labelLineSpacing = 4;
-const double _lineHeight = 8;
+import '../../../../translations/locale_keys.g.dart';
 
 /// Fixed-length map scale with a live distance label.
 class MapScaleIndicator extends StatelessWidget {
   const MapScaleIndicator({
     this.barLength = 100,
     this.alignment = Alignment.bottomRight,
-    this.padding = const EdgeInsets.only(right: 16, bottom: 88),
+    this.padding = const EdgeInsets.only(
+      right: kMapScaleDefaultPaddingRight,
+      bottom: kMapScaleDefaultPaddingBottom,
+    ),
     super.key,
   });
 
@@ -48,8 +49,7 @@ class MapScaleIndicator extends StatelessWidget {
     final halfLength = barLength / 2;
     final start = Point<double>(lineCenter.dx - halfLength, lineCenter.dy);
     final end = Point<double>(lineCenter.dx + halfLength, lineCenter.dy);
-    const distance = Distance();
-    final meters = distance.as(
+    final meters = Distance().as(
       LengthUnit.Meter,
       camera.pointToLatLng(start),
       camera.pointToLatLng(end),
@@ -86,8 +86,14 @@ class MapScaleIndicator extends StatelessWidget {
 
     final textHeight = _measureTextHeight(context, textStyle);
     final scaleBarSize = Size(
-      barLength + _scaleBarPadding.horizontal,
-      textHeight + _labelLineSpacing + _lineHeight + _scaleBarPadding.vertical,
+      barLength +
+          kMapScaleBarPaddingHorizontal +
+          kMapScaleBarPaddingHorizontal,
+      textHeight +
+          kMapScaleLabelLineSpacing +
+          kMapScaleLineHeight +
+          kMapScaleBarPaddingVertical +
+          kMapScaleBarPaddingVertical,
     );
     final paddedSize = Size(
       scaleBarSize.width + padding.horizontal,
@@ -107,12 +113,12 @@ class MapScaleIndicator extends StatelessWidget {
     );
 
     return Offset(
-      scaleBarTopLeft.dx + _scaleBarPadding.left + barLength / 2,
+      scaleBarTopLeft.dx + kMapScaleBarPaddingHorizontal + barLength / 2,
       scaleBarTopLeft.dy +
-          _scaleBarPadding.top +
+          kMapScaleBarPaddingVertical +
           textHeight +
-          _labelLineSpacing +
-          _lineHeight / 2,
+          kMapScaleLabelLineSpacing +
+          kMapScaleLineHeight / 2,
     );
   }
 
@@ -164,7 +170,10 @@ class _ScaleBar extends StatelessWidget {
       borderRadius: BorderRadius.circular(12),
       elevation: 1,
       child: Padding(
-        padding: _scaleBarPadding,
+        padding: EdgeInsets.symmetric(
+          horizontal: kMapScaleBarPaddingHorizontal,
+          vertical: kMapScaleBarPaddingVertical,
+        ),
         child: SizedBox(
           width: length,
           child: Column(
@@ -177,7 +186,7 @@ class _ScaleBar extends StatelessWidget {
                 overflow: TextOverflow.ellipsis,
                 textAlign: TextAlign.center,
               ),
-              const SizedBox(height: _labelLineSpacing),
+              SizedBox(height: kMapScaleLabelLineSpacing),
               _ScaleBarLine(length: length, color: lineColor),
             ],
           ),
@@ -200,7 +209,7 @@ class _ScaleBarLine extends StatelessWidget {
   Widget build(BuildContext context) {
     return SizedBox(
       width: length,
-      height: _lineHeight,
+      height: kMapScaleLineHeight,
       child: Stack(
         children: [
           Positioned(

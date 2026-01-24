@@ -4,8 +4,7 @@ import 'map_config.dart';
 import 'map_tile_source.dart';
 import '../../../location/data/models/location_tracking_state.dart';
 import '../../../location/data/models/lat_lng_sample.dart';
-import '../../../visited_grid/data/models/visited_time_filter.dart';
-import '../../../visited_grid/data/models/visited_overlay_polygon.dart';
+import 'overlay_tile_size.dart';
 
 /// Immutable UI state snapshot for the map screen.
 class MapViewState {
@@ -17,14 +16,10 @@ class MapViewState {
     required this.isLoading,
     required this.isLocationPanelVisible,
     required this.recenterZoom,
-    required this.visitedOverlayPolygons,
-    required this.isOverlayLoading,
-    required this.visitedTimeFilter,
-    required this.overlayResolution,
+    required this.overlayTileSize,
     required this.importedSamples,
     this.exportFeedback,
     this.error,
-    this.overlayError,
   });
 
   /// Seed state using the map config before async work finishes.
@@ -37,10 +32,7 @@ class MapViewState {
       isLoading: true,
       isLocationPanelVisible: true,
       recenterZoom: config.recenterZoom,
-      visitedOverlayPolygons: const [],
-      isOverlayLoading: false,
-      visitedTimeFilter: VisitedTimeFilter.allTime,
-      overlayResolution: null,
+      overlayTileSize: OverlayTileSize.s256,
       importedSamples: const [],
       exportFeedback: null,
     );
@@ -54,13 +46,9 @@ class MapViewState {
   final bool isLocationPanelVisible;
   final double recenterZoom;
   final Object? error;
-  final List<VisitedOverlayPolygon> visitedOverlayPolygons;
-  final bool isOverlayLoading;
-  final VisitedTimeFilter visitedTimeFilter;
-  final int? overlayResolution;
+  final OverlayTileSize overlayTileSize;
   final List<LatLngSample> importedSamples;
   final MapViewFeedback? exportFeedback;
-  final Object? overlayError;
 
   /// Create a new state with selective overrides; errors can be cleared.
   MapViewState copyWith({
@@ -73,15 +61,10 @@ class MapViewState {
     double? recenterZoom,
     Object? error,
     bool clearError = false,
-    List<VisitedOverlayPolygon>? visitedOverlayPolygons,
-    bool? isOverlayLoading,
-    VisitedTimeFilter? visitedTimeFilter,
-    int? overlayResolution,
+    OverlayTileSize? overlayTileSize,
     List<LatLngSample>? importedSamples,
     MapViewFeedback? exportFeedback,
     bool clearExportFeedback = false,
-    Object? overlayError,
-    bool clearOverlayError = false,
   }) {
     return MapViewState(
       center: center ?? this.center,
@@ -93,16 +76,10 @@ class MapViewState {
           isLocationPanelVisible ?? this.isLocationPanelVisible,
       recenterZoom: recenterZoom ?? this.recenterZoom,
       error: clearError ? null : (error ?? this.error),
-      visitedOverlayPolygons:
-          visitedOverlayPolygons ?? this.visitedOverlayPolygons,
-      isOverlayLoading: isOverlayLoading ?? this.isOverlayLoading,
-      visitedTimeFilter: visitedTimeFilter ?? this.visitedTimeFilter,
-      overlayResolution: overlayResolution ?? this.overlayResolution,
+      overlayTileSize: overlayTileSize ?? this.overlayTileSize,
       importedSamples: importedSamples ?? this.importedSamples,
       exportFeedback:
           clearExportFeedback ? null : (exportFeedback ?? this.exportFeedback),
-      overlayError:
-          clearOverlayError ? null : (overlayError ?? this.overlayError),
     );
   }
 }

@@ -1,6 +1,4 @@
 import 'dart:convert';
-import 'dart:typed_data';
-
 import 'package:flutter/foundation.dart';
 import 'package:xml/xml.dart';
 
@@ -71,7 +69,7 @@ List<Map<String, Object?>> _parseGpxPointPayloads(Uint8List bytes) {
     DateTime? timestamp;
     for (final child in element.children.whereType<XmlElement>()) {
       if (child.name.local == 'time') {
-        timestamp = DateTime.tryParse(child.text.trim());
+        timestamp = DateTime.tryParse(child.innerText.trim());
         break;
       }
     }

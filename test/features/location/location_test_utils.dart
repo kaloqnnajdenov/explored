@@ -1,6 +1,7 @@
 import 'dart:async';
 import 'dart:math' as math;
 
+import 'package:explored/constants.dart';
 import 'package:explored/features/location/data/services/background_location_client.dart';
 
 class TestClock {
@@ -36,14 +37,12 @@ RawLocationData buildRawLocation({
 }
 
 double latDeltaForMeters(double meters) {
-  const earthRadiusMeters = 6371000.0;
-  return (meters / earthRadiusMeters) * (180 / math.pi);
+  return (meters / kEarthRadiusMeters) * (180 / math.pi);
 }
 
 double lngDeltaForMeters(double meters, {double atLatitude = 0}) {
-  const earthRadiusMeters = 6371000.0;
   final latRad = atLatitude * math.pi / 180;
-  final radiusAtLat = earthRadiusMeters * math.cos(latRad);
+  final radiusAtLat = kEarthRadiusMeters * math.cos(latRad);
   if (radiusAtLat == 0) {
     return 0;
   }

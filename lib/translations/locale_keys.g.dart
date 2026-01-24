@@ -59,6 +59,11 @@ abstract class  LocaleKeys {
   static const menu_import_gpx = 'menu_import_gpx';
   static const menu_export = 'menu_export';
   static const menu_download = 'menu_download';
+  static const menu_explored_area = 'menu_explored_area';
+  static const menu_overlay_tile_size = 'menu_overlay_tile_size';
+  static const overlay_tile_size_title = 'overlay_tile_size_title';
+  static const overlay_tile_size_256 = 'overlay_tile_size_256';
+  static const overlay_tile_size_512 = 'overlay_tile_size_512';
   static const permissions_title = 'permissions_title';
   static const permissions_status_label = 'permissions_status_label';
   static const permissions_status_granted = 'permissions_status_granted';
@@ -80,5 +85,7 @@ abstract class  LocaleKeys {
   static const export_failed = 'export_failed';
   static const download_ready = 'download_ready';
   static const download_failed = 'download_failed';
+  static const explored_area_title = 'explored_area_title';
+  static const explored_area_value = 'explored_area_value';
 
 }

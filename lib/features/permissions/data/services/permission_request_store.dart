@@ -1,5 +1,7 @@
 import 'package:shared_preferences/shared_preferences.dart';
 
+import 'package:explored/constants.dart';
+
 abstract class PermissionRequestStore {
   Future<bool> hasRequestedPermissions();
 
@@ -11,17 +13,15 @@ class SharedPreferencesPermissionRequestStore implements PermissionRequestStore 
     required SharedPreferences preferences,
   }) : _preferences = preferences;
 
-  static const String _requestedKey = 'permissions_requested_once';
-
   final SharedPreferences _preferences;
 
   @override
   Future<bool> hasRequestedPermissions() async {
-    return _preferences.getBool(_requestedKey) ?? false;
+    return _preferences.getBool(kPermissionsRequestedOnceKey) ?? false;
   }
 
   @override
   Future<void> markPermissionsRequested() async {
-    await _preferences.setBool(_requestedKey, true);
+    await _preferences.setBool(kPermissionsRequestedOnceKey, true);
   }
 }

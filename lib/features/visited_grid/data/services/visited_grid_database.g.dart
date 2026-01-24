@@ -2013,6 +2013,432 @@ class VisitedGridMetaCompanion extends UpdateCompanion<VisitedGridMetaData> {
   }
 }
 
+class $VisitedGridStatsTableTable extends VisitedGridStatsTable
+    with TableInfo<$VisitedGridStatsTableTable, VisitedGridStatsRow> {
+  @override
+  final GeneratedDatabase attachedDatabase;
+  final String? _alias;
+  $VisitedGridStatsTableTable(this.attachedDatabase, [this._alias]);
+  static const VerificationMeta _idMeta = const VerificationMeta('id');
+  @override
+  late final GeneratedColumn<int> id = GeneratedColumn<int>(
+    'id',
+    aliasedName,
+    false,
+    type: DriftSqlType.int,
+    requiredDuringInsert: false,
+    defaultValue: const Constant(0),
+  );
+  static const VerificationMeta _totalAreaM2Meta = const VerificationMeta(
+    'totalAreaM2',
+  );
+  @override
+  late final GeneratedColumn<double> totalAreaM2 = GeneratedColumn<double>(
+    'total_area_m2',
+    aliasedName,
+    false,
+    type: DriftSqlType.double,
+    requiredDuringInsert: false,
+    defaultValue: const Constant(0),
+  );
+  static const VerificationMeta _cellCountMeta = const VerificationMeta(
+    'cellCount',
+  );
+  @override
+  late final GeneratedColumn<int> cellCount = GeneratedColumn<int>(
+    'cell_count',
+    aliasedName,
+    false,
+    type: DriftSqlType.int,
+    requiredDuringInsert: false,
+    defaultValue: const Constant(0),
+  );
+  static const VerificationMeta _canonicalVersionMeta = const VerificationMeta(
+    'canonicalVersion',
+  );
+  @override
+  late final GeneratedColumn<int> canonicalVersion = GeneratedColumn<int>(
+    'canonical_version',
+    aliasedName,
+    false,
+    type: DriftSqlType.int,
+    requiredDuringInsert: false,
+    defaultValue: const Constant(0),
+  );
+  static const VerificationMeta _lastUpdatedTsMeta = const VerificationMeta(
+    'lastUpdatedTs',
+  );
+  @override
+  late final GeneratedColumn<int> lastUpdatedTs = GeneratedColumn<int>(
+    'last_updated_ts',
+    aliasedName,
+    true,
+    type: DriftSqlType.int,
+    requiredDuringInsert: false,
+  );
+  static const VerificationMeta _lastReconciledTsMeta = const VerificationMeta(
+    'lastReconciledTs',
+  );
+  @override
+  late final GeneratedColumn<int> lastReconciledTs = GeneratedColumn<int>(
+    'last_reconciled_ts',
+    aliasedName,
+    true,
+    type: DriftSqlType.int,
+    requiredDuringInsert: false,
+  );
+  @override
+  List<GeneratedColumn> get $columns => [
+    id,
+    totalAreaM2,
+    cellCount,
+    canonicalVersion,
+    lastUpdatedTs,
+    lastReconciledTs,
+  ];
+  @override
+  String get aliasedName => _alias ?? actualTableName;
+  @override
+  String get actualTableName => $name;
+  static const String $name = 'visited_grid_stats';
+  @override
+  VerificationContext validateIntegrity(
+    Insertable<VisitedGridStatsRow> instance, {
+    bool isInserting = false,
+  }) {
+    final context = VerificationContext();
+    final data = instance.toColumns(true);
+    if (data.containsKey('id')) {
+      context.handle(_idMeta, id.isAcceptableOrUnknown(data['id']!, _idMeta));
+    }
+    if (data.containsKey('total_area_m2')) {
+      context.handle(
+        _totalAreaM2Meta,
+        totalAreaM2.isAcceptableOrUnknown(
+          data['total_area_m2']!,
+          _totalAreaM2Meta,
+        ),
+      );
+    }
+    if (data.containsKey('cell_count')) {
+      context.handle(
+        _cellCountMeta,
+        cellCount.isAcceptableOrUnknown(data['cell_count']!, _cellCountMeta),
+      );
+    }
+    if (data.containsKey('canonical_version')) {
+      context.handle(
+        _canonicalVersionMeta,
+        canonicalVersion.isAcceptableOrUnknown(
+          data['canonical_version']!,
+          _canonicalVersionMeta,
+        ),
+      );
+    }
+    if (data.containsKey('last_updated_ts')) {
+      context.handle(
+        _lastUpdatedTsMeta,
+        lastUpdatedTs.isAcceptableOrUnknown(
+          data['last_updated_ts']!,
+          _lastUpdatedTsMeta,
+        ),
+      );
+    }
+    if (data.containsKey('last_reconciled_ts')) {
+      context.handle(
+        _lastReconciledTsMeta,
+        lastReconciledTs.isAcceptableOrUnknown(
+          data['last_reconciled_ts']!,
+          _lastReconciledTsMeta,
+        ),
+      );
+    }
+    return context;
+  }
+
+  @override
+  Set<GeneratedColumn> get $primaryKey => {id};
+  @override
+  VisitedGridStatsRow map(Map<String, dynamic> data, {String? tablePrefix}) {
+    final effectivePrefix = tablePrefix != null ? '$tablePrefix.' : '';
+    return VisitedGridStatsRow(
+      id: attachedDatabase.typeMapping.read(
+        DriftSqlType.int,
+        data['${effectivePrefix}id'],
+      )!,
+      totalAreaM2: attachedDatabase.typeMapping.read(
+        DriftSqlType.double,
+        data['${effectivePrefix}total_area_m2'],
+      )!,
+      cellCount: attachedDatabase.typeMapping.read(
+        DriftSqlType.int,
+        data['${effectivePrefix}cell_count'],
+      )!,
+      canonicalVersion: attachedDatabase.typeMapping.read(
+        DriftSqlType.int,
+        data['${effectivePrefix}canonical_version'],
+      )!,
+      lastUpdatedTs: attachedDatabase.typeMapping.read(
+        DriftSqlType.int,
+        data['${effectivePrefix}last_updated_ts'],
+      ),
+      lastReconciledTs: attachedDatabase.typeMapping.read(
+        DriftSqlType.int,
+        data['${effectivePrefix}last_reconciled_ts'],
+      ),
+    );
+  }
+
+  @override
+  $VisitedGridStatsTableTable createAlias(String alias) {
+    return $VisitedGridStatsTableTable(attachedDatabase, alias);
+  }
+}
+
+class VisitedGridStatsRow extends DataClass
+    implements Insertable<VisitedGridStatsRow> {
+  final int id;
+  final double totalAreaM2;
+  final int cellCount;
+  final int canonicalVersion;
+  final int? lastUpdatedTs;
+  final int? lastReconciledTs;
+  const VisitedGridStatsRow({
+    required this.id,
+    required this.totalAreaM2,
+    required this.cellCount,
+    required this.canonicalVersion,
+    this.lastUpdatedTs,
+    this.lastReconciledTs,
+  });
+  @override
+  Map<String, Expression> toColumns(bool nullToAbsent) {
+    final map = <String, Expression>{};
+    map['id'] = Variable<int>(id);
+    map['total_area_m2'] = Variable<double>(totalAreaM2);
+    map['cell_count'] = Variable<int>(cellCount);
+    map['canonical_version'] = Variable<int>(canonicalVersion);
+    if (!nullToAbsent || lastUpdatedTs != null) {
+      map['last_updated_ts'] = Variable<int>(lastUpdatedTs);
+    }
+    if (!nullToAbsent || lastReconciledTs != null) {
+      map['last_reconciled_ts'] = Variable<int>(lastReconciledTs);
+    }
+    return map;
+  }
+
+  VisitedGridStatsTableCompanion toCompanion(bool nullToAbsent) {
+    return VisitedGridStatsTableCompanion(
+      id: Value(id),
+      totalAreaM2: Value(totalAreaM2),
+      cellCount: Value(cellCount),
+      canonicalVersion: Value(canonicalVersion),
+      lastUpdatedTs: lastUpdatedTs == null && nullToAbsent
+          ? const Value.absent()
+          : Value(lastUpdatedTs),
+      lastReconciledTs: lastReconciledTs == null && nullToAbsent
+          ? const Value.absent()
+          : Value(lastReconciledTs),
+    );
+  }
+
+  factory VisitedGridStatsRow.fromJson(
+    Map<String, dynamic> json, {
+    ValueSerializer? serializer,
+  }) {
+    serializer ??= driftRuntimeOptions.defaultSerializer;
+    return VisitedGridStatsRow(
+      id: serializer.fromJson<int>(json['id']),
+      totalAreaM2: serializer.fromJson<double>(json['totalAreaM2']),
+      cellCount: serializer.fromJson<int>(json['cellCount']),
+      canonicalVersion: serializer.fromJson<int>(json['canonicalVersion']),
+      lastUpdatedTs: serializer.fromJson<int?>(json['lastUpdatedTs']),
+      lastReconciledTs: serializer.fromJson<int?>(json['lastReconciledTs']),
+    );
+  }
+  @override
+  Map<String, dynamic> toJson({ValueSerializer? serializer}) {
+    serializer ??= driftRuntimeOptions.defaultSerializer;
+    return <String, dynamic>{
+      'id': serializer.toJson<int>(id),
+      'totalAreaM2': serializer.toJson<double>(totalAreaM2),
+      'cellCount': serializer.toJson<int>(cellCount),
+      'canonicalVersion': serializer.toJson<int>(canonicalVersion),
+      'lastUpdatedTs': serializer.toJson<int?>(lastUpdatedTs),
+      'lastReconciledTs': serializer.toJson<int?>(lastReconciledTs),
+    };
+  }
+
+  VisitedGridStatsRow copyWith({
+    int? id,
+    double? totalAreaM2,
+    int? cellCount,
+    int? canonicalVersion,
+    Value<int?> lastUpdatedTs = const Value.absent(),
+    Value<int?> lastReconciledTs = const Value.absent(),
+  }) => VisitedGridStatsRow(
+    id: id ?? this.id,
+    totalAreaM2: totalAreaM2 ?? this.totalAreaM2,
+    cellCount: cellCount ?? this.cellCount,
+    canonicalVersion: canonicalVersion ?? this.canonicalVersion,
+    lastUpdatedTs: lastUpdatedTs.present
+        ? lastUpdatedTs.value
+        : this.lastUpdatedTs,
+    lastReconciledTs: lastReconciledTs.present
+        ? lastReconciledTs.value
+        : this.lastReconciledTs,
+  );
+  VisitedGridStatsRow copyWithCompanion(VisitedGridStatsTableCompanion data) {
+    return VisitedGridStatsRow(
+      id: data.id.present ? data.id.value : this.id,
+      totalAreaM2: data.totalAreaM2.present
+          ? data.totalAreaM2.value
+          : this.totalAreaM2,
+      cellCount: data.cellCount.present ? data.cellCount.value : this.cellCount,
+      canonicalVersion: data.canonicalVersion.present
+          ? data.canonicalVersion.value
+          : this.canonicalVersion,
+      lastUpdatedTs: data.lastUpdatedTs.present
+          ? data.lastUpdatedTs.value
+          : this.lastUpdatedTs,
+      lastReconciledTs: data.lastReconciledTs.present
+          ? data.lastReconciledTs.value
+          : this.lastReconciledTs,
+    );
+  }
+
+  @override
+  String toString() {
+    return (StringBuffer('VisitedGridStatsRow(')
+          ..write('id: $id, ')
+          ..write('totalAreaM2: $totalAreaM2, ')
+          ..write('cellCount: $cellCount, ')
+          ..write('canonicalVersion: $canonicalVersion, ')
+          ..write('lastUpdatedTs: $lastUpdatedTs, ')
+          ..write('lastReconciledTs: $lastReconciledTs')
+          ..write(')'))
+        .toString();
+  }
+
+  @override
+  int get hashCode => Object.hash(
+    id,
+    totalAreaM2,
+    cellCount,
+    canonicalVersion,
+    lastUpdatedTs,
+    lastReconciledTs,
+  );
+  @override
+  bool operator ==(Object other) =>
+      identical(this, other) ||
+      (other is VisitedGridStatsRow &&
+          other.id == this.id &&
+          other.totalAreaM2 == this.totalAreaM2 &&
+          other.cellCount == this.cellCount &&
+          other.canonicalVersion == this.canonicalVersion &&
+          other.lastUpdatedTs == this.lastUpdatedTs &&
+          other.lastReconciledTs == this.lastReconciledTs);
+}
+
+class VisitedGridStatsTableCompanion
+    extends UpdateCompanion<VisitedGridStatsRow> {
+  final Value<int> id;
+  final Value<double> totalAreaM2;
+  final Value<int> cellCount;
+  final Value<int> canonicalVersion;
+  final Value<int?> lastUpdatedTs;
+  final Value<int?> lastReconciledTs;
+  const VisitedGridStatsTableCompanion({
+    this.id = const Value.absent(),
+    this.totalAreaM2 = const Value.absent(),
+    this.cellCount = const Value.absent(),
+    this.canonicalVersion = const Value.absent(),
+    this.lastUpdatedTs = const Value.absent(),
+    this.lastReconciledTs = const Value.absent(),
+  });
+  VisitedGridStatsTableCompanion.insert({
+    this.id = const Value.absent(),
+    this.totalAreaM2 = const Value.absent(),
+    this.cellCount = const Value.absent(),
+    this.canonicalVersion = const Value.absent(),
+    this.lastUpdatedTs = const Value.absent(),
+    this.lastReconciledTs = const Value.absent(),
+  });
+  static Insertable<VisitedGridStatsRow> custom({
+    Expression<int>? id,
+    Expression<double>? totalAreaM2,
+    Expression<int>? cellCount,
+    Expression<int>? canonicalVersion,
+    Expression<int>? lastUpdatedTs,
+    Expression<int>? lastReconciledTs,
+  }) {
+    return RawValuesInsertable({
+      if (id != null) 'id': id,
+      if (totalAreaM2 != null) 'total_area_m2': totalAreaM2,
+      if (cellCount != null) 'cell_count': cellCount,
+      if (canonicalVersion != null) 'canonical_version': canonicalVersion,
+      if (lastUpdatedTs != null) 'last_updated_ts': lastUpdatedTs,
+      if (lastReconciledTs != null) 'last_reconciled_ts': lastReconciledTs,
+    });
+  }
+
+  VisitedGridStatsTableCompanion copyWith({
+    Value<int>? id,
+    Value<double>? totalAreaM2,
+    Value<int>? cellCount,
+    Value<int>? canonicalVersion,
+    Value<int?>? lastUpdatedTs,
+    Value<int?>? lastReconciledTs,
+  }) {
+    return VisitedGridStatsTableCompanion(
+      id: id ?? this.id,
+      totalAreaM2: totalAreaM2 ?? this.totalAreaM2,
+      cellCount: cellCount ?? this.cellCount,
+      canonicalVersion: canonicalVersion ?? this.canonicalVersion,
+      lastUpdatedTs: lastUpdatedTs ?? this.lastUpdatedTs,
+      lastReconciledTs: lastReconciledTs ?? this.lastReconciledTs,
+    );
+  }
+
+  @override
+  Map<String, Expression> toColumns(bool nullToAbsent) {
+    final map = <String, Expression>{};
+    if (id.present) {
+      map['id'] = Variable<int>(id.value);
+    }
+    if (totalAreaM2.present) {
+      map['total_area_m2'] = Variable<double>(totalAreaM2.value);
+    }
+    if (cellCount.present) {
+      map['cell_count'] = Variable<int>(cellCount.value);
+    }
+    if (canonicalVersion.present) {
+      map['canonical_version'] = Variable<int>(canonicalVersion.value);
+    }
+    if (lastUpdatedTs.present) {
+      map['last_updated_ts'] = Variable<int>(lastUpdatedTs.value);
+    }
+    if (lastReconciledTs.present) {
+      map['last_reconciled_ts'] = Variable<int>(lastReconciledTs.value);
+    }
+    return map;
+  }
+
+  @override
+  String toString() {
+    return (StringBuffer('VisitedGridStatsTableCompanion(')
+          ..write('id: $id, ')
+          ..write('totalAreaM2: $totalAreaM2, ')
+          ..write('cellCount: $cellCount, ')
+          ..write('canonicalVersion: $canonicalVersion, ')
+          ..write('lastUpdatedTs: $lastUpdatedTs, ')
+          ..write('lastReconciledTs: $lastReconciledTs')
+          ..write(')'))
+        .toString();
+  }
+}
+
 abstract class _$VisitedGridDatabase extends GeneratedDatabase {
   _$VisitedGridDatabase(QueryExecutor e) : super(e);
   $VisitedGridDatabaseManager get managers => $VisitedGridDatabaseManager(this);
@@ -2025,6 +2451,8 @@ abstract class _$VisitedGridDatabase extends GeneratedDatabase {
   late final $VisitedGridMetaTable visitedGridMeta = $VisitedGridMetaTable(
     this,
   );
+  late final $VisitedGridStatsTableTable visitedGridStatsTable =
+      $VisitedGridStatsTableTable(this);
   late final Index visitsDailyResDay = Index(
     'visits_daily_res_day',
     'CREATE INDEX visits_daily_res_day ON visits_daily (res, day_yyyy_mmdd)',
@@ -2062,6 +2490,7 @@ abstract class _$VisitedGridDatabase extends GeneratedDatabase {
     visitsLifetimeDays,
     visitedCellBounds,
     visitedGridMeta,
+    visitedGridStatsTable,
     visitsDailyResDay,
     visitsDailyResCell,
     visitsLifetimeRes,
@@ -3205,6 +3634,246 @@ typedef $$VisitedGridMetaTableProcessedTableManager =
       VisitedGridMetaData,
       PrefetchHooks Function()
     >;
+typedef $$VisitedGridStatsTableTableCreateCompanionBuilder =
+    VisitedGridStatsTableCompanion Function({
+      Value<int> id,
+      Value<double> totalAreaM2,
+      Value<int> cellCount,
+      Value<int> canonicalVersion,
+      Value<int?> lastUpdatedTs,
+      Value<int?> lastReconciledTs,
+    });
+typedef $$VisitedGridStatsTableTableUpdateCompanionBuilder =
+    VisitedGridStatsTableCompanion Function({
+      Value<int> id,
+      Value<double> totalAreaM2,
+      Value<int> cellCount,
+      Value<int> canonicalVersion,
+      Value<int?> lastUpdatedTs,
+      Value<int?> lastReconciledTs,
+    });
+
+class $$VisitedGridStatsTableTableFilterComposer
+    extends Composer<_$VisitedGridDatabase, $VisitedGridStatsTableTable> {
+  $$VisitedGridStatsTableTableFilterComposer({
+    required super.$db,
+    required super.$table,
+    super.joinBuilder,
+    super.$addJoinBuilderToRootComposer,
+    super.$removeJoinBuilderFromRootComposer,
+  });
+  ColumnFilters<int> get id => $composableBuilder(
+    column: $table.id,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<double> get totalAreaM2 => $composableBuilder(
+    column: $table.totalAreaM2,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<int> get cellCount => $composableBuilder(
+    column: $table.cellCount,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<int> get canonicalVersion => $composableBuilder(
+    column: $table.canonicalVersion,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<int> get lastUpdatedTs => $composableBuilder(
+    column: $table.lastUpdatedTs,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<int> get lastReconciledTs => $composableBuilder(
+    column: $table.lastReconciledTs,
+    builder: (column) => ColumnFilters(column),
+  );
+}
+
+class $$VisitedGridStatsTableTableOrderingComposer
+    extends Composer<_$VisitedGridDatabase, $VisitedGridStatsTableTable> {
+  $$VisitedGridStatsTableTableOrderingComposer({
+    required super.$db,
+    required super.$table,
+    super.joinBuilder,
+    super.$addJoinBuilderToRootComposer,
+    super.$removeJoinBuilderFromRootComposer,
+  });
+  ColumnOrderings<int> get id => $composableBuilder(
+    column: $table.id,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<double> get totalAreaM2 => $composableBuilder(
+    column: $table.totalAreaM2,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<int> get cellCount => $composableBuilder(
+    column: $table.cellCount,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<int> get canonicalVersion => $composableBuilder(
+    column: $table.canonicalVersion,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<int> get lastUpdatedTs => $composableBuilder(
+    column: $table.lastUpdatedTs,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<int> get lastReconciledTs => $composableBuilder(
+    column: $table.lastReconciledTs,
+    builder: (column) => ColumnOrderings(column),
+  );
+}
+
+class $$VisitedGridStatsTableTableAnnotationComposer
+    extends Composer<_$VisitedGridDatabase, $VisitedGridStatsTableTable> {
+  $$VisitedGridStatsTableTableAnnotationComposer({
+    required super.$db,
+    required super.$table,
+    super.joinBuilder,
+    super.$addJoinBuilderToRootComposer,
+    super.$removeJoinBuilderFromRootComposer,
+  });
+  GeneratedColumn<int> get id =>
+      $composableBuilder(column: $table.id, builder: (column) => column);
+
+  GeneratedColumn<double> get totalAreaM2 => $composableBuilder(
+    column: $table.totalAreaM2,
+    builder: (column) => column,
+  );
+
+  GeneratedColumn<int> get cellCount =>
+      $composableBuilder(column: $table.cellCount, builder: (column) => column);
+
+  GeneratedColumn<int> get canonicalVersion => $composableBuilder(
+    column: $table.canonicalVersion,
+    builder: (column) => column,
+  );
+
+  GeneratedColumn<int> get lastUpdatedTs => $composableBuilder(
+    column: $table.lastUpdatedTs,
+    builder: (column) => column,
+  );
+
+  GeneratedColumn<int> get lastReconciledTs => $composableBuilder(
+    column: $table.lastReconciledTs,
+    builder: (column) => column,
+  );
+}
+
+class $$VisitedGridStatsTableTableTableManager
+    extends
+        RootTableManager<
+          _$VisitedGridDatabase,
+          $VisitedGridStatsTableTable,
+          VisitedGridStatsRow,
+          $$VisitedGridStatsTableTableFilterComposer,
+          $$VisitedGridStatsTableTableOrderingComposer,
+          $$VisitedGridStatsTableTableAnnotationComposer,
+          $$VisitedGridStatsTableTableCreateCompanionBuilder,
+          $$VisitedGridStatsTableTableUpdateCompanionBuilder,
+          (
+            VisitedGridStatsRow,
+            BaseReferences<
+              _$VisitedGridDatabase,
+              $VisitedGridStatsTableTable,
+              VisitedGridStatsRow
+            >,
+          ),
+          VisitedGridStatsRow,
+          PrefetchHooks Function()
+        > {
+  $$VisitedGridStatsTableTableTableManager(
+    _$VisitedGridDatabase db,
+    $VisitedGridStatsTableTable table,
+  ) : super(
+        TableManagerState(
+          db: db,
+          table: table,
+          createFilteringComposer: () =>
+              $$VisitedGridStatsTableTableFilterComposer(
+                $db: db,
+                $table: table,
+              ),
+          createOrderingComposer: () =>
+              $$VisitedGridStatsTableTableOrderingComposer(
+                $db: db,
+                $table: table,
+              ),
+          createComputedFieldComposer: () =>
+              $$VisitedGridStatsTableTableAnnotationComposer(
+                $db: db,
+                $table: table,
+              ),
+          updateCompanionCallback:
+              ({
+                Value<int> id = const Value.absent(),
+                Value<double> totalAreaM2 = const Value.absent(),
+                Value<int> cellCount = const Value.absent(),
+                Value<int> canonicalVersion = const Value.absent(),
+                Value<int?> lastUpdatedTs = const Value.absent(),
+                Value<int?> lastReconciledTs = const Value.absent(),
+              }) => VisitedGridStatsTableCompanion(
+                id: id,
+                totalAreaM2: totalAreaM2,
+                cellCount: cellCount,
+                canonicalVersion: canonicalVersion,
+                lastUpdatedTs: lastUpdatedTs,
+                lastReconciledTs: lastReconciledTs,
+              ),
+          createCompanionCallback:
+              ({
+                Value<int> id = const Value.absent(),
+                Value<double> totalAreaM2 = const Value.absent(),
+                Value<int> cellCount = const Value.absent(),
+                Value<int> canonicalVersion = const Value.absent(),
+                Value<int?> lastUpdatedTs = const Value.absent(),
+                Value<int?> lastReconciledTs = const Value.absent(),
+              }) => VisitedGridStatsTableCompanion.insert(
+                id: id,
+                totalAreaM2: totalAreaM2,
+                cellCount: cellCount,
+                canonicalVersion: canonicalVersion,
+                lastUpdatedTs: lastUpdatedTs,
+                lastReconciledTs: lastReconciledTs,
+              ),
+          withReferenceMapper: (p0) => p0
+              .map((e) => (e.readTable(table), BaseReferences(db, table, e)))
+              .toList(),
+          prefetchHooksCallback: null,
+        ),
+      );
+}
+
+typedef $$VisitedGridStatsTableTableProcessedTableManager =
+    ProcessedTableManager<
+      _$VisitedGridDatabase,
+      $VisitedGridStatsTableTable,
+      VisitedGridStatsRow,
+      $$VisitedGridStatsTableTableFilterComposer,
+      $$VisitedGridStatsTableTableOrderingComposer,
+      $$VisitedGridStatsTableTableAnnotationComposer,
+      $$VisitedGridStatsTableTableCreateCompanionBuilder,
+      $$VisitedGridStatsTableTableUpdateCompanionBuilder,
+      (
+        VisitedGridStatsRow,
+        BaseReferences<
+          _$VisitedGridDatabase,
+          $VisitedGridStatsTableTable,
+          VisitedGridStatsRow
+        >,
+      ),
+      VisitedGridStatsRow,
+      PrefetchHooks Function()
+    >;
 
 class $VisitedGridDatabaseManager {
   final _$VisitedGridDatabase _db;
@@ -3219,6 +3888,8 @@ class $VisitedGridDatabaseManager {
       $$VisitedCellBoundsTableTableManager(_db, _db.visitedCellBounds);
   $$VisitedGridMetaTableTableManager get visitedGridMeta =>
       $$VisitedGridMetaTableTableManager(_db, _db.visitedGridMeta);
+  $$VisitedGridStatsTableTableTableManager get visitedGridStatsTable =>
+      $$VisitedGridStatsTableTableTableManager(_db, _db.visitedGridStatsTable);
 }
 
 mixin _$VisitedGridDaoMixin on DatabaseAccessor<VisitedGridDatabase> {
@@ -3229,6 +3900,8 @@ mixin _$VisitedGridDaoMixin on DatabaseAccessor<VisitedGridDatabase> {
   $VisitedCellBoundsTable get visitedCellBounds =>
       attachedDatabase.visitedCellBounds;
   $VisitedGridMetaTable get visitedGridMeta => attachedDatabase.visitedGridMeta;
+  $VisitedGridStatsTableTable get visitedGridStatsTable =>
+      attachedDatabase.visitedGridStatsTable;
   VisitedGridDaoManager get managers => VisitedGridDaoManager(this);
 }
 
@@ -3256,5 +3929,10 @@ class VisitedGridDaoManager {
       $$VisitedGridMetaTableTableManager(
         _db.attachedDatabase,
         _db.visitedGridMeta,
+      );
+  $$VisitedGridStatsTableTableTableManager get visitedGridStatsTable =>
+      $$VisitedGridStatsTableTableTableManager(
+        _db.attachedDatabase,
+        _db.visitedGridStatsTable,
       );
 }

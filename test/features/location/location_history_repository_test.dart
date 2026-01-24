@@ -1,8 +1,6 @@
 import 'dart:async';
 
 import 'dart:io';
-import 'dart:typed_data';
-
 import 'package:drift/drift.dart';
 import 'package:drift/native.dart';
 import 'package:flutter_test/flutter_test.dart';
@@ -103,9 +101,8 @@ class _NoopFileSaveClient implements FileSaveClient {
 
 class TestLocationHistoryExportService extends LocationHistoryExportService {
   TestLocationHistoryExportService({
-    required LocationHistoryDao historyDao,
+    required super.historyDao,
   }) : super(
-          historyDao: historyDao,
           pathProvider: _NoopPathProviderClient(),
           shareClient: _NoopShareClient(),
           fileSaveClient: _NoopFileSaveClient(),

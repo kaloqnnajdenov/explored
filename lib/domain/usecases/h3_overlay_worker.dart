@@ -6,6 +6,7 @@ import 'package:drift_flutter/drift_flutter.dart';
 import 'package:flutter/services.dart';
 import 'package:h3_flutter/h3_flutter.dart';
 
+import 'package:explored/constants.dart';
 import 'package:explored/features/visited_grid/data/models/visited_grid_bounds.dart';
 import 'package:explored/features/visited_grid/data/models/visited_grid_cell_bounds.dart';
 import 'package:explored/features/visited_grid/data/models/visited_overlay_mode.dart';
@@ -443,9 +444,10 @@ Future<void> _ensureBoundsForResolutionInternal({
     return;
   }
 
-  const batchSize = 500;
-  for (var i = 0; i < cellIds.length; i += batchSize) {
-    final end = i + batchSize > cellIds.length ? cellIds.length : i + batchSize;
+  for (var i = 0; i < cellIds.length; i += kH3OverlayWorkerBatchSize) {
+    final end = i + kH3OverlayWorkerBatchSize > cellIds.length
+        ? cellIds.length
+        : i + kH3OverlayWorkerBatchSize;
     final batch = cellIds.sublist(i, end);
     final bounds = <VisitedGridCellBounds>[];
     for (final cellId in batch) {

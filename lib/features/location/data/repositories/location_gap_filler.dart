@@ -1,5 +1,6 @@
 import 'dart:math' as math;
 
+import 'package:explored/constants.dart';
 import '../models/lat_lng_sample.dart';
 
 /// Fills small gaps between consecutive real samples with linear interpolation.
@@ -8,7 +9,7 @@ class LocationGapFiller {
     required Duration expectedInterval,
     required double maxSpeedMps,
     required double maxDistanceMeters,
-    this.maxMissingPoints = 4,
+    this.maxMissingPoints = kLocationGapFillMaxMissingPoints,
   })  : _expectedInterval = expectedInterval,
         _maxSpeedMps = maxSpeedMps,
         _maxDistanceMeters = maxDistanceMeters;
@@ -59,7 +60,7 @@ List<LatLngSample> interpolateMissingPoints({
   required double maxSpeedMps,
   required double maxDistanceMeters,
   int minMissingPoints = 1,
-  int maxMissingPoints = 4,
+  int maxMissingPoints = kLocationGapFillMaxMissingPoints,
 }) {
   if (start.isInterpolated || end.isInterpolated) {
     return const [];
@@ -88,7 +89,7 @@ List<LatLngSample> interpolateMissingPoints({
   final missingCountDistance =
       _missingCountByDistance(distanceMeters, maxDistanceMeters);
   // Use the stricter (larger) missing count so both time and distance gaps
-  // can trigger interpolation when they stay within the 1–4 range.
+  // can trigger interpolation when they stay within the 1–20 range.
   final missingCount = math.max(missingCountTime, missingCountDistance);
   if (missingCount < minMissingPoints || missingCount > maxMissingPoints) {
     return const [];
@@ -202,7 +203,6 @@ double _haversineMeters(
   double endLat,
   double endLng,
 ) {
-  const earthRadiusMeters = 6371000;
   final dLat = _degToRad(endLat - startLat);
   final dLng = _degToRad(_wrapDeltaDegrees(endLng - startLng));
   final lat1 = _degToRad(startLat);
@@ -211,7 +211,7 @@ double _haversineMeters(
   final a = math.pow(math.sin(dLat / 2), 2) +
       math.cos(lat1) * math.cos(lat2) * math.pow(math.sin(dLng / 2), 2);
   final c = 2 * math.asin(math.sqrt(a.toDouble()));
-  return earthRadiusMeters * c;
+  return kEarthRadiusMeters * c;
 }
 
 double _degToRad(double degrees) => degrees * (math.pi / 180);

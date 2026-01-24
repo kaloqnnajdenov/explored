@@ -2,9 +2,11 @@ import 'dart:async';
 
 import 'package:easy_localization/easy_localization.dart';
 import 'package:explored/features/map/data/models/map_view_state.dart';
+import 'package:explored/features/map/data/models/overlay_tile_size.dart';
 import 'package:flutter/gestures.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_map/flutter_map.dart';
+import 'package:go_router/go_router.dart';
 import 'package:latlong2/latlong.dart';
 
 import '../../gpx_import/view/widgets/gpx_import_processing_overlay.dart';
@@ -12,8 +14,6 @@ import '../../gpx_import/view_model/gpx_import_view_model.dart';
 import '../../permissions/view/permissions_management_view.dart';
 import '../../permissions/view_model/permissions_view_model.dart';
 import '../../../translations/locale_keys.g.dart';
-import '../../visited_grid/data/models/visited_grid_bounds.dart';
-import '../../visited_grid/data/models/visited_overlay_polygon.dart';
 import '../view_model/map_view_model.dart';
 import 'widgets/attribution_banner.dart';
 import 'widgets/location_tracking_panel.dart';
@@ -92,23 +92,6 @@ class _MapViewState extends State<MapView> {
                       initialCenter: state.center,
                       initialZoom: state.zoom,
                       minZoom: minZoom,
-                      onMapReady: () {
-                        _handleCameraIdle(_mapController.camera);
-                      },
-                      onPositionChanged: (camera, hasGesture) {
-                        _handleCameraChanged(camera);
-                        if (!hasGesture) {
-                          _handleCameraIdle(camera);
-                        }
-                      },
-                      onMapEvent: (event) {
-                        if (event is MapEventMoveEnd ||
-                            event is MapEventFlingAnimationEnd ||
-                            event is MapEventDoubleTapZoomEnd ||
-                            event is MapEventRotateEnd) {
-                          _handleCameraIdle(event.camera);
-                        }
-                      },
                     ),
                     children: [
                       TileLayer(
@@ -118,15 +101,16 @@ class _MapViewState extends State<MapView> {
                             state.tileSource.userAgentPackageName,
                         tileProvider: state.tileSource.tileProvider,
                       ),
-                      if (state.visitedOverlayPolygons.isNotEmpty)
-                        PolygonLayer(
-                          polygons: _buildVisitedPolygons(context, state),
-                          polygonCulling: false,
-                        ),
-                      if (state.importedSamples.isNotEmpty)
-                        CircleLayer(
-                          circles: _buildImportedCircles(state),
-                        ),
+                      TileLayer(
+                        tileProvider: widget.viewModel.overlayTileProvider,
+                        tileSize: state.overlayTileSize.size.toDouble(),
+                        maxNativeZoom: 19,
+                        keepBuffer: 2,
+                        panBuffer: 1,
+                        tileDisplay:
+                            const TileDisplay.instantaneous(opacity: 1),
+                        reset: widget.viewModel.overlayResetStream,
+                      ),
                       if (lastLocation != null)
                         MarkerLayer(
                           markers: [
@@ -282,61 +266,6 @@ class _MapViewState extends State<MapView> {
     );
   }
 
-  List<Polygon> _buildVisitedPolygons(
-    BuildContext context,
-    MapViewState state,
-  ) {
-    final fill = Theme.of(context).colorScheme.primary.withValues(alpha: 0.25);
-    final border = Theme.of(context).colorScheme.primary.withValues(alpha: 0.55);
-    return state.visitedOverlayPolygons
-        .map(
-          (polygon) => Polygon(
-            points: polygon.outer,
-            holePointsList: polygon.holes.isEmpty ? null : polygon.holes,
-            color: fill,
-            borderColor: border,
-            borderStrokeWidth: 0.7,
-          ),
-        )
-        .toList(growable: false);
-  }
-
-  List<CircleMarker> _buildImportedCircles(MapViewState state) {
-    return [
-      for (final sample in state.importedSamples)
-        CircleMarker(
-          point: LatLng(sample.latitude, sample.longitude),
-          radius: 4,
-          color: Colors.orangeAccent.withValues(alpha: 0.65),
-          borderColor: Colors.white.withValues(alpha: 0.8),
-          borderStrokeWidth: 1,
-        ),
-    ];
-  }
-
-  void _handleCameraChanged(MapCamera camera) {
-    widget.viewModel.onCameraChanged(
-      bounds: _boundsFromCamera(camera),
-      zoom: camera.zoom,
-    );
-  }
-
-  void _handleCameraIdle(MapCamera camera) {
-    widget.viewModel.onCameraIdle(
-      bounds: _boundsFromCamera(camera),
-      zoom: camera.zoom,
-    );
-  }
-
-  VisitedGridBounds _boundsFromCamera(MapCamera camera) {
-    return VisitedGridBounds(
-      north: camera.visibleBounds.north,
-      south: camera.visibleBounds.south,
-      east: camera.visibleBounds.east,
-      west: camera.visibleBounds.west,
-    );
-  }
-
   double _minZoomForHeight(double height) {
     if (height <= 0) {
       return 0;
@@ -404,6 +333,12 @@ class _MapViewState extends State<MapView> {
       case MapMenuAction.downloadHistory:
         await widget.viewModel.downloadHistory();
         break;
+      case MapMenuAction.exploredArea:
+        await _openExploredArea();
+        break;
+      case MapMenuAction.overlayTileSize:
+        await _openOverlayTileSize();
+        break;
     }
   }
 
@@ -424,6 +359,28 @@ class _MapViewState extends State<MapView> {
         viewModel: widget.permissionsViewModel,
       ),
     );
+  }
+
+  Future<void> _openExploredArea() async {
+    await Future<void>.delayed(Duration.zero);
+    if (!mounted) {
+      return;
+    }
+    context.push('/explored-area');
+  }
+
+  Future<void> _openOverlayTileSize() async {
+    final selected = await showModalBottomSheet<OverlayTileSize>(
+      context: context,
+      showDragHandle: true,
+      builder: (_) => _OverlayTileSizeSheet(
+        current: widget.viewModel.state.overlayTileSize,
+      ),
+    );
+    if (!mounted || selected == null) {
+      return;
+    }
+    await widget.viewModel.setOverlayTileSize(selected);
   }
 
   Widget _buildExportFeedbackListener() {
@@ -452,6 +409,50 @@ class _MapViewState extends State<MapView> {
         });
         return const SizedBox.shrink();
       },
+    );
+  }
+}
+
+class _OverlayTileSizeSheet extends StatelessWidget {
+  const _OverlayTileSizeSheet({required this.current});
+
+  final OverlayTileSize current;
+
+  @override
+  Widget build(BuildContext context) {
+    return SafeArea(
+      child: Padding(
+        padding: const EdgeInsets.only(bottom: 16),
+        child: RadioGroup<OverlayTileSize>(
+          groupValue: current,
+          onChanged: (value) {
+            if (value == null) {
+              return;
+            }
+            Navigator.of(context).pop(value);
+          },
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Padding(
+                padding: const EdgeInsets.fromLTRB(16, 8, 16, 4),
+                child: Text(
+                  LocaleKeys.overlay_tile_size_title.tr(),
+                  style: Theme.of(context).textTheme.titleMedium,
+                ),
+              ),
+              RadioListTile<OverlayTileSize>(
+                value: OverlayTileSize.s256,
+                title: Text(LocaleKeys.overlay_tile_size_256.tr()),
+              ),
+              RadioListTile<OverlayTileSize>(
+                value: OverlayTileSize.s512,
+                title: Text(LocaleKeys.overlay_tile_size_512.tr()),
+              ),
+            ],
+          ),
+        ),
+      ),
     );
   }
 }

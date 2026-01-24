@@ -3,7 +3,14 @@ import 'package:flutter/material.dart';
 
 import '../../../../translations/locale_keys.g.dart';
 
-enum MapMenuAction { permissions, importGpx, exportHistory, downloadHistory }
+enum MapMenuAction {
+  permissions,
+  importGpx,
+  exportHistory,
+  downloadHistory,
+  exploredArea,
+  overlayTileSize,
+}
 
 class MapMenuButton extends StatelessWidget {
   const MapMenuButton({
@@ -39,6 +46,14 @@ class MapMenuButton extends StatelessWidget {
           PopupMenuItem(
             value: MapMenuAction.downloadHistory,
             child: Text(LocaleKeys.menu_download.tr()),
+          ),
+          PopupMenuItem(
+            value: MapMenuAction.exploredArea,
+            child: Text(LocaleKeys.menu_explored_area.tr()),
+          ),
+          PopupMenuItem(
+            value: MapMenuAction.overlayTileSize,
+            child: Text(LocaleKeys.menu_overlay_tile_size.tr()),
           ),
         ],
       ),

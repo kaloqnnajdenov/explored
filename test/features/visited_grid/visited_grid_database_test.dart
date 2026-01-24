@@ -71,6 +71,9 @@ void main() {
         epochSeconds: 100,
         latE5: 111,
         lonE5: 222,
+        baseResolution: cell.resolution,
+        baseCellId: cell.cellId,
+        baseCellAreaM2: 50,
       );
       await dao.upsertVisit(
         cells: [cell],
@@ -80,6 +83,9 @@ void main() {
         epochSeconds: 200,
         latE5: 333,
         lonE5: 444,
+        baseResolution: cell.resolution,
+        baseCellId: cell.cellId,
+        baseCellAreaM2: 50,
       );
 
       final dailyRow = await (db.select(db.visitsDaily)
@@ -125,6 +131,9 @@ void main() {
         epochSeconds: 100,
         latE5: 1,
         lonE5: 2,
+        baseResolution: cell.resolution,
+        baseCellId: cell.cellId,
+        baseCellAreaM2: 50,
       );
       await dao.upsertVisit(
         cells: [cell],
@@ -134,6 +143,9 @@ void main() {
         epochSeconds: 200,
         latE5: 3,
         lonE5: 4,
+        baseResolution: cell.resolution,
+        baseCellId: cell.cellId,
+        baseCellAreaM2: 50,
       );
       await dao.upsertVisit(
         cells: [cell],
@@ -143,6 +155,9 @@ void main() {
         epochSeconds: 300,
         latE5: 5,
         lonE5: 6,
+        baseResolution: cell.resolution,
+        baseCellId: cell.cellId,
+        baseCellAreaM2: 50,
       );
 
       final lifetimeRow = await (db.select(db.visitsLifetime)
@@ -322,6 +337,9 @@ INSERT INTO visited_cell_bounds (
           epochSeconds: 100,
           latE5: 1,
           lonE5: 2,
+          baseResolution: cell.resolution,
+          baseCellId: cell.cellId,
+          baseCellAreaM2: 50,
         ),
         throwsStateError,
       );
@@ -359,6 +377,7 @@ INSERT INTO visited_cell_bounds (
         'visits_lifetime_days',
         'visited_cell_bounds',
         'visited_grid_meta',
+        'visited_grid_stats',
       };
       final filtered = names.where((name) {
         return !name.startsWith('sqlite_') && name != 'android_metadata';
@@ -425,6 +444,19 @@ INSERT INTO visited_cell_bounds (
 
       final metaColumns = await _tableColumns(db, 'visited_grid_meta');
       expect(metaColumns, {'id', 'last_cleanup_ts'});
+
+      final statsColumns = await _tableColumns(db, 'visited_grid_stats');
+      expect(
+        statsColumns,
+        {
+          'id',
+          'total_area_m2',
+          'cell_count',
+          'canonical_version',
+          'last_updated_ts',
+          'last_reconciled_ts',
+        },
+      );
     });
   });
 }

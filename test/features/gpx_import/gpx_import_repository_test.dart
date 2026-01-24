@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'dart:typed_data';
 
 import 'package:file_picker/file_picker.dart';
@@ -14,7 +15,9 @@ import 'package:explored/features/location/data/repositories/location_history_re
 import 'package:explored/features/location/data/services/platform_info.dart';
 import 'package:explored/features/permissions/data/services/file_access_permission_service.dart';
 import 'package:explored/features/visited_grid/data/models/visited_grid_bounds.dart';
+import 'package:explored/features/visited_grid/data/models/visited_grid_cell_update.dart';
 import 'package:explored/features/visited_grid/data/models/visited_grid_overlay.dart';
+import 'package:explored/features/visited_grid/data/models/visited_grid_stats.dart';
 import 'package:explored/features/visited_grid/data/models/visited_overlay_polygon.dart';
 import 'package:explored/features/visited_grid/data/models/visited_time_filter.dart';
 import 'package:explored/features/visited_grid/data/repositories/visited_grid_repository.dart';
@@ -142,6 +145,16 @@ class FakeLocationHistoryRepository implements LocationHistoryRepository {
 
 class FakeVisitedGridRepository implements VisitedGridRepository {
   List<LatLngSample> ingested = <LatLngSample>[];
+  final StreamController<VisitedGridCellUpdate> _cellUpdates =
+      StreamController<VisitedGridCellUpdate>.broadcast();
+  final StreamController<VisitedGridStats> _statsUpdates =
+      StreamController<VisitedGridStats>.broadcast();
+
+  @override
+  Stream<VisitedGridCellUpdate> get cellUpdates => _cellUpdates.stream;
+
+  @override
+  Stream<VisitedGridStats> get statsUpdates => _statsUpdates.stream;
 
   @override
   Future<void> start() async {}
@@ -150,12 +163,27 @@ class FakeVisitedGridRepository implements VisitedGridRepository {
   Future<void> stop() async {}
 
   @override
-  Future<void> dispose() async {}
+  Future<void> dispose() async {
+    await _cellUpdates.close();
+    await _statsUpdates.close();
+  }
 
   @override
   Future<void> ingestSamples(Iterable<LatLngSample> samples) async {
     ingested = List<LatLngSample>.from(samples);
   }
+
+  @override
+  Future<VisitedGridStats> fetchStats() async {
+    return const VisitedGridStats(
+      totalAreaM2: 0,
+      cellCount: 0,
+      canonicalVersion: 0,
+    );
+  }
+
+  @override
+  Future<void> logExploredAreaViewed() async {}
 
   @override
   Future<VisitedGridOverlay> loadOverlay({

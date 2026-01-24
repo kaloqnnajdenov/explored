@@ -17,10 +17,10 @@ void main() {
         ),
       ),
     );
-    tester.binding.window.physicalSizeTestValue = const Size(320, 640);
-    tester.binding.window.devicePixelRatioTestValue = 1.0;
-    addTearDown(tester.binding.window.clearPhysicalSizeTestValue);
-    addTearDown(tester.binding.window.clearDevicePixelRatioTestValue);
+    tester.view.physicalSize = const Size(320, 640);
+    tester.view.devicePixelRatio = 1.0;
+    addTearDown(tester.view.resetPhysicalSize);
+    addTearDown(tester.view.resetDevicePixelRatio);
 
     await tester.pumpWidget(app);
     await tester.tap(find.byIcon(Icons.menu));
@@ -30,6 +30,8 @@ void main() {
     expect(find.text('Import GPX file'), findsOneWidget);
     expect(find.text('Export'), findsOneWidget);
     expect(find.text('Download'), findsOneWidget);
+    expect(find.text('Explored area'), findsOneWidget);
+    expect(find.text('Overlay tile size'), findsOneWidget);
     expect(selected, isNull);
     expect(tester.takeException(), isNull);
   });

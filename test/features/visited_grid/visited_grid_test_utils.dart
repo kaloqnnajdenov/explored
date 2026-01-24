@@ -30,7 +30,7 @@ class TestVisitedGridDao extends VisitedGridDao {
   Completer<void>? upsertGate;
 
   @override
-  Future<void> upsertVisit({
+  Future<VisitedGridUpsertResult> upsertVisit({
     required List<VisitedGridCell> cells,
     required List<VisitedGridCellBounds> cellBounds,
     required int day,
@@ -38,6 +38,9 @@ class TestVisitedGridDao extends VisitedGridDao {
     required int epochSeconds,
     required int latE5,
     required int lonE5,
+    required int baseResolution,
+    required String baseCellId,
+    required double baseCellAreaM2,
   }) async {
     upsertCalls += 1;
     final gate = upsertGate;
@@ -52,6 +55,9 @@ class TestVisitedGridDao extends VisitedGridDao {
       epochSeconds: epochSeconds,
       latE5: latE5,
       lonE5: lonE5,
+      baseResolution: baseResolution,
+      baseCellId: baseCellId,
+      baseCellAreaM2: baseCellAreaM2,
     );
   }
 
@@ -79,6 +85,7 @@ class FakeVisitedGridH3Service implements VisitedGridH3Service {
   int cellForLatLngCalls = 0;
   int parentCellCalls = 0;
   int cellBoundaryCalls = 0;
+  final List<H3Index> boundaryCallCells = [];
   int cellsToMultiPolygonCalls = 0;
   int compactCellsCalls = 0;
   int cellBoundsCalls = 0;
@@ -154,8 +161,14 @@ class FakeVisitedGridH3Service implements VisitedGridH3Service {
   }
 
   @override
+  double cellArea(H3Index cell, H3Units unit) {
+    return 50.0;
+  }
+
+  @override
   List<LatLng> cellBoundary(H3Index cell) {
     cellBoundaryCalls += 1;
+    boundaryCallCells.add(cell);
     final cached = _boundaries[cell];
     if (cached != null) {
       return cached;

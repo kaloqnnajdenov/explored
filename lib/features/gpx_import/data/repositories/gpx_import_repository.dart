@@ -165,11 +165,11 @@ class DefaultGpxImportRepository implements GpxImportRepository {
       if (point.timestamp != null) {
         timestamp = point.timestamp!.toUtc();
         if (lastTimestamp != null &&
-            !timestamp.isAfter(lastTimestamp!)) {
-          timestamp = lastTimestamp!.add(const Duration(seconds: 1));
+            !timestamp.isAfter(lastTimestamp)) {
+          timestamp = lastTimestamp.add(const Duration(seconds: 1));
         }
       } else if (lastTimestamp != null) {
-        timestamp = lastTimestamp!.add(expectedInterval);
+        timestamp = lastTimestamp.add(expectedInterval);
       } else {
         timestamp = baseTime;
       }

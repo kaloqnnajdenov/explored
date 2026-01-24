@@ -95,7 +95,7 @@ void main() {
       expect(inserted.longitude, closeTo(20.00005, 1e-9));
     });
 
-    test('Insert 4 points (missing_count=4, boundary allowed)', () {
+    test('Insert 20 points (missing_count=20, boundary allowed)', () {
       final base = DateTime.utc(2024, 1, 1);
       final start = _sample(
         latitude: 0.00000,
@@ -103,26 +103,20 @@ void main() {
         timestamp: base,
       );
       final end = _sample(
-        latitude: 0.00010,
-        longitude: 0.00020,
-        timestamp: _timeAt(base, 5),
+        latitude: 0.00021,
+        longitude: 0.00042,
+        timestamp: _timeAt(base, 21),
       );
 
       final outputs = _runFiller([start, end]);
 
-      expect(outputs.length, 6);
-      final expected = <List<double>>[
-        [0.00002, 0.00004],
-        [0.00004, 0.00008],
-        [0.00006, 0.00012],
-        [0.00008, 0.00016],
-      ];
-      for (var i = 0; i < expected.length; i += 1) {
-        final sample = outputs[i + 1];
+      expect(outputs.length, 22);
+      for (var i = 1; i <= 20; i += 1) {
+        final sample = outputs[i];
         expect(sample.isInterpolated, isTrue);
-        expect(sample.timestamp, _timeAt(base, i + 1));
-        expect(sample.latitude, closeTo(expected[i][0], 1e-9));
-        expect(sample.longitude, closeTo(expected[i][1], 1e-9));
+        expect(sample.timestamp, _timeAt(base, i));
+        expect(sample.latitude, closeTo(0.00001 * i, 1e-9));
+        expect(sample.longitude, closeTo(0.00002 * i, 1e-9));
       }
       for (var i = 0; i < outputs.length - 1; i += 1) {
         expect(
@@ -132,7 +126,7 @@ void main() {
       }
     });
 
-    test('Gap too large (missing_count=5) -> do not fill', () {
+    test('Gap too large (missing_count=21) -> do not fill', () {
       final base = DateTime.utc(2024, 1, 1);
       final start = _sample(
         latitude: 0.0,
@@ -142,7 +136,7 @@ void main() {
       final end = _sample(
         latitude: 0.00010,
         longitude: 0.00020,
-        timestamp: _timeAt(base, 6),
+        timestamp: _timeAt(base, 22),
       );
 
       final outputs = _runFiller([start, end]);
@@ -204,12 +198,12 @@ void main() {
         _sample(
           latitude: 0.00015,
           longitude: 0.00015,
-          timestamp: _timeAt(base, 9),
+          timestamp: _timeAt(base, 26),
         ),
         _sample(
           latitude: 0.00020,
           longitude: 0.00020,
-          timestamp: _timeAt(base, 11),
+          timestamp: _timeAt(base, 28),
         ),
       ];
 
@@ -221,7 +215,7 @@ void main() {
       expect(interpolated.length, 2);
       expect(
         interpolated.map((sample) => sample.timestamp).toSet(),
-        {_timeAt(base, 1), _timeAt(base, 10)},
+        {_timeAt(base, 1), _timeAt(base, 27)},
       );
     });
 
@@ -340,15 +334,15 @@ void main() {
       final nearLow = _sample(
         latitude: 0.00010,
         longitude: 0.00010,
-        timestamp: _timeAt(base, 5, extraMicros: -1),
+        timestamp: _timeAt(base, 21, extraMicros: -1),
       );
       final outputsLow = _runFiller([start, nearLow]);
-      expect(outputsLow.where((sample) => sample.isInterpolated).length, 4);
+      expect(outputsLow.where((sample) => sample.isInterpolated).length, 20);
 
       final nearHigh = _sample(
         latitude: 0.00010,
         longitude: 0.00010,
-        timestamp: _timeAt(base, 5, extraMicros: 1),
+        timestamp: _timeAt(base, 21, extraMicros: 1),
       );
       final outputsHigh = _runFiller([start, nearHigh]);
       expect(outputsHigh.where((sample) => sample.isInterpolated), isEmpty);
