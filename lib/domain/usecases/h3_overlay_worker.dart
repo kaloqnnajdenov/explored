@@ -135,22 +135,22 @@ class H3OverlayWorker implements VisitedOverlayWorker {
     required int baseResolution,
     required int minResolution,
   }) {
-    var resolution = baseResolution;
-    if (zoom >= 16) {
-      resolution = baseResolution;
-    } else if (zoom >= 15) {
-      resolution = baseResolution - 1;
-    } else if (zoom >= 14) {
-      resolution = baseResolution - 2;
-    } else if (zoom >= 13) {
-      resolution = baseResolution - 3;
-    } else if (zoom >= 12) {
-      resolution = baseResolution - 4;
-    } else if (zoom >= 10.5) {
-      resolution = baseResolution - 5;
-    } else {
-      resolution = baseResolution - 6;
+    const minZoom = 7.0;
+    const maxZoom = 16.0;
+    if (baseResolution <= minResolution) {
+      return baseResolution;
     }
+
+    final clampedZoom = zoom.clamp(minZoom, maxZoom).toDouble();
+    final zoomSpan = maxZoom - minZoom;
+    if (zoomSpan <= 0) {
+      return baseResolution;
+    }
+
+    final resSpan = baseResolution - minResolution;
+    final t = (clampedZoom - minZoom) / zoomSpan;
+    final continuous = minResolution + resSpan * t;
+    final resolution = continuous.round();
 
     if (resolution < minResolution) {
       return minResolution;
@@ -165,7 +165,7 @@ class H3OverlayWorker implements VisitedOverlayWorker {
 class H3OverlayWorkerConfig {
   const H3OverlayWorkerConfig({
     this.minResolution = 6,
-    this.baseResolution = 12,
+    this.baseResolution = kBaseH3Resolution,
     this.mergeThreshold = 2000,
     this.paddingFactor = 1.25,
     this.databaseName = 'visited_grid',

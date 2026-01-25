@@ -100,20 +100,22 @@ Future<void> main() async {
   const visitedGridConfig = VisitedGridConfig();
   final visitedGridDatabase = VisitedGridDatabase(shareAcrossIsolates: true);
   final visitedGridH3Service = VisitedGridH3Service();
-  final exploredAreaLogger = ConsoleExploredAreaLogger();
-  final visitedGridRepository = DefaultVisitedGridRepository(
-    locationUpdatesRepository: locationUpdatesRepository,
-    visitedGridDao: visitedGridDatabase.visitedGridDao,
-    h3Service: visitedGridH3Service,
-    exploredAreaLogger: exploredAreaLogger,
-    appVersion: kAppVersion,
-    schemaVersion: visitedGridDatabase.schemaVersion,
-    config: visitedGridConfig,
-  );
   const fogConfig = FogOfWarConfig();
   final fogCacheService = FogOfWarTileCacheService(
     pathProvider: PathProviderTileCachePathProvider(),
     maxEntries: fogConfig.cacheMaxEntries,
+  );
+  final exploredAreaLogger = ConsoleExploredAreaLogger();
+  final visitedGridRepository = DefaultVisitedGridRepository(
+    locationUpdatesRepository: locationUpdatesRepository,
+    visitedGridDao: visitedGridDatabase.visitedGridDao,
+    locationHistoryDao: locationHistoryDatabase.locationHistoryDao,
+    h3Service: visitedGridH3Service,
+    exploredAreaLogger: exploredAreaLogger,
+    overlayCacheService: fogCacheService,
+    appVersion: kAppVersion,
+    schemaVersion: visitedGridDatabase.schemaVersion,
+    config: visitedGridConfig,
   );
   final fogRasterService = FogOfWarTileRasterService();
   final fogTileRepository = FogOfWarTileRepository(

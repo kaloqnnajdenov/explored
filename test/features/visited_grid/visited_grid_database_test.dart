@@ -1,5 +1,6 @@
 import 'package:flutter_test/flutter_test.dart';
 
+import 'package:explored/constants.dart';
 import 'package:explored/features/visited_grid/data/models/visited_grid_cell.dart';
 import 'package:explored/features/visited_grid/data/models/visited_grid_cell_bounds.dart';
 import 'package:explored/features/visited_grid/data/services/visited_grid_database.dart';
@@ -61,7 +62,10 @@ void main() {
     test('Merges daily rows and updates masks, timestamps, samples', () async {
       const cellId = 'cell_a';
       const day = 20240101;
-      final cell = VisitedGridCell(resolution: 12, cellId: cellId);
+      final cell = VisitedGridCell(
+        resolution: kBaseH3Resolution,
+        cellId: cellId,
+      );
 
       await dao.upsertVisit(
         cells: [cell],
@@ -90,7 +94,7 @@ void main() {
 
       final dailyRow = await (db.select(db.visitsDaily)
             ..where((tbl) => tbl.cellId.equals(cellId))
-            ..where((tbl) => tbl.res.equals(12))
+            ..where((tbl) => tbl.res.equals(kBaseH3Resolution))
             ..where((tbl) => tbl.dayYyyyMmdd.equals(day)))
           .getSingle();
       expect(dailyRow.hourMask, (1 << 3) | (1 << 5));
@@ -102,7 +106,7 @@ void main() {
 
       final lifetimeRow = await (db.select(db.visitsLifetime)
             ..where((tbl) => tbl.cellId.equals(cellId))
-            ..where((tbl) => tbl.res.equals(12)))
+            ..where((tbl) => tbl.res.equals(kBaseH3Resolution)))
           .getSingle();
       expect(lifetimeRow.firstTs, 100);
       expect(lifetimeRow.lastTs, 200);
@@ -113,7 +117,7 @@ void main() {
 
       final days = await (db.select(db.visitsLifetimeDays)
             ..where((tbl) => tbl.cellId.equals(cellId))
-            ..where((tbl) => tbl.res.equals(12)))
+            ..where((tbl) => tbl.res.equals(kBaseH3Resolution)))
           .get();
       expect(days, hasLength(1));
       expect(days.first.dayYyyyMmdd, day);
@@ -121,7 +125,10 @@ void main() {
 
     test('Increments daysVisited only for new day inserts', () async {
       const cellId = 'cell_b';
-      final cell = VisitedGridCell(resolution: 12, cellId: cellId);
+      final cell = VisitedGridCell(
+        resolution: kBaseH3Resolution,
+        cellId: cellId,
+      );
 
       await dao.upsertVisit(
         cells: [cell],
@@ -162,13 +169,13 @@ void main() {
 
       final lifetimeRow = await (db.select(db.visitsLifetime)
             ..where((tbl) => tbl.cellId.equals(cellId))
-            ..where((tbl) => tbl.res.equals(12)))
+            ..where((tbl) => tbl.res.equals(kBaseH3Resolution)))
           .getSingle();
       expect(lifetimeRow.daysVisited, 2);
 
       final days = await (db.select(db.visitsLifetimeDays)
             ..where((tbl) => tbl.cellId.equals(cellId))
-            ..where((tbl) => tbl.res.equals(12)))
+            ..where((tbl) => tbl.res.equals(kBaseH3Resolution)))
           .get();
       final dayKeys = days.map((row) => row.dayYyyyMmdd).toSet();
       expect(dayKeys, {20240101, 20240102});
@@ -190,7 +197,7 @@ void main() {
 
     test('Chunks daily queries across large candidate lists', () async {
       const day = 20240101;
-      const res = 12;
+      const res = kBaseH3Resolution;
       final candidates = List.generate(901, (index) => 'cell_$index');
       await db.customStatement(
         '''
@@ -221,7 +228,7 @@ INSERT INTO visits_daily (
     });
 
     test('Chunks lifetime queries across large candidate lists', () async {
-      const res = 12;
+      const res = kBaseH3Resolution;
       final candidates = List.generate(901, (index) => 'cell_$index');
       await db.customStatement(
         '''
@@ -250,7 +257,7 @@ INSERT INTO visits_lifetime (
     });
 
     test('Fetches lifetime cells within bounds', () async {
-      const res = 12;
+      const res = kBaseH3Resolution;
       await db.customStatement(
         '''
 INSERT INTO visits_lifetime (
@@ -280,7 +287,7 @@ INSERT INTO visited_cell_bounds (
     });
 
     test('Fetches daily cells within bounds and date range', () async {
-      const res = 12;
+      const res = kBaseH3Resolution;
       const day = 20240101;
       await db.customStatement(
         '''
@@ -326,7 +333,10 @@ INSERT INTO visited_cell_bounds (
 
     test('Upsert is atomic across tables', () async {
       final dao = FailingVisitedGridDao(db);
-      final cell = VisitedGridCell(resolution: 12, cellId: 'cell_fail');
+      final cell = VisitedGridCell(
+        resolution: kBaseH3Resolution,
+        cellId: 'cell_fail',
+      );
 
       expect(
         () => dao.upsertVisit(
@@ -376,6 +386,7 @@ INSERT INTO visited_cell_bounds (
         'visits_lifetime',
         'visits_lifetime_days',
         'visited_cell_bounds',
+        'visited_cell_area_cache',
         'visited_grid_meta',
         'visited_grid_stats',
       };
@@ -443,7 +454,11 @@ INSERT INTO visited_cell_bounds (
       );
 
       final metaColumns = await _tableColumns(db, 'visited_grid_meta');
-      expect(metaColumns, {'id', 'last_cleanup_ts'});
+      expect(metaColumns, {'id', 'last_cleanup_ts', 'grid_version'});
+
+      final areaColumns =
+          await _tableColumns(db, 'visited_cell_area_cache');
+      expect(areaColumns, {'cell_id', 'area_km2'});
 
       final statsColumns = await _tableColumns(db, 'visited_grid_stats');
       expect(

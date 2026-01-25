@@ -17,4 +17,4 @@ class LatLngSample {
   final LatLngSampleSource source;
 }
 
-enum LatLngSampleSource { live, imported }
+enum LatLngSampleSource { live, imported, manual }

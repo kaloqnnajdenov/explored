@@ -6,6 +6,7 @@ import 'package:h3_flutter/h3_flutter.dart';
 import '../../../../constants.dart';
 import '../../../location/data/models/lat_lng_sample.dart';
 import '../../../location/data/repositories/location_updates_repository.dart';
+import '../../../location/data/services/location_history_database.dart';
 import '../models/explored_area_log_entry.dart';
 import '../models/visited_grid_bounds.dart';
 import '../models/visited_grid_cell.dart';
@@ -17,6 +18,7 @@ import '../models/visited_grid_stats.dart';
 import '../models/visited_overlay_polygon.dart';
 import '../models/visited_time_filter.dart';
 import '../services/explored_area_logger.dart';
+import '../services/fog_of_war_tile_cache_service.dart';
 import '../services/visited_grid_database.dart';
 import '../services/visited_grid_h3_service.dart';
 
@@ -28,6 +30,10 @@ abstract class VisitedGridRepository {
   Future<void> dispose();
   Future<void> ingestSamples(Iterable<LatLngSample> samples);
   Future<VisitedGridStats> fetchStats();
+  Future<double> fetchExploredAreaKm2({
+    DateTime? start,
+    DateTime? end,
+  });
   Future<void> logExploredAreaViewed();
   Future<VisitedGridOverlay> loadOverlay({
     required VisitedGridBounds bounds,
@@ -40,16 +46,20 @@ class DefaultVisitedGridRepository implements VisitedGridRepository {
   DefaultVisitedGridRepository({
     required LocationUpdatesRepository locationUpdatesRepository,
     required VisitedGridDao visitedGridDao,
+    required LocationHistoryDao locationHistoryDao,
     required VisitedGridH3Service h3Service,
     required ExploredAreaLogger exploredAreaLogger,
+    FogOfWarTileCacheService? overlayCacheService,
     required String appVersion,
     required int schemaVersion,
     VisitedGridConfig config = const VisitedGridConfig(),
     DateTime Function()? nowProvider,
   })  : _locationUpdatesRepository = locationUpdatesRepository,
         _visitedGridDao = visitedGridDao,
+        _locationHistoryDao = locationHistoryDao,
         _h3Service = h3Service,
         _exploredAreaLogger = exploredAreaLogger,
+        _overlayCacheService = overlayCacheService,
         _appVersion = appVersion,
         _schemaVersion = schemaVersion,
         _config = config,
@@ -57,8 +67,10 @@ class DefaultVisitedGridRepository implements VisitedGridRepository {
 
   final LocationUpdatesRepository _locationUpdatesRepository;
   final VisitedGridDao _visitedGridDao;
+  final LocationHistoryDao _locationHistoryDao;
   final VisitedGridH3Service _h3Service;
   final ExploredAreaLogger _exploredAreaLogger;
+  final FogOfWarTileCacheService? _overlayCacheService;
   final String _appVersion;
   final int _schemaVersion;
   final VisitedGridConfig _config;
@@ -80,6 +92,9 @@ class DefaultVisitedGridRepository implements VisitedGridRepository {
   bool _statsLoaded = false;
   VisitedGridStats? _lastStats;
   bool _disposed = false;
+  bool _suppressCleanup = false;
+  Completer<void>? _rebuildCompleter;
+  final Map<String, double> _areaCacheKm2 = {};
 
   @override
   Stream<VisitedGridCellUpdate> get cellUpdates =>
@@ -94,12 +109,16 @@ class DefaultVisitedGridRepository implements VisitedGridRepository {
       return;
     }
 
+    _ensureRebuildCompleter();
     _subscription = _locationUpdatesRepository.locationUpdates.listen(
       _handleSample,
       onError: (error) {
         debugPrint('Visited grid location update error: $error');
       },
     );
+    await _maybeRebuild();
+    _completeRebuild();
+    _kickDrain();
     _scheduleStatsReconcile();
   }
 
@@ -125,6 +144,7 @@ class DefaultVisitedGridRepository implements VisitedGridRepository {
     if (samples.isEmpty) {
       return;
     }
+    await _awaitRebuildIfNeeded();
     _pendingSamples.addAll(samples);
     final completer = _ensureDrainCompleter();
     _kickDrain();
@@ -133,26 +153,64 @@ class DefaultVisitedGridRepository implements VisitedGridRepository {
 
   @override
   Future<VisitedGridStats> fetchStats() async {
+    await _awaitRebuildIfNeeded();
     _statsLoaded = true;
     final cached = _lastStats;
     if (cached != null) {
       return cached;
     }
-    final stats = await _loadStatsFromStore();
-    if (stats != null) {
-      _lastStats = stats;
-      _statsController.add(stats);
-      return stats;
+    final stored = await _loadStatsFromStore();
+    if (stored != null) {
+      final computed = await _computeStatsFromCanonical(
+        lastUpdatedEpochSeconds: stored.lastUpdatedEpochSeconds,
+      );
+      if (_statsMismatch(stored, computed)) {
+        final reconciled = computed.copyWith(
+          lastReconciledEpochSeconds:
+              _now().millisecondsSinceEpoch ~/ 1000,
+        );
+        await _persistStats(reconciled);
+        _lastStats = reconciled;
+        _emitStats(reconciled);
+        _logStatsEvent(
+          event: 'explored_area_reconciled',
+          stats: reconciled,
+          deltaAreaM2: reconciled.totalAreaM2 - stored.totalAreaM2,
+        );
+        return reconciled;
+      }
+      _lastStats = stored;
+      _emitStats(stored);
+      return stored;
     }
     final computed = await _computeStatsFromCanonical();
     await _persistStats(computed);
     _lastStats = computed;
-    _statsController.add(computed);
+    _emitStats(computed);
     _logStatsEvent(
       event: 'explored_area_reconciled',
       stats: computed,
     );
     return computed;
+  }
+
+  @override
+  Future<double> fetchExploredAreaKm2({
+    DateTime? start,
+    DateTime? end,
+  }) async {
+    await _awaitRebuildIfNeeded();
+    if (start == null || end == null) {
+      final stats = await fetchStats();
+      return stats.totalAreaKm2;
+    }
+    final range = _normalizeRange(start, end);
+    final cellIds = await _visitedGridDao.fetchVisitedDailyCellsInRange(
+      resolution: _config.baseResolution,
+      startDay: _dayKey(range.start),
+      endDay: _dayKey(range.end),
+    );
+    return _sumAreaKm2(cellIds);
   }
 
   @override
@@ -170,6 +228,7 @@ class DefaultVisitedGridRepository implements VisitedGridRepository {
     required double zoom,
     required VisitedTimeFilter timeFilter,
   }) async {
+    await _awaitRebuildIfNeeded();
     final resolution = _config.baseResolution;
     final visitedIds = await _fetchVisitedCellsInBounds(
       resolution: resolution,
@@ -195,6 +254,9 @@ class DefaultVisitedGridRepository implements VisitedGridRepository {
   Future<void> _handleSample(LatLngSample sample) async {
     // Queue bursts so interpolated samples are not dropped mid-write.
     _pendingSamples.add(sample);
+    if (_isRebuilding) {
+      return;
+    }
     _kickDrain();
   }
 
@@ -237,6 +299,181 @@ class DefaultVisitedGridRepository implements VisitedGridRepository {
     _drainCompleter = null;
   }
 
+  bool get _isRebuilding => _rebuildCompleter != null;
+
+  Completer<void> _ensureRebuildCompleter() {
+    return _rebuildCompleter ??= Completer<void>();
+  }
+
+  void _completeRebuild() {
+    final completer = _rebuildCompleter;
+    if (completer != null && !completer.isCompleted) {
+      completer.complete();
+    }
+    _rebuildCompleter = null;
+  }
+
+  Future<void> _awaitRebuildIfNeeded() async {
+    final completer = _rebuildCompleter;
+    if (completer != null && !completer.isCompleted) {
+      await completer.future;
+    }
+  }
+
+  Future<void> _maybeRebuild() async {
+    try {
+      final storedVersion =
+          await _visitedGridDao.fetchGridVersion() ?? 0;
+      if (storedVersion == _config.baseResolution) {
+        return;
+      }
+      await _performRebuild();
+      await _visitedGridDao.setGridVersion(_config.baseResolution);
+    } catch (error) {
+      debugPrint('Visited grid rebuild failed: $error');
+    }
+  }
+
+  Future<void> _performRebuild() async {
+    _suppressCleanup = true;
+    _lastPersistedCellId = null;
+    _lastPersistedHour = null;
+    _cleanupLoaded = false;
+    _lastCleanupTs = null;
+    _lastStats = null;
+    _statsLoaded = false;
+    _areaCacheKm2.clear();
+
+    try {
+      await _overlayCacheService?.clear();
+      await _visitedGridDao.clearDerivedTables();
+
+      final rows = await _locationHistoryDao.fetchAllSamplesStable();
+      final samples = <LatLngSample>[];
+      for (final row in rows) {
+        final sample = _mapHistorySample(row);
+        if (sample != null) {
+          samples.add(sample);
+        }
+      }
+
+      int? lastUpdatedEpochSeconds;
+      for (final sample in samples) {
+        await _processSample(sample);
+        lastUpdatedEpochSeconds =
+            sample.timestamp.millisecondsSinceEpoch ~/ 1000;
+      }
+
+      final computed = await _computeStatsFromCanonical(
+        lastUpdatedEpochSeconds: lastUpdatedEpochSeconds,
+      );
+      final reconciled = computed.copyWith(
+        lastReconciledEpochSeconds:
+            _now().millisecondsSinceEpoch ~/ 1000,
+      );
+      await _persistStats(reconciled);
+      _lastStats = reconciled;
+      _statsLoaded = true;
+      _emitStats(reconciled);
+
+      await _visitedGridDao.setLastCleanupTs(
+        _now().millisecondsSinceEpoch ~/ 1000,
+      );
+    } finally {
+      _suppressCleanup = false;
+    }
+  }
+
+  LatLngSample? _mapHistorySample(LocationSample row) {
+    try {
+      return LatLngSample(
+        latitude: row.latitude,
+        longitude: row.longitude,
+        timestamp: DateTime.parse(row.timestamp),
+        accuracyMeters: row.accuracyMeters,
+        isInterpolated: row.isInterpolated,
+        source: row.source,
+      );
+    } catch (error) {
+      debugPrint('Skipping invalid history sample: $error');
+      return null;
+    }
+  }
+
+  Future<double> _areaKm2ForCellId(
+    String cellId, {
+    H3Index? cell,
+  }) async {
+    final cached = _areaCacheKm2[cellId];
+    if (cached != null) {
+      return cached;
+    }
+    final stored = await _visitedGridDao.fetchCellAreas([cellId]);
+    final storedValue = stored[cellId];
+    if (storedValue != null) {
+      _areaCacheKm2[cellId] = storedValue;
+      return storedValue;
+    }
+    final resolved = cell ?? _h3Service.decodeCellId(cellId);
+    final areaM2 = _h3Service.cellArea(resolved, H3Units.m);
+    final areaKm2 = areaM2 / 1000000.0;
+    _areaCacheKm2[cellId] = areaKm2;
+    await _visitedGridDao.upsertCellAreas({cellId: areaKm2});
+    return areaKm2;
+  }
+
+  Future<Map<String, double>> _loadAreasKm2(List<String> cellIds) async {
+    if (cellIds.isEmpty) {
+      return const <String, double>{};
+    }
+    final results = <String, double>{};
+    final missing = <String>[];
+    for (final cellId in cellIds) {
+      final cached = _areaCacheKm2[cellId];
+      if (cached != null) {
+        results[cellId] = cached;
+      } else {
+        missing.add(cellId);
+      }
+    }
+    if (missing.isEmpty) {
+      return results;
+    }
+    final stored = await _visitedGridDao.fetchCellAreas(missing);
+    results.addAll(stored);
+    _areaCacheKm2.addAll(stored);
+    final stillMissing = [
+      for (final cellId in missing)
+        if (!stored.containsKey(cellId)) cellId,
+    ];
+    if (stillMissing.isEmpty) {
+      return results;
+    }
+    final computed = <String, double>{};
+    for (final cellId in stillMissing) {
+      final cell = _h3Service.decodeCellId(cellId);
+      final areaM2 = _h3Service.cellArea(cell, H3Units.m);
+      computed[cellId] = areaM2 / 1000000.0;
+    }
+    results.addAll(computed);
+    _areaCacheKm2.addAll(computed);
+    await _visitedGridDao.upsertCellAreas(computed);
+    return results;
+  }
+
+  Future<double> _sumAreaKm2(Iterable<String> cellIds) async {
+    final ids = cellIds.toList(growable: false);
+    if (ids.isEmpty) {
+      return 0.0;
+    }
+    final areas = await _loadAreasKm2(ids);
+    var total = 0.0;
+    for (final cellId in ids) {
+      total += areas[cellId] ?? 0.0;
+    }
+    return total;
+  }
+
   Future<void> _processSample(LatLngSample sample) async {
     if (_disposed) {
       return;
@@ -254,7 +491,9 @@ class DefaultVisitedGridRepository implements VisitedGridRepository {
       resolution: _config.baseResolution,
     );
     final baseCellId = _h3Service.encodeCellId(baseCell);
-    final baseCellAreaM2 = _h3Service.cellArea(baseCell, H3Units.m);
+    final baseCellAreaKm2 =
+        await _areaKm2ForCellId(baseCellId, cell: baseCell);
+    final baseCellAreaM2 = baseCellAreaKm2 * 1000000.0;
 
     if (_lastPersistedCellId == baseCellId && _lastPersistedHour == hour) {
       return;
@@ -325,7 +564,7 @@ class DefaultVisitedGridRepository implements VisitedGridRepository {
             lastReconciledEpochSeconds: null,
           );
       _lastStats = stats;
-      _statsController.add(stats);
+      _emitStats(stats);
       _cellUpdatesController.add(
         VisitedGridCellUpdate(
           cellId: baseCellId,
@@ -368,7 +607,7 @@ class DefaultVisitedGridRepository implements VisitedGridRepository {
         );
         await _persistStats(reconciled);
         _lastStats = reconciled;
-        _statsController.add(reconciled);
+        _emitStats(reconciled);
         _logStatsEvent(
           event: 'explored_area_reconciled',
           stats: reconciled,
@@ -378,7 +617,7 @@ class DefaultVisitedGridRepository implements VisitedGridRepository {
         );
       } else if (_lastStats == null) {
         _lastStats = stored;
-        _statsController.add(stored);
+        _emitStats(stored);
       }
     } catch (error) {
       debugPrint('Visited grid stats reconcile failed: $error');
@@ -405,11 +644,8 @@ class DefaultVisitedGridRepository implements VisitedGridRepository {
     final cellIds = await _visitedGridDao.fetchLifetimeCellIds(
       _config.baseResolution,
     );
-    var totalArea = 0.0;
-    for (final cellId in cellIds) {
-      final cell = _h3Service.decodeCellId(cellId);
-      totalArea += _h3Service.cellArea(cell, H3Units.m);
-    }
+    final totalAreaKm2 = await _sumAreaKm2(cellIds);
+    final totalArea = totalAreaKm2 * 1000000.0;
     final nowSeconds = _now().millisecondsSinceEpoch ~/ 1000;
     return VisitedGridStats(
       totalAreaM2: totalArea,
@@ -470,6 +706,13 @@ class DefaultVisitedGridRepository implements VisitedGridRepository {
     );
   }
 
+  void _emitStats(VisitedGridStats stats) {
+    if (_disposed || _statsController.isClosed) {
+      return;
+    }
+    _statsController.add(stats);
+  }
+
   Future<Set<String>> _fetchVisitedCellsInBounds({
     required int resolution,
     required VisitedGridBounds bounds,
@@ -513,6 +756,15 @@ class DefaultVisitedGridRepository implements VisitedGridRepository {
     return result;
   }
 
+  _DateRange _normalizeRange(DateTime start, DateTime end) {
+    final startDay = DateTime(start.year, start.month, start.day);
+    final endDay = DateTime(end.year, end.month, end.day);
+    if (endDay.isBefore(startDay)) {
+      return _DateRange(start: endDay, end: startDay);
+    }
+    return _DateRange(start: startDay, end: endDay);
+  }
+
   _DayRange _dayRange(VisitedTimeFilter filter) {
     final now = _now().toLocal();
     final endDay = _dayKey(now);
@@ -527,6 +779,9 @@ class DefaultVisitedGridRepository implements VisitedGridRepository {
   }
 
   Future<void> _maybeCleanup(int epochSeconds, DateTime timestamp) async {
+    if (_suppressCleanup) {
+      return;
+    }
     final lastCleanup = await _ensureCleanupLoaded();
     if (lastCleanup != null &&
         epochSeconds - lastCleanup < _config.cleanupIntervalSeconds) {
@@ -557,6 +812,13 @@ class _DayRange {
 
   final int startDay;
   final int endDay;
+}
+
+class _DateRange {
+  const _DateRange({required this.start, required this.end});
+
+  final DateTime start;
+  final DateTime end;
 }
 
 class _LonRangeE5 {

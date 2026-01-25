@@ -78,6 +78,7 @@ class VisitedCellBounds extends Table {
 class VisitedGridMeta extends Table {
   IntColumn get id => integer().withDefault(const Constant(0))();
   IntColumn get lastCleanupTs => integer().nullable()();
+  IntColumn get gridVersion => integer().withDefault(const Constant(0))();
 
   @override
   Set<Column> get primaryKey => {id};
@@ -101,6 +102,18 @@ class VisitedGridStatsTable extends Table {
   Set<Column> get primaryKey => {id};
 }
 
+@DataClassName('VisitedCellAreaRow')
+class VisitedCellAreaCache extends Table {
+  @override
+  String get tableName => 'visited_cell_area_cache';
+
+  TextColumn get cellId => text()();
+  RealColumn get areaKm2 => real()();
+
+  @override
+  Set<Column> get primaryKey => {cellId};
+}
+
 @DriftDatabase(
   tables: [
     VisitsDaily,
@@ -109,6 +122,7 @@ class VisitedGridStatsTable extends Table {
     VisitedCellBounds,
     VisitedGridMeta,
     VisitedGridStatsTable,
+    VisitedCellAreaCache,
   ],
   daos: [VisitedGridDao],
 )
@@ -128,7 +142,7 @@ class VisitedGridDatabase extends _$VisitedGridDatabase {
         );
 
   @override
-  int get schemaVersion => 3;
+  int get schemaVersion => 4;
 
   @override
   MigrationStrategy get migration => MigrationStrategy(
@@ -139,6 +153,10 @@ class VisitedGridDatabase extends _$VisitedGridDatabase {
           }
           if (from < 3) {
             await m.createTable(visitedGridStatsTable);
+          }
+          if (from < 4) {
+            await m.addColumn(visitedGridMeta, visitedGridMeta.gridVersion);
+            await m.createTable(visitedCellAreaCache);
           }
         },
       );
@@ -205,6 +223,7 @@ class VisitedGridUpsertResult {
     VisitedCellBounds,
     VisitedGridMeta,
     VisitedGridStatsTable,
+    VisitedCellAreaCache,
   ],
 )
 class VisitedGridDao extends DatabaseAccessor<VisitedGridDatabase>
@@ -448,6 +467,81 @@ ON CONFLICT(id) DO UPDATE SET
     return into(visitedGridStatsTable).insertOnConflictUpdate(row);
   }
 
+  Future<int?> fetchGridVersion() async {
+    final row = await (select(visitedGridMeta)
+          ..where((tbl) => tbl.id.equals(kVisitedGridMetaRowId)))
+        .getSingleOrNull();
+    return row?.gridVersion;
+  }
+
+  Future<void> setGridVersion(int version) {
+    return customStatement(
+      '''
+INSERT INTO visited_grid_meta (
+  id,
+  grid_version
+) VALUES (?, ?)
+ON CONFLICT(id) DO UPDATE SET
+  grid_version = excluded.grid_version
+''',
+      [kVisitedGridMetaRowId, version],
+    );
+  }
+
+  Future<void> clearDerivedTables() async {
+    await transaction(() async {
+      await delete(visitsDaily).go();
+      await delete(visitsLifetime).go();
+      await delete(visitsLifetimeDays).go();
+      await delete(visitedCellBounds).go();
+      await delete(visitedGridStatsTable).go();
+      await delete(visitedCellAreaCache).go();
+      await delete(visitedGridMeta).go();
+    });
+  }
+
+  Future<Map<String, double>> fetchCellAreas(List<String> cellIds) async {
+    if (cellIds.isEmpty) {
+      return const <String, double>{};
+    }
+    final results = <String, double>{};
+    for (final chunk in _chunk(cellIds, kVisitedGridMaxInClauseItems)) {
+      final placeholders = List.filled(chunk.length, '?').join(', ');
+      final query = '''
+SELECT cell_id, area_km2
+FROM visited_cell_area_cache
+WHERE cell_id IN ($placeholders)
+''';
+      final variables = chunk.map(Variable.withString).toList();
+      final rows = await customSelect(query, variables: variables).get();
+      for (final row in rows) {
+        results[row.read<String>('cell_id')] =
+            row.read<double>('area_km2');
+      }
+    }
+    return results;
+  }
+
+  Future<void> upsertCellAreas(Map<String, double> areas) async {
+    if (areas.isEmpty) {
+      return;
+    }
+    final companions = [
+      for (final entry in areas.entries)
+        VisitedCellAreaCacheCompanion.insert(
+          cellId: entry.key,
+          areaKm2: entry.value,
+        ),
+    ];
+    await batch((batch) {
+      batch.insertAll(
+        visitedCellAreaCache,
+        companions,
+        mode: InsertMode.insertOrReplace,
+      );
+    });
+  }
+
   Future<int> countBoundsForResolution(int resolution) async {
     final row = await customSelect(
       'SELECT COUNT(*) AS total FROM visited_cell_bounds WHERE res = ?',
@@ -497,12 +591,16 @@ ON CONFLICT(id) DO UPDATE SET
   }
 
   Future<void> setLastCleanupTs(int epochSeconds) async {
-    await into(visitedGridMeta).insert(
-      VisitedGridMetaCompanion(
-        id: const Value(kVisitedGridMetaRowId),
-        lastCleanupTs: Value(epochSeconds),
-      ),
-      mode: InsertMode.insertOrReplace,
+    await customStatement(
+      '''
+INSERT INTO visited_grid_meta (
+  id,
+  last_cleanup_ts
+) VALUES (?, ?)
+ON CONFLICT(id) DO UPDATE SET
+  last_cleanup_ts = excluded.last_cleanup_ts
+''',
+      [kVisitedGridMetaRowId, epochSeconds],
     );
   }
 
@@ -545,6 +643,26 @@ WHERE res = ?
     }
 
     return result;
+  }
+
+  Future<Set<String>> fetchVisitedDailyCellsInRange({
+    required int resolution,
+    required int startDay,
+    required int endDay,
+  }) async {
+    final query = '''
+SELECT DISTINCT cell_id
+FROM visits_daily
+WHERE res = ?
+  AND day_yyyy_mmdd BETWEEN ? AND ?
+''';
+    final variables = <Variable>[
+      Variable.withInt(resolution),
+      Variable.withInt(startDay),
+      Variable.withInt(endDay),
+    ];
+    final rows = await customSelect(query, variables: variables).get();
+    return {for (final row in rows) row.read<String>('cell_id')};
   }
 
   Future<Set<String>> fetchVisitedDailyInBounds({

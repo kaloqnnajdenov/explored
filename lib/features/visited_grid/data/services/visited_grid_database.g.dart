@@ -1828,8 +1828,20 @@ class $VisitedGridMetaTable extends VisitedGridMeta
     type: DriftSqlType.int,
     requiredDuringInsert: false,
   );
+  static const VerificationMeta _gridVersionMeta = const VerificationMeta(
+    'gridVersion',
+  );
   @override
-  List<GeneratedColumn> get $columns => [id, lastCleanupTs];
+  late final GeneratedColumn<int> gridVersion = GeneratedColumn<int>(
+    'grid_version',
+    aliasedName,
+    false,
+    type: DriftSqlType.int,
+    requiredDuringInsert: false,
+    defaultValue: const Constant(0),
+  );
+  @override
+  List<GeneratedColumn> get $columns => [id, lastCleanupTs, gridVersion];
   @override
   String get aliasedName => _alias ?? actualTableName;
   @override
@@ -1854,6 +1866,15 @@ class $VisitedGridMetaTable extends VisitedGridMeta
         ),
       );
     }
+    if (data.containsKey('grid_version')) {
+      context.handle(
+        _gridVersionMeta,
+        gridVersion.isAcceptableOrUnknown(
+          data['grid_version']!,
+          _gridVersionMeta,
+        ),
+      );
+    }
     return context;
   }
 
@@ -1871,6 +1892,10 @@ class $VisitedGridMetaTable extends VisitedGridMeta
         DriftSqlType.int,
         data['${effectivePrefix}last_cleanup_ts'],
       ),
+      gridVersion: attachedDatabase.typeMapping.read(
+        DriftSqlType.int,
+        data['${effectivePrefix}grid_version'],
+      )!,
     );
   }
 
@@ -1884,7 +1909,12 @@ class VisitedGridMetaData extends DataClass
     implements Insertable<VisitedGridMetaData> {
   final int id;
   final int? lastCleanupTs;
-  const VisitedGridMetaData({required this.id, this.lastCleanupTs});
+  final int gridVersion;
+  const VisitedGridMetaData({
+    required this.id,
+    this.lastCleanupTs,
+    required this.gridVersion,
+  });
   @override
   Map<String, Expression> toColumns(bool nullToAbsent) {
     final map = <String, Expression>{};
@@ -1892,6 +1922,7 @@ class VisitedGridMetaData extends DataClass
     if (!nullToAbsent || lastCleanupTs != null) {
       map['last_cleanup_ts'] = Variable<int>(lastCleanupTs);
     }
+    map['grid_version'] = Variable<int>(gridVersion);
     return map;
   }
 
@@ -1901,6 +1932,7 @@ class VisitedGridMetaData extends DataClass
       lastCleanupTs: lastCleanupTs == null && nullToAbsent
           ? const Value.absent()
           : Value(lastCleanupTs),
+      gridVersion: Value(gridVersion),
     );
   }
 
@@ -1912,6 +1944,7 @@ class VisitedGridMetaData extends DataClass
     return VisitedGridMetaData(
       id: serializer.fromJson<int>(json['id']),
       lastCleanupTs: serializer.fromJson<int?>(json['lastCleanupTs']),
+      gridVersion: serializer.fromJson<int>(json['gridVersion']),
     );
   }
   @override
@@ -1920,17 +1953,20 @@ class VisitedGridMetaData extends DataClass
     return <String, dynamic>{
       'id': serializer.toJson<int>(id),
       'lastCleanupTs': serializer.toJson<int?>(lastCleanupTs),
+      'gridVersion': serializer.toJson<int>(gridVersion),
     };
   }
 
   VisitedGridMetaData copyWith({
     int? id,
     Value<int?> lastCleanupTs = const Value.absent(),
+    int? gridVersion,
   }) => VisitedGridMetaData(
     id: id ?? this.id,
     lastCleanupTs: lastCleanupTs.present
         ? lastCleanupTs.value
         : this.lastCleanupTs,
+    gridVersion: gridVersion ?? this.gridVersion,
   );
   VisitedGridMetaData copyWithCompanion(VisitedGridMetaCompanion data) {
     return VisitedGridMetaData(
@@ -1938,6 +1974,9 @@ class VisitedGridMetaData extends DataClass
       lastCleanupTs: data.lastCleanupTs.present
           ? data.lastCleanupTs.value
           : this.lastCleanupTs,
+      gridVersion: data.gridVersion.present
+          ? data.gridVersion.value
+          : this.gridVersion,
     );
   }
 
@@ -1945,49 +1984,58 @@ class VisitedGridMetaData extends DataClass
   String toString() {
     return (StringBuffer('VisitedGridMetaData(')
           ..write('id: $id, ')
-          ..write('lastCleanupTs: $lastCleanupTs')
+          ..write('lastCleanupTs: $lastCleanupTs, ')
+          ..write('gridVersion: $gridVersion')
           ..write(')'))
         .toString();
   }
 
   @override
-  int get hashCode => Object.hash(id, lastCleanupTs);
+  int get hashCode => Object.hash(id, lastCleanupTs, gridVersion);
   @override
   bool operator ==(Object other) =>
       identical(this, other) ||
       (other is VisitedGridMetaData &&
           other.id == this.id &&
-          other.lastCleanupTs == this.lastCleanupTs);
+          other.lastCleanupTs == this.lastCleanupTs &&
+          other.gridVersion == this.gridVersion);
 }
 
 class VisitedGridMetaCompanion extends UpdateCompanion<VisitedGridMetaData> {
   final Value<int> id;
   final Value<int?> lastCleanupTs;
+  final Value<int> gridVersion;
   const VisitedGridMetaCompanion({
     this.id = const Value.absent(),
     this.lastCleanupTs = const Value.absent(),
+    this.gridVersion = const Value.absent(),
   });
   VisitedGridMetaCompanion.insert({
     this.id = const Value.absent(),
     this.lastCleanupTs = const Value.absent(),
+    this.gridVersion = const Value.absent(),
   });
   static Insertable<VisitedGridMetaData> custom({
     Expression<int>? id,
     Expression<int>? lastCleanupTs,
+    Expression<int>? gridVersion,
   }) {
     return RawValuesInsertable({
       if (id != null) 'id': id,
       if (lastCleanupTs != null) 'last_cleanup_ts': lastCleanupTs,
+      if (gridVersion != null) 'grid_version': gridVersion,
     });
   }
 
   VisitedGridMetaCompanion copyWith({
     Value<int>? id,
     Value<int?>? lastCleanupTs,
+    Value<int>? gridVersion,
   }) {
     return VisitedGridMetaCompanion(
       id: id ?? this.id,
       lastCleanupTs: lastCleanupTs ?? this.lastCleanupTs,
+      gridVersion: gridVersion ?? this.gridVersion,
     );
   }
 
@@ -2000,6 +2048,9 @@ class VisitedGridMetaCompanion extends UpdateCompanion<VisitedGridMetaData> {
     if (lastCleanupTs.present) {
       map['last_cleanup_ts'] = Variable<int>(lastCleanupTs.value);
     }
+    if (gridVersion.present) {
+      map['grid_version'] = Variable<int>(gridVersion.value);
+    }
     return map;
   }
 
@@ -2007,7 +2058,8 @@ class VisitedGridMetaCompanion extends UpdateCompanion<VisitedGridMetaData> {
   String toString() {
     return (StringBuffer('VisitedGridMetaCompanion(')
           ..write('id: $id, ')
-          ..write('lastCleanupTs: $lastCleanupTs')
+          ..write('lastCleanupTs: $lastCleanupTs, ')
+          ..write('gridVersion: $gridVersion')
           ..write(')'))
         .toString();
   }
@@ -2439,6 +2491,224 @@ class VisitedGridStatsTableCompanion
   }
 }
 
+class $VisitedCellAreaCacheTable extends VisitedCellAreaCache
+    with TableInfo<$VisitedCellAreaCacheTable, VisitedCellAreaRow> {
+  @override
+  final GeneratedDatabase attachedDatabase;
+  final String? _alias;
+  $VisitedCellAreaCacheTable(this.attachedDatabase, [this._alias]);
+  static const VerificationMeta _cellIdMeta = const VerificationMeta('cellId');
+  @override
+  late final GeneratedColumn<String> cellId = GeneratedColumn<String>(
+    'cell_id',
+    aliasedName,
+    false,
+    type: DriftSqlType.string,
+    requiredDuringInsert: true,
+  );
+  static const VerificationMeta _areaKm2Meta = const VerificationMeta(
+    'areaKm2',
+  );
+  @override
+  late final GeneratedColumn<double> areaKm2 = GeneratedColumn<double>(
+    'area_km2',
+    aliasedName,
+    false,
+    type: DriftSqlType.double,
+    requiredDuringInsert: true,
+  );
+  @override
+  List<GeneratedColumn> get $columns => [cellId, areaKm2];
+  @override
+  String get aliasedName => _alias ?? actualTableName;
+  @override
+  String get actualTableName => $name;
+  static const String $name = 'visited_cell_area_cache';
+  @override
+  VerificationContext validateIntegrity(
+    Insertable<VisitedCellAreaRow> instance, {
+    bool isInserting = false,
+  }) {
+    final context = VerificationContext();
+    final data = instance.toColumns(true);
+    if (data.containsKey('cell_id')) {
+      context.handle(
+        _cellIdMeta,
+        cellId.isAcceptableOrUnknown(data['cell_id']!, _cellIdMeta),
+      );
+    } else if (isInserting) {
+      context.missing(_cellIdMeta);
+    }
+    if (data.containsKey('area_km2')) {
+      context.handle(
+        _areaKm2Meta,
+        areaKm2.isAcceptableOrUnknown(data['area_km2']!, _areaKm2Meta),
+      );
+    } else if (isInserting) {
+      context.missing(_areaKm2Meta);
+    }
+    return context;
+  }
+
+  @override
+  Set<GeneratedColumn> get $primaryKey => {cellId};
+  @override
+  VisitedCellAreaRow map(Map<String, dynamic> data, {String? tablePrefix}) {
+    final effectivePrefix = tablePrefix != null ? '$tablePrefix.' : '';
+    return VisitedCellAreaRow(
+      cellId: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}cell_id'],
+      )!,
+      areaKm2: attachedDatabase.typeMapping.read(
+        DriftSqlType.double,
+        data['${effectivePrefix}area_km2'],
+      )!,
+    );
+  }
+
+  @override
+  $VisitedCellAreaCacheTable createAlias(String alias) {
+    return $VisitedCellAreaCacheTable(attachedDatabase, alias);
+  }
+}
+
+class VisitedCellAreaRow extends DataClass
+    implements Insertable<VisitedCellAreaRow> {
+  final String cellId;
+  final double areaKm2;
+  const VisitedCellAreaRow({required this.cellId, required this.areaKm2});
+  @override
+  Map<String, Expression> toColumns(bool nullToAbsent) {
+    final map = <String, Expression>{};
+    map['cell_id'] = Variable<String>(cellId);
+    map['area_km2'] = Variable<double>(areaKm2);
+    return map;
+  }
+
+  VisitedCellAreaCacheCompanion toCompanion(bool nullToAbsent) {
+    return VisitedCellAreaCacheCompanion(
+      cellId: Value(cellId),
+      areaKm2: Value(areaKm2),
+    );
+  }
+
+  factory VisitedCellAreaRow.fromJson(
+    Map<String, dynamic> json, {
+    ValueSerializer? serializer,
+  }) {
+    serializer ??= driftRuntimeOptions.defaultSerializer;
+    return VisitedCellAreaRow(
+      cellId: serializer.fromJson<String>(json['cellId']),
+      areaKm2: serializer.fromJson<double>(json['areaKm2']),
+    );
+  }
+  @override
+  Map<String, dynamic> toJson({ValueSerializer? serializer}) {
+    serializer ??= driftRuntimeOptions.defaultSerializer;
+    return <String, dynamic>{
+      'cellId': serializer.toJson<String>(cellId),
+      'areaKm2': serializer.toJson<double>(areaKm2),
+    };
+  }
+
+  VisitedCellAreaRow copyWith({String? cellId, double? areaKm2}) =>
+      VisitedCellAreaRow(
+        cellId: cellId ?? this.cellId,
+        areaKm2: areaKm2 ?? this.areaKm2,
+      );
+  VisitedCellAreaRow copyWithCompanion(VisitedCellAreaCacheCompanion data) {
+    return VisitedCellAreaRow(
+      cellId: data.cellId.present ? data.cellId.value : this.cellId,
+      areaKm2: data.areaKm2.present ? data.areaKm2.value : this.areaKm2,
+    );
+  }
+
+  @override
+  String toString() {
+    return (StringBuffer('VisitedCellAreaRow(')
+          ..write('cellId: $cellId, ')
+          ..write('areaKm2: $areaKm2')
+          ..write(')'))
+        .toString();
+  }
+
+  @override
+  int get hashCode => Object.hash(cellId, areaKm2);
+  @override
+  bool operator ==(Object other) =>
+      identical(this, other) ||
+      (other is VisitedCellAreaRow &&
+          other.cellId == this.cellId &&
+          other.areaKm2 == this.areaKm2);
+}
+
+class VisitedCellAreaCacheCompanion
+    extends UpdateCompanion<VisitedCellAreaRow> {
+  final Value<String> cellId;
+  final Value<double> areaKm2;
+  final Value<int> rowid;
+  const VisitedCellAreaCacheCompanion({
+    this.cellId = const Value.absent(),
+    this.areaKm2 = const Value.absent(),
+    this.rowid = const Value.absent(),
+  });
+  VisitedCellAreaCacheCompanion.insert({
+    required String cellId,
+    required double areaKm2,
+    this.rowid = const Value.absent(),
+  }) : cellId = Value(cellId),
+       areaKm2 = Value(areaKm2);
+  static Insertable<VisitedCellAreaRow> custom({
+    Expression<String>? cellId,
+    Expression<double>? areaKm2,
+    Expression<int>? rowid,
+  }) {
+    return RawValuesInsertable({
+      if (cellId != null) 'cell_id': cellId,
+      if (areaKm2 != null) 'area_km2': areaKm2,
+      if (rowid != null) 'rowid': rowid,
+    });
+  }
+
+  VisitedCellAreaCacheCompanion copyWith({
+    Value<String>? cellId,
+    Value<double>? areaKm2,
+    Value<int>? rowid,
+  }) {
+    return VisitedCellAreaCacheCompanion(
+      cellId: cellId ?? this.cellId,
+      areaKm2: areaKm2 ?? this.areaKm2,
+      rowid: rowid ?? this.rowid,
+    );
+  }
+
+  @override
+  Map<String, Expression> toColumns(bool nullToAbsent) {
+    final map = <String, Expression>{};
+    if (cellId.present) {
+      map['cell_id'] = Variable<String>(cellId.value);
+    }
+    if (areaKm2.present) {
+      map['area_km2'] = Variable<double>(areaKm2.value);
+    }
+    if (rowid.present) {
+      map['rowid'] = Variable<int>(rowid.value);
+    }
+    return map;
+  }
+
+  @override
+  String toString() {
+    return (StringBuffer('VisitedCellAreaCacheCompanion(')
+          ..write('cellId: $cellId, ')
+          ..write('areaKm2: $areaKm2, ')
+          ..write('rowid: $rowid')
+          ..write(')'))
+        .toString();
+  }
+}
+
 abstract class _$VisitedGridDatabase extends GeneratedDatabase {
   _$VisitedGridDatabase(QueryExecutor e) : super(e);
   $VisitedGridDatabaseManager get managers => $VisitedGridDatabaseManager(this);
@@ -2453,6 +2723,8 @@ abstract class _$VisitedGridDatabase extends GeneratedDatabase {
   );
   late final $VisitedGridStatsTableTable visitedGridStatsTable =
       $VisitedGridStatsTableTable(this);
+  late final $VisitedCellAreaCacheTable visitedCellAreaCache =
+      $VisitedCellAreaCacheTable(this);
   late final Index visitsDailyResDay = Index(
     'visits_daily_res_day',
     'CREATE INDEX visits_daily_res_day ON visits_daily (res, day_yyyy_mmdd)',
@@ -2491,6 +2763,7 @@ abstract class _$VisitedGridDatabase extends GeneratedDatabase {
     visitedCellBounds,
     visitedGridMeta,
     visitedGridStatsTable,
+    visitedCellAreaCache,
     visitsDailyResDay,
     visitsDailyResCell,
     visitsLifetimeRes,
@@ -3489,11 +3762,13 @@ typedef $$VisitedGridMetaTableCreateCompanionBuilder =
     VisitedGridMetaCompanion Function({
       Value<int> id,
       Value<int?> lastCleanupTs,
+      Value<int> gridVersion,
     });
 typedef $$VisitedGridMetaTableUpdateCompanionBuilder =
     VisitedGridMetaCompanion Function({
       Value<int> id,
       Value<int?> lastCleanupTs,
+      Value<int> gridVersion,
     });
 
 class $$VisitedGridMetaTableFilterComposer
@@ -3512,6 +3787,11 @@ class $$VisitedGridMetaTableFilterComposer
 
   ColumnFilters<int> get lastCleanupTs => $composableBuilder(
     column: $table.lastCleanupTs,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<int> get gridVersion => $composableBuilder(
+    column: $table.gridVersion,
     builder: (column) => ColumnFilters(column),
   );
 }
@@ -3534,6 +3814,11 @@ class $$VisitedGridMetaTableOrderingComposer
     column: $table.lastCleanupTs,
     builder: (column) => ColumnOrderings(column),
   );
+
+  ColumnOrderings<int> get gridVersion => $composableBuilder(
+    column: $table.gridVersion,
+    builder: (column) => ColumnOrderings(column),
+  );
 }
 
 class $$VisitedGridMetaTableAnnotationComposer
@@ -3550,6 +3835,11 @@ class $$VisitedGridMetaTableAnnotationComposer
 
   GeneratedColumn<int> get lastCleanupTs => $composableBuilder(
     column: $table.lastCleanupTs,
+    builder: (column) => column,
+  );
+
+  GeneratedColumn<int> get gridVersion => $composableBuilder(
+    column: $table.gridVersion,
     builder: (column) => column,
   );
 }
@@ -3593,17 +3883,21 @@ class $$VisitedGridMetaTableTableManager
               ({
                 Value<int> id = const Value.absent(),
                 Value<int?> lastCleanupTs = const Value.absent(),
+                Value<int> gridVersion = const Value.absent(),
               }) => VisitedGridMetaCompanion(
                 id: id,
                 lastCleanupTs: lastCleanupTs,
+                gridVersion: gridVersion,
               ),
           createCompanionCallback:
               ({
                 Value<int> id = const Value.absent(),
                 Value<int?> lastCleanupTs = const Value.absent(),
+                Value<int> gridVersion = const Value.absent(),
               }) => VisitedGridMetaCompanion.insert(
                 id: id,
                 lastCleanupTs: lastCleanupTs,
+                gridVersion: gridVersion,
               ),
           withReferenceMapper: (p0) => p0
               .map((e) => (e.readTable(table), BaseReferences(db, table, e)))
@@ -3874,6 +4168,165 @@ typedef $$VisitedGridStatsTableTableProcessedTableManager =
       VisitedGridStatsRow,
       PrefetchHooks Function()
     >;
+typedef $$VisitedCellAreaCacheTableCreateCompanionBuilder =
+    VisitedCellAreaCacheCompanion Function({
+      required String cellId,
+      required double areaKm2,
+      Value<int> rowid,
+    });
+typedef $$VisitedCellAreaCacheTableUpdateCompanionBuilder =
+    VisitedCellAreaCacheCompanion Function({
+      Value<String> cellId,
+      Value<double> areaKm2,
+      Value<int> rowid,
+    });
+
+class $$VisitedCellAreaCacheTableFilterComposer
+    extends Composer<_$VisitedGridDatabase, $VisitedCellAreaCacheTable> {
+  $$VisitedCellAreaCacheTableFilterComposer({
+    required super.$db,
+    required super.$table,
+    super.joinBuilder,
+    super.$addJoinBuilderToRootComposer,
+    super.$removeJoinBuilderFromRootComposer,
+  });
+  ColumnFilters<String> get cellId => $composableBuilder(
+    column: $table.cellId,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<double> get areaKm2 => $composableBuilder(
+    column: $table.areaKm2,
+    builder: (column) => ColumnFilters(column),
+  );
+}
+
+class $$VisitedCellAreaCacheTableOrderingComposer
+    extends Composer<_$VisitedGridDatabase, $VisitedCellAreaCacheTable> {
+  $$VisitedCellAreaCacheTableOrderingComposer({
+    required super.$db,
+    required super.$table,
+    super.joinBuilder,
+    super.$addJoinBuilderToRootComposer,
+    super.$removeJoinBuilderFromRootComposer,
+  });
+  ColumnOrderings<String> get cellId => $composableBuilder(
+    column: $table.cellId,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<double> get areaKm2 => $composableBuilder(
+    column: $table.areaKm2,
+    builder: (column) => ColumnOrderings(column),
+  );
+}
+
+class $$VisitedCellAreaCacheTableAnnotationComposer
+    extends Composer<_$VisitedGridDatabase, $VisitedCellAreaCacheTable> {
+  $$VisitedCellAreaCacheTableAnnotationComposer({
+    required super.$db,
+    required super.$table,
+    super.joinBuilder,
+    super.$addJoinBuilderToRootComposer,
+    super.$removeJoinBuilderFromRootComposer,
+  });
+  GeneratedColumn<String> get cellId =>
+      $composableBuilder(column: $table.cellId, builder: (column) => column);
+
+  GeneratedColumn<double> get areaKm2 =>
+      $composableBuilder(column: $table.areaKm2, builder: (column) => column);
+}
+
+class $$VisitedCellAreaCacheTableTableManager
+    extends
+        RootTableManager<
+          _$VisitedGridDatabase,
+          $VisitedCellAreaCacheTable,
+          VisitedCellAreaRow,
+          $$VisitedCellAreaCacheTableFilterComposer,
+          $$VisitedCellAreaCacheTableOrderingComposer,
+          $$VisitedCellAreaCacheTableAnnotationComposer,
+          $$VisitedCellAreaCacheTableCreateCompanionBuilder,
+          $$VisitedCellAreaCacheTableUpdateCompanionBuilder,
+          (
+            VisitedCellAreaRow,
+            BaseReferences<
+              _$VisitedGridDatabase,
+              $VisitedCellAreaCacheTable,
+              VisitedCellAreaRow
+            >,
+          ),
+          VisitedCellAreaRow,
+          PrefetchHooks Function()
+        > {
+  $$VisitedCellAreaCacheTableTableManager(
+    _$VisitedGridDatabase db,
+    $VisitedCellAreaCacheTable table,
+  ) : super(
+        TableManagerState(
+          db: db,
+          table: table,
+          createFilteringComposer: () =>
+              $$VisitedCellAreaCacheTableFilterComposer($db: db, $table: table),
+          createOrderingComposer: () =>
+              $$VisitedCellAreaCacheTableOrderingComposer(
+                $db: db,
+                $table: table,
+              ),
+          createComputedFieldComposer: () =>
+              $$VisitedCellAreaCacheTableAnnotationComposer(
+                $db: db,
+                $table: table,
+              ),
+          updateCompanionCallback:
+              ({
+                Value<String> cellId = const Value.absent(),
+                Value<double> areaKm2 = const Value.absent(),
+                Value<int> rowid = const Value.absent(),
+              }) => VisitedCellAreaCacheCompanion(
+                cellId: cellId,
+                areaKm2: areaKm2,
+                rowid: rowid,
+              ),
+          createCompanionCallback:
+              ({
+                required String cellId,
+                required double areaKm2,
+                Value<int> rowid = const Value.absent(),
+              }) => VisitedCellAreaCacheCompanion.insert(
+                cellId: cellId,
+                areaKm2: areaKm2,
+                rowid: rowid,
+              ),
+          withReferenceMapper: (p0) => p0
+              .map((e) => (e.readTable(table), BaseReferences(db, table, e)))
+              .toList(),
+          prefetchHooksCallback: null,
+        ),
+      );
+}
+
+typedef $$VisitedCellAreaCacheTableProcessedTableManager =
+    ProcessedTableManager<
+      _$VisitedGridDatabase,
+      $VisitedCellAreaCacheTable,
+      VisitedCellAreaRow,
+      $$VisitedCellAreaCacheTableFilterComposer,
+      $$VisitedCellAreaCacheTableOrderingComposer,
+      $$VisitedCellAreaCacheTableAnnotationComposer,
+      $$VisitedCellAreaCacheTableCreateCompanionBuilder,
+      $$VisitedCellAreaCacheTableUpdateCompanionBuilder,
+      (
+        VisitedCellAreaRow,
+        BaseReferences<
+          _$VisitedGridDatabase,
+          $VisitedCellAreaCacheTable,
+          VisitedCellAreaRow
+        >,
+      ),
+      VisitedCellAreaRow,
+      PrefetchHooks Function()
+    >;
 
 class $VisitedGridDatabaseManager {
   final _$VisitedGridDatabase _db;
@@ -3890,6 +4343,8 @@ class $VisitedGridDatabaseManager {
       $$VisitedGridMetaTableTableManager(_db, _db.visitedGridMeta);
   $$VisitedGridStatsTableTableTableManager get visitedGridStatsTable =>
       $$VisitedGridStatsTableTableTableManager(_db, _db.visitedGridStatsTable);
+  $$VisitedCellAreaCacheTableTableManager get visitedCellAreaCache =>
+      $$VisitedCellAreaCacheTableTableManager(_db, _db.visitedCellAreaCache);
 }
 
 mixin _$VisitedGridDaoMixin on DatabaseAccessor<VisitedGridDatabase> {
@@ -3902,6 +4357,8 @@ mixin _$VisitedGridDaoMixin on DatabaseAccessor<VisitedGridDatabase> {
   $VisitedGridMetaTable get visitedGridMeta => attachedDatabase.visitedGridMeta;
   $VisitedGridStatsTableTable get visitedGridStatsTable =>
       attachedDatabase.visitedGridStatsTable;
+  $VisitedCellAreaCacheTable get visitedCellAreaCache =>
+      attachedDatabase.visitedCellAreaCache;
   VisitedGridDaoManager get managers => VisitedGridDaoManager(this);
 }
 
@@ -3934,5 +4391,10 @@ class VisitedGridDaoManager {
       $$VisitedGridStatsTableTableTableManager(
         _db.attachedDatabase,
         _db.visitedGridStatsTable,
+      );
+  $$VisitedCellAreaCacheTableTableManager get visitedCellAreaCache =>
+      $$VisitedCellAreaCacheTableTableManager(
+        _db.attachedDatabase,
+        _db.visitedCellAreaCache,
       );
 }

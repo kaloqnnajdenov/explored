@@ -3,6 +3,7 @@ import 'dart:async';
 import 'package:flutter_test/flutter_test.dart';
 
 import 'package:explored/features/explored_area/view_model/explored_area_view_model.dart';
+import 'package:explored/features/explored_area/data/models/explored_area_filter.dart';
 import 'package:explored/features/visited_grid/data/models/visited_grid_bounds.dart';
 import 'package:explored/features/visited_grid/data/models/visited_grid_cell_update.dart';
 import 'package:explored/features/visited_grid/data/models/visited_grid_overlay.dart';
@@ -13,10 +14,10 @@ import 'package:explored/features/visited_grid/data/repositories/visited_grid_re
 import 'package:explored/features/location/data/models/lat_lng_sample.dart';
 
 class FakeVisitedGridRepository implements VisitedGridRepository {
-  FakeVisitedGridRepository({required this.initialStats});
+  FakeVisitedGridRepository({required this.initialAreaKm2});
 
-  final VisitedGridStats initialStats;
-  int fetchCalls = 0;
+  final double initialAreaKm2;
+  int fetchAreaCalls = 0;
   int logCalls = 0;
   final StreamController<VisitedGridCellUpdate> _cellUpdates =
       StreamController<VisitedGridCellUpdate>.broadcast();
@@ -45,9 +46,19 @@ class FakeVisitedGridRepository implements VisitedGridRepository {
   Future<void> ingestSamples(Iterable<LatLngSample> samples) async {}
 
   @override
-  Future<VisitedGridStats> fetchStats() async {
-    fetchCalls += 1;
-    return initialStats;
+  Future<VisitedGridStats> fetchStats() async => const VisitedGridStats(
+        totalAreaM2: 0,
+        cellCount: 0,
+        canonicalVersion: 0,
+      );
+
+  @override
+  Future<double> fetchExploredAreaKm2({
+    DateTime? start,
+    DateTime? end,
+  }) async {
+    fetchAreaCalls += 1;
+    return initialAreaKm2;
   }
 
   @override
@@ -74,48 +85,45 @@ class FakeVisitedGridRepository implements VisitedGridRepository {
 
 void main() {
   test('initialize loads stats and logs view', () async {
-    const stats = VisitedGridStats(
-      totalAreaM2: 1200,
-      cellCount: 3,
-      canonicalVersion: 2,
-    );
-    final repository = FakeVisitedGridRepository(initialStats: stats);
+    final repository = FakeVisitedGridRepository(initialAreaKm2: 1.2);
     final viewModel =
         ExploredAreaViewModel(visitedGridRepository: repository);
 
     await viewModel.initialize();
 
-    expect(repository.fetchCalls, 1);
+    expect(repository.fetchAreaCalls, 1);
     expect(repository.logCalls, 1);
-    expect(viewModel.state.totalAreaM2, 1200);
-    expect(viewModel.state.cellCount, 3);
+    expect(viewModel.state.areaKm2, 1.2);
     expect(viewModel.state.isLoading, isFalse);
 
     viewModel.dispose();
   });
 
-  test('stats updates refresh state', () async {
-    const initial = VisitedGridStats(
-      totalAreaM2: 500,
-      cellCount: 1,
-      canonicalVersion: 1,
-    );
-    final repository = FakeVisitedGridRepository(initialStats: initial);
+  test('stats updates refresh state for all time', () async {
+    final repository = FakeVisitedGridRepository(initialAreaKm2: 0.5);
     final viewModel =
         ExploredAreaViewModel(visitedGridRepository: repository);
 
     await viewModel.initialize();
 
     const updated = VisitedGridStats(
-      totalAreaM2: 1500,
-      cellCount: 4,
+      totalAreaM2: 2000000,
+      cellCount: 2,
       canonicalVersion: 2,
     );
     repository.emitStats(updated);
     await Future<void>.delayed(Duration.zero);
 
-    expect(viewModel.state.totalAreaM2, 1500);
-    expect(viewModel.state.cellCount, 4);
+    expect(viewModel.state.areaKm2, 2);
+
+    await viewModel.selectPreset(ExploredAreaFilterPreset.last7Days);
+    repository.emitStats(const VisitedGridStats(
+      totalAreaM2: 5000000,
+      cellCount: 5,
+      canonicalVersion: 3,
+    ));
+    await Future<void>.delayed(Duration.zero);
+    expect(viewModel.state.areaKm2, isNot(5));
 
     viewModel.dispose();
   });

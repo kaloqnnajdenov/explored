@@ -1,10 +1,11 @@
 import 'package:flutter_test/flutter_test.dart';
 
+import 'package:explored/constants.dart';
 import 'package:explored/domain/usecases/h3_overlay_worker.dart';
 
 void main() {
   test('desiredResForZoom adapts and respects min resolution', () {
-    const base = 12;
+    const base = kBaseH3Resolution;
     const min = 6;
 
     expect(
@@ -13,7 +14,7 @@ void main() {
         baseResolution: base,
         minResolution: min,
       ),
-      12,
+      10,
     );
     expect(
       H3OverlayWorker.desiredResForZoom(
@@ -21,7 +22,7 @@ void main() {
         baseResolution: base,
         minResolution: min,
       ),
-      11,
+      10,
     );
     expect(
       H3OverlayWorker.desiredResForZoom(
@@ -29,7 +30,7 @@ void main() {
         baseResolution: base,
         minResolution: min,
       ),
-      10,
+      9,
     );
     expect(
       H3OverlayWorker.desiredResForZoom(
@@ -53,7 +54,7 @@ void main() {
         baseResolution: base,
         minResolution: min,
       ),
-      7,
+      8,
     );
     expect(
       H3OverlayWorker.desiredResForZoom(
@@ -61,7 +62,7 @@ void main() {
         baseResolution: base,
         minResolution: min,
       ),
-      6,
+      7,
     );
   });
 }

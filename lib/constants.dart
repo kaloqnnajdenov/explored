@@ -2,6 +2,8 @@ const int kLocationGapFillMaxMissingPoints = 20;
 
 const double kEarthRadiusMeters = 6371000.0;
 
+const int kBaseH3Resolution = 10;
+
 const int kH3OverlayWorkerBatchSize = 500;
 const int kVisitedGridDaoBatchSize = 500;
 const int kVisitedGridMetaRowId = 0;

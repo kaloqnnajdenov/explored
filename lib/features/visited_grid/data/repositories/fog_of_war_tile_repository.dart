@@ -45,7 +45,8 @@ class FogOfWarTileRepository {
 
   int get tileSize => _tileSize;
   FogOfWarStyle get style => _config.style;
-  String get cacheId => '${style.id}_${_policyId()}';
+  String get cacheId =>
+      '${style.id}_${_policyId()}_r${_visitedGridConfig.baseResolution}';
 
   Future<void> setTileSize(int tileSize) async {
     if (_tileSize == tileSize) {

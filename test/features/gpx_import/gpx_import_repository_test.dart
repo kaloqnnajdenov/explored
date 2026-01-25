@@ -183,6 +183,13 @@ class FakeVisitedGridRepository implements VisitedGridRepository {
   }
 
   @override
+  Future<double> fetchExploredAreaKm2({
+    DateTime? start,
+    DateTime? end,
+  }) async =>
+      0;
+
+  @override
   Future<void> logExploredAreaViewed() async {}
 
   @override

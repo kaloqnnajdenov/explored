@@ -87,5 +87,13 @@ abstract class  LocaleKeys {
   static const download_failed = 'download_failed';
   static const explored_area_title = 'explored_area_title';
   static const explored_area_value = 'explored_area_value';
+  static const explored_area_filter_label = 'explored_area_filter_label';
+  static const explored_area_filter_all_time = 'explored_area_filter_all_time';
+  static const explored_area_filter_last_7_days = 'explored_area_filter_last_7_days';
+  static const explored_area_filter_last_30_days = 'explored_area_filter_last_30_days';
+  static const explored_area_filter_this_month = 'explored_area_filter_this_month';
+  static const explored_area_filter_custom = 'explored_area_filter_custom';
+  static const explored_area_filter_select_start = 'explored_area_filter_select_start';
+  static const explored_area_filter_select_end = 'explored_area_filter_select_end';
 
 }

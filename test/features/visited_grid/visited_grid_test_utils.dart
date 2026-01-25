@@ -8,6 +8,7 @@ import 'package:latlong2/latlong.dart';
 import 'package:explored/features/location/data/models/lat_lng_sample.dart';
 import 'package:explored/features/location/data/models/location_permission_level.dart';
 import 'package:explored/features/location/data/repositories/location_updates_repository.dart';
+import 'package:explored/features/location/data/services/location_history_database.dart';
 import 'package:explored/features/visited_grid/data/models/visited_grid_bounds.dart';
 import 'package:explored/features/visited_grid/data/models/visited_grid_cell.dart';
 import 'package:explored/features/visited_grid/data/models/visited_grid_cell_bounds.dart';
@@ -17,6 +18,11 @@ import 'package:explored/features/visited_grid/data/services/visited_grid_h3_ser
 VisitedGridDatabase buildTestDb() {
   driftRuntimeOptions.dontWarnAboutMultipleDatabases = true;
   return VisitedGridDatabase(executor: NativeDatabase.memory());
+}
+
+LocationHistoryDatabase buildHistoryTestDb() {
+  driftRuntimeOptions.dontWarnAboutMultipleDatabases = true;
+  return LocationHistoryDatabase(executor: NativeDatabase.memory());
 }
 
 class TestVisitedGridDao extends VisitedGridDao {

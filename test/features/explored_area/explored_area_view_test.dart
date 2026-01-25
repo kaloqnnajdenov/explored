@@ -16,9 +16,9 @@ import 'package:explored/features/location/data/models/lat_lng_sample.dart';
 import '../../test_utils/localization_test_utils.dart';
 
 class FakeVisitedGridRepository implements VisitedGridRepository {
-  FakeVisitedGridRepository(this.stats);
+  FakeVisitedGridRepository(this.areaKm2);
 
-  final VisitedGridStats stats;
+  final double areaKm2;
   final StreamController<VisitedGridCellUpdate> _cellUpdates =
       StreamController<VisitedGridCellUpdate>.broadcast();
   final StreamController<VisitedGridStats> _statsUpdates =
@@ -46,7 +46,18 @@ class FakeVisitedGridRepository implements VisitedGridRepository {
   Future<void> ingestSamples(Iterable<LatLngSample> samples) async {}
 
   @override
-  Future<VisitedGridStats> fetchStats() async => stats;
+  Future<VisitedGridStats> fetchStats() async => const VisitedGridStats(
+        totalAreaM2: 0,
+        cellCount: 0,
+        canonicalVersion: 0,
+      );
+
+  @override
+  Future<double> fetchExploredAreaKm2({
+    DateTime? start,
+    DateTime? end,
+  }) async =>
+      areaKm2;
 
   @override
   Future<void> logExploredAreaViewed() async {}
@@ -67,11 +78,7 @@ class FakeVisitedGridRepository implements VisitedGridRepository {
 void main() {
   testWidgets('explored area text fits without overflow', (tester) async {
     final repository = FakeVisitedGridRepository(
-      const VisitedGridStats(
-        totalAreaM2: 12345678,
-        cellCount: 10,
-        canonicalVersion: 1,
-      ),
+      12.3456,
     );
     final viewModel =
         ExploredAreaViewModel(visitedGridRepository: repository);
@@ -89,6 +96,7 @@ void main() {
     await tester.pump(const Duration(milliseconds: 10));
 
     expect(find.textContaining('Explored:'), findsOneWidget);
+    expect(find.text('Date range'), findsOneWidget);
     expect(tester.takeException(), isNull);
   });
 }

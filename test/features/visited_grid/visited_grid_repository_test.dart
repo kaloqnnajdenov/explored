@@ -3,6 +3,7 @@ import 'dart:async';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:latlong2/latlong.dart';
 
+import 'package:explored/constants.dart';
 import 'package:explored/features/location/data/models/lat_lng_sample.dart';
 import 'package:explored/features/visited_grid/data/models/visited_grid_bounds.dart';
 import 'package:explored/features/visited_grid/data/models/visited_grid_cell.dart';
@@ -14,12 +15,14 @@ import 'package:explored/features/visited_grid/data/models/visited_time_filter.d
 import 'package:explored/features/visited_grid/data/repositories/visited_grid_repository.dart';
 import 'package:explored/features/visited_grid/data/services/explored_area_logger.dart';
 import 'package:explored/features/visited_grid/data/services/visited_grid_database.dart';
+import 'package:explored/features/location/data/services/location_history_database.dart';
 
 import 'visited_grid_test_utils.dart';
 
 class _RepoHarness {
   _RepoHarness({
     required this.db,
+    required this.historyDb,
     required this.dao,
     required this.h3,
     required this.locationRepo,
@@ -28,6 +31,7 @@ class _RepoHarness {
   });
 
   final VisitedGridDatabase db;
+  final LocationHistoryDatabase historyDb;
   final TestVisitedGridDao dao;
   final FakeVisitedGridH3Service h3;
   final TestLocationUpdatesRepository locationRepo;
@@ -47,25 +51,32 @@ class TestExploredAreaLogger implements ExploredAreaLogger {
 Future<_RepoHarness> _buildHarness({
   VisitedGridConfig config = const VisitedGridConfig(),
   DateTime Function()? nowProvider,
+  bool forceRebuild = false,
 }) async {
   final db = buildTestDb();
+  final historyDb = buildHistoryTestDb();
   final dao = TestVisitedGridDao(db);
+  if (!forceRebuild) {
+    await dao.setGridVersion(config.baseResolution);
+  }
   final h3 = FakeVisitedGridH3Service();
   final locationRepo = TestLocationUpdatesRepository();
   final logger = TestExploredAreaLogger();
   final repository = DefaultVisitedGridRepository(
     locationUpdatesRepository: locationRepo,
     visitedGridDao: dao,
+    locationHistoryDao: historyDb.locationHistoryDao,
     h3Service: h3,
     exploredAreaLogger: logger,
     appVersion: '1.0.0',
-    schemaVersion: 3,
+    schemaVersion: db.schemaVersion,
     config: config,
     nowProvider: nowProvider,
   );
   await repository.start();
   return _RepoHarness(
     db: db,
+    historyDb: historyDb,
     dao: dao,
     h3: h3,
     locationRepo: locationRepo,
@@ -78,6 +89,7 @@ Future<void> _tearDownHarness(_RepoHarness harness) async {
   await harness.repository.dispose();
   await harness.locationRepo.close();
   await harness.db.close();
+  await harness.historyDb.close();
 }
 
 LatLngSample _sample({
@@ -121,7 +133,7 @@ void main() {
       expect(harness.dao.upsertCalls, 0);
       expect(harness.h3.cellForLatLngCalls, 0);
       final dailyRows = await (harness.db.select(harness.db.visitsDaily)
-            ..where((tbl) => tbl.res.equals(12)))
+            ..where((tbl) => tbl.res.equals(kBaseH3Resolution)))
           .get();
       expect(dailyRows, isEmpty);
 
@@ -146,7 +158,7 @@ void main() {
 
       expect(harness.dao.upsertCalls, 1);
       final dailyRows = await (harness.db.select(harness.db.visitsDaily)
-            ..where((tbl) => tbl.res.equals(12)))
+            ..where((tbl) => tbl.res.equals(kBaseH3Resolution)))
           .get();
       expect(dailyRows, hasLength(1));
       expect(dailyRows.first.samples, 1);
@@ -209,7 +221,7 @@ void main() {
       await _drain();
 
       final dailyRows = await (harness.db.select(harness.db.visitsDaily)
-            ..where((tbl) => tbl.res.equals(12)))
+            ..where((tbl) => tbl.res.equals(kBaseH3Resolution)))
           .get();
       final latValues = dailyRows.map((row) => row.latE5).toSet();
       expect(dailyRows, hasLength(3));
@@ -301,7 +313,7 @@ void main() {
       await _drain();
 
       final daily = await (harness.db.select(harness.db.visitsDaily)
-            ..where((tbl) => tbl.res.equals(12)))
+            ..where((tbl) => tbl.res.equals(kBaseH3Resolution)))
           .getSingle();
       expect(
         daily.firstTs,
@@ -329,7 +341,7 @@ void main() {
       await _drain();
 
       final rows = await (harness.db.select(harness.db.visitsDaily)
-            ..where((tbl) => tbl.res.equals(12)))
+            ..where((tbl) => tbl.res.equals(kBaseH3Resolution)))
           .get();
       expect(rows, hasLength(2));
       final byDay = {
@@ -348,8 +360,11 @@ void main() {
     test('Aggregates base and coarser H3 resolutions', () async {
       final harness = await _buildHarness(
         config: const VisitedGridConfig(
-          baseResolution: 12,
-          coarserResolutions: [11, 10],
+          baseResolution: kBaseH3Resolution,
+          coarserResolutions: [
+            kBaseH3Resolution - 1,
+            kBaseH3Resolution - 2,
+          ],
         ),
       );
 
@@ -359,10 +374,23 @@ void main() {
       await _drain();
 
       final rows = await (harness.db.select(harness.db.visitsDaily)
-            ..where((tbl) => tbl.res.isIn([12, 11, 10])))
+            ..where(
+              (tbl) => tbl.res.isIn([
+                kBaseH3Resolution,
+                kBaseH3Resolution - 1,
+                kBaseH3Resolution - 2,
+              ]),
+            ))
           .get();
       final resolutions = rows.map((row) => row.res).toSet();
-      expect(resolutions, {12, 11, 10});
+      expect(
+        resolutions,
+        {
+          kBaseH3Resolution,
+          kBaseH3Resolution - 1,
+          kBaseH3Resolution - 2,
+        },
+      );
       expect(harness.h3.parentCellCalls, 2);
 
       await _tearDownHarness(harness);
@@ -385,7 +413,7 @@ INSERT INTO visits_daily (
   res, cell_id, day_yyyy_mmdd, hour_mask, first_ts, last_ts, samples, lat_e5, lon_e5
 ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
 ''',
-        [12, 'old_cell', oldDay, 1, 1, 1, 1, 0, 0],
+        [kBaseH3Resolution, 'old_cell', oldDay, 1, 1, 1, 1, 0, 0],
       );
 
       harness.locationRepo.emit(
@@ -418,7 +446,7 @@ INSERT INTO visits_daily (
   res, cell_id, day_yyyy_mmdd, hour_mask, first_ts, last_ts, samples, lat_e5, lon_e5
 ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
 ''',
-        [12, 'old_cell', oldDay, 1, 1, 1, 1, 0, 0],
+        [kBaseH3Resolution, 'old_cell', oldDay, 1, 1, 1, 1, 0, 0],
       );
 
       harness.locationRepo.emit(
@@ -432,7 +460,7 @@ INSERT INTO visits_daily (
   res, cell_id, day_yyyy_mmdd, hour_mask, first_ts, last_ts, samples, lat_e5, lon_e5
 ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
 ''',
-        [12, 'old_cell', oldDay, 1, 1, 1, 1, 0, 0],
+        [kBaseH3Resolution, 'old_cell', oldDay, 1, 1, 1, 1, 0, 0],
       );
 
       harness.locationRepo.emit(
@@ -471,7 +499,7 @@ INSERT INTO visits_daily (
       final cell = harness.h3.fakeCell(
         latitude: 1,
         longitude: 1,
-        resolution: 12,
+        resolution: kBaseH3Resolution,
       );
       harness.h3.setBoundary(cell, const [
         LatLng(1, 1),
@@ -482,7 +510,7 @@ INSERT INTO visits_daily (
       await harness.dao.upsertVisit(
         cells: [
           VisitedGridCell(
-            resolution: 12,
+            resolution: kBaseH3Resolution,
             cellId: harness.h3.encodeCellId(cell),
           ),
         ],
@@ -492,7 +520,7 @@ INSERT INTO visits_daily (
         epochSeconds: 100,
         latE5: 100000,
         lonE5: 200000,
-        baseResolution: 12,
+        baseResolution: kBaseH3Resolution,
         baseCellId: harness.h3.encodeCellId(cell),
         baseCellAreaM2: 50,
       );
@@ -508,7 +536,7 @@ INSERT INTO visits_daily (
         timeFilter: VisitedTimeFilter.allTime,
       );
 
-      expect(overlay.resolution, 12);
+      expect(overlay.resolution, kBaseH3Resolution);
       expect(overlay.polygons, hasLength(1));
 
       await _tearDownHarness(harness);
@@ -520,7 +548,7 @@ INSERT INTO visits_daily (
       final cell = harness.h3.fakeCell(
         latitude: 1,
         longitude: 1,
-        resolution: 12,
+        resolution: kBaseH3Resolution,
       );
       final bounds = harness.h3.cellBounds(cell);
 
@@ -550,7 +578,7 @@ INSERT INTO visits_daily (
 ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
 ''',
         [
-          12,
+          kBaseH3Resolution,
           harness.h3.encodeCellId(cell),
           _dayKey(now),
           1,
@@ -595,7 +623,7 @@ INSERT INTO visits_daily (
       final cell = harness.h3.fakeCell(
         latitude: 1,
         longitude: 1,
-        resolution: 12,
+        resolution: kBaseH3Resolution,
       );
       final bounds = harness.h3.cellBounds(cell);
 
@@ -625,7 +653,7 @@ INSERT INTO visits_lifetime (
 ) VALUES (?, ?, ?, ?, ?, ?, ?, ?)
 ''',
         [
-          12,
+          kBaseH3Resolution,
           harness.h3.encodeCellId(cell),
           1,
           1,
@@ -668,7 +696,7 @@ INSERT INTO visits_lifetime (
       final cell = harness.h3.fakeCell(
         latitude: 1,
         longitude: 1,
-        resolution: 12,
+        resolution: kBaseH3Resolution,
       );
       final boundary = <LatLng>[
         const LatLng(1, 1),
@@ -676,12 +704,12 @@ INSERT INTO visits_lifetime (
         const LatLng(2, 2),
       ];
       harness.h3.setBoundary(cell, boundary);
-      harness.h3.polygonCellsByResolution[12] = [cell];
+      harness.h3.polygonCellsByResolution[kBaseH3Resolution] = [cell];
 
       await harness.dao.upsertVisit(
         cells: [
           VisitedGridCell(
-            resolution: 12,
+            resolution: kBaseH3Resolution,
             cellId: harness.h3.encodeCellId(cell),
           ),
         ],
@@ -691,7 +719,7 @@ INSERT INTO visits_lifetime (
         epochSeconds: 100,
         latE5: 100000,
         lonE5: 200000,
-        baseResolution: 12,
+        baseResolution: kBaseH3Resolution,
         baseCellId: harness.h3.encodeCellId(cell),
         baseCellAreaM2: 50,
       );

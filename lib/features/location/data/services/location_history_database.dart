@@ -65,6 +65,18 @@ class LocationHistoryDao extends DatabaseAccessor<LocationHistoryDatabase>
         .get();
   }
 
+  Future<List<LocationSample>> fetchAllSamplesStable() {
+    return (select(locationSamples)
+          ..orderBy(
+            [
+              (tbl) => OrderingTerm(expression: tbl.timestamp),
+              (tbl) => OrderingTerm(expression: tbl.latitude),
+              (tbl) => OrderingTerm(expression: tbl.longitude),
+            ],
+          ))
+        .get();
+  }
+
   Future<int> fetchSampleCount() async {
     final row = await customSelect(
       'SELECT COUNT(*) AS count FROM location_samples',

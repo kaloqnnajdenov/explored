@@ -1,7 +1,9 @@
+import '../../../../constants.dart';
+
 class VisitedGridConfig {
   const VisitedGridConfig({
-    this.baseResolution = 12,
-    this.coarserResolutions = const [11, 10, 9, 8, 7, 6],
+    this.baseResolution = kBaseH3Resolution,
+    this.coarserResolutions = const [9, 8, 7, 6],
     this.maxDailyRetentionDays = 180,
     this.cleanupIntervalSeconds = 6 * 60 * 60,
     this.maxCandidateCells = 2500,
@@ -32,22 +34,23 @@ class VisitedGridConfig {
 
   /// Maps a map zoom level to a target H3 resolution.
   int resolutionForZoom(double zoom) {
-    var resolution = baseResolution;
-    if (zoom >= 16) {
-      resolution = baseResolution;
-    } else if (zoom >= 15) {
-      resolution = baseResolution - 1;
-    } else if (zoom >= 14) {
-      resolution = baseResolution - 2;
-    } else if (zoom >= 13) {
-      resolution = baseResolution - 3;
-    } else if (zoom >= 12) {
-      resolution = baseResolution - 4;
-    } else if (zoom >= 10.5) {
-      resolution = baseResolution - 5;
-    } else {
-      resolution = baseResolution - 6;
+    const minZoom = 7.0;
+    const maxZoom = 16.0;
+    if (baseResolution <= minRenderResolution) {
+      return baseResolution;
     }
+
+    final clampedZoom = zoom.clamp(minZoom, maxZoom).toDouble();
+    final zoomSpan = maxZoom - minZoom;
+    if (zoomSpan <= 0) {
+      return baseResolution;
+    }
+
+    final resSpan = baseResolution - minRenderResolution;
+    final t = (clampedZoom - minZoom) / zoomSpan;
+    final continuous =
+        minRenderResolution + resSpan * t;
+    final resolution = continuous.round();
 
     if (resolution < minRenderResolution) {
       return minRenderResolution;

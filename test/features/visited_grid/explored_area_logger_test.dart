@@ -26,7 +26,7 @@ void main() {
         totalAreaKm2: 0.0012,
         cellCount: 3,
         canonicalVersion: 4,
-        schemaVersion: 3,
+        schemaVersion: 4,
         appVersion: '1.0.0',
         deltaAreaM2: 400,
         cellId: 'cell-1',
