@@ -294,6 +294,9 @@ class FakeVisitedGridRepository implements VisitedGridRepository {
   Future<void> ingestSamples(Iterable<LatLngSample> samples) async {}
 
   @override
+  Future<void> rebuildFromHistory() async {}
+
+  @override
   Future<VisitedGridStats> fetchStats() async {
     return const VisitedGridStats(
       totalAreaM2: 0,
@@ -361,6 +364,18 @@ class FakeLocationHistoryRepository implements LocationHistoryRepository {
     _samples.addAll(samples);
     _controller.add(List.unmodifiable(_samples));
     return samples;
+  }
+
+  @override
+  Future<HistoryManualEditResult> applyManualEdits({
+    required List<LatLngSample> insertSamples,
+    required Set<String> deleteBaseCellIds,
+  }) async {
+    _samples.addAll(insertSamples);
+    return HistoryManualEditResult(
+      insertedSamples: insertSamples,
+      deletedSamples: 0,
+    );
   }
 
   @override

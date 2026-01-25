@@ -9,6 +9,7 @@ import 'package:explored/features/location/data/models/lat_lng_sample.dart';
 import 'package:explored/features/location/data/models/location_permission_level.dart';
 import 'package:explored/features/location/data/repositories/location_updates_repository.dart';
 import 'package:explored/features/location/data/services/location_history_database.dart';
+import 'package:explored/features/location/data/services/location_history_h3_service.dart';
 import 'package:explored/features/visited_grid/data/models/visited_grid_bounds.dart';
 import 'package:explored/features/visited_grid/data/models/visited_grid_cell.dart';
 import 'package:explored/features/visited_grid/data/models/visited_grid_cell_bounds.dart';
@@ -22,7 +23,13 @@ VisitedGridDatabase buildTestDb() {
 
 LocationHistoryDatabase buildHistoryTestDb() {
   driftRuntimeOptions.dontWarnAboutMultipleDatabases = true;
-  return LocationHistoryDatabase(executor: NativeDatabase.memory());
+  return LocationHistoryDatabase(
+    executor: NativeDatabase.memory(),
+    h3Service: LocationHistoryH3Service(
+      cellIdResolver: (lat, lon) =>
+          '${(lat * 100000).round()}_${(lon * 100000).round()}',
+    ),
+  );
 }
 
 class TestVisitedGridDao extends VisitedGridDao {
@@ -95,6 +102,7 @@ class FakeVisitedGridH3Service implements VisitedGridH3Service {
   int cellsToMultiPolygonCalls = 0;
   int compactCellsCalls = 0;
   int cellBoundsCalls = 0;
+  int gridDiskCalls = 0;
 
   @override
   H3Index cellForLatLng({
@@ -164,6 +172,12 @@ class FakeVisitedGridH3Service implements VisitedGridH3Service {
   List<H3Index> compactCells(List<H3Index> cells) {
     compactCellsCalls += 1;
     return cells;
+  }
+
+  @override
+  List<H3Index> gridDisk(H3Index cell, int ringSize) {
+    gridDiskCalls += 1;
+    return [cell];
   }
 
   @override

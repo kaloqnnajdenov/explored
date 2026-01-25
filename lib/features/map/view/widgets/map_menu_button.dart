@@ -9,6 +9,7 @@ enum MapMenuAction {
   exportHistory,
   downloadHistory,
   exploredArea,
+  manualExplore,
   overlayTileSize,
 }
 
@@ -50,6 +51,10 @@ class MapMenuButton extends StatelessWidget {
           PopupMenuItem(
             value: MapMenuAction.exploredArea,
             child: Text(LocaleKeys.menu_explored_area.tr()),
+          ),
+          PopupMenuItem(
+            value: MapMenuAction.manualExplore,
+            child: Text(LocaleKeys.menu_manual_explore.tr()),
           ),
           PopupMenuItem(
             value: MapMenuAction.overlayTileSize,

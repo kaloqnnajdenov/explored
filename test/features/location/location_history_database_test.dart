@@ -1,13 +1,20 @@
-import 'package:drift/drift.dart';
+import 'package:drift/drift.dart' as drift;
 import 'package:drift/native.dart';
 import 'package:flutter_test/flutter_test.dart';
 
 import 'package:explored/features/location/data/models/lat_lng_sample.dart';
 import 'package:explored/features/location/data/services/location_history_database.dart';
+import 'package:explored/features/location/data/services/location_history_h3_service.dart';
 
 LocationHistoryDatabase _buildTestDb() {
-  driftRuntimeOptions.dontWarnAboutMultipleDatabases = true;
-  return LocationHistoryDatabase(executor: NativeDatabase.memory());
+  drift.driftRuntimeOptions.dontWarnAboutMultipleDatabases = true;
+  return LocationHistoryDatabase(
+    executor: NativeDatabase.memory(),
+    h3Service: LocationHistoryH3Service(
+      cellIdResolver: (lat, lon) =>
+          '${(lat * 100000).round()}_${(lon * 100000).round()}',
+    ),
+  );
 }
 
 void main() {
@@ -65,6 +72,7 @@ void main() {
         'accuracy_meters',
         'is_interpolated',
         'source',
+        'h3_base',
       ],
     );
     expect(exportData.rows.length, 1);
@@ -74,6 +82,7 @@ void main() {
     expect(exportData.rows.first[3], 5.5);
     expect(exportData.rows.first[4], true);
     expect(exportData.rows.first[5], LatLngSampleSource.imported);
+    expect(exportData.rows.first[6], isNotNull);
 
     await db.close();
   });
@@ -99,6 +108,26 @@ void main() {
 
     final count = await dao.fetchSampleCount();
     expect(count, 2);
+
+    await db.close();
+  });
+
+  test('h3_base is populated on insert', () async {
+    final db = _buildTestDb();
+    final dao = db.locationHistoryDao;
+
+    final sample = LatLngSample(
+      latitude: 10.0,
+      longitude: 20.0,
+      timestamp: DateTime.utc(2024, 1, 1),
+    );
+    await dao.insertSamples([sample]);
+
+    final rows = await dao.fetchAllSamples();
+    expect(rows.length, 1);
+    final expected =
+        '${(sample.latitude * 100000).round()}_${(sample.longitude * 100000).round()}';
+    expect(rows.first.h3Base, expected);
 
     await db.close();
   });

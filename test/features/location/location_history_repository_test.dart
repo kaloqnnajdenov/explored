@@ -1,7 +1,7 @@
 import 'dart:async';
 
 import 'dart:io';
-import 'package:drift/drift.dart';
+import 'package:drift/drift.dart' hide isNotNull;
 import 'package:drift/native.dart';
 import 'package:flutter_test/flutter_test.dart';
 
@@ -12,6 +12,7 @@ import 'package:explored/features/location/data/repositories/location_history_re
 import 'package:explored/features/location/data/repositories/location_updates_repository.dart';
 import 'package:explored/features/location/data/services/location_history_database.dart';
 import 'package:explored/features/location/data/services/location_history_export_service.dart';
+import 'package:explored/features/location/data/services/location_history_h3_service.dart';
 
 class FakeLocationUpdatesRepository implements LocationUpdatesRepository {
   final StreamController<LatLngSample> _controller =
@@ -124,22 +125,34 @@ class TestLocationHistoryExportService extends LocationHistoryExportService {
   }
 }
 
-LocationHistoryDatabase _buildTestDb() {
+LocationHistoryH3Service _buildTestH3Service() {
+  return LocationHistoryH3Service(
+    cellIdResolver: (lat, lon) =>
+        '${(lat * 100000).round()}_${(lon * 100000).round()}',
+  );
+}
+
+LocationHistoryDatabase _buildTestDb(LocationHistoryH3Service h3Service) {
   driftRuntimeOptions.dontWarnAboutMultipleDatabases = true;
-  return LocationHistoryDatabase(executor: NativeDatabase.memory());
+  return LocationHistoryDatabase(
+    executor: NativeDatabase.memory(),
+    h3Service: h3Service,
+  );
 }
 
 void main() {
   test('captures live samples and deduplicates by timestamp and coords',
       () async {
     final updatesRepository = FakeLocationUpdatesRepository();
-    final db = _buildTestDb();
+    final h3Service = _buildTestH3Service();
+    final db = _buildTestDb(h3Service);
     final exportService =
         TestLocationHistoryExportService(historyDao: db.locationHistoryDao);
     final historyRepository = DefaultLocationHistoryRepository(
       locationUpdatesRepository: updatesRepository,
       historyDao: db.locationHistoryDao,
       exportService: exportService,
+      h3Service: h3Service,
     );
 
     await historyRepository.start();
@@ -165,13 +178,15 @@ void main() {
 
   test('addImportedSamples merges and returns only new samples', () async {
     final updatesRepository = FakeLocationUpdatesRepository();
-    final db = _buildTestDb();
+    final h3Service = _buildTestH3Service();
+    final db = _buildTestDb(h3Service);
     final exportService =
         TestLocationHistoryExportService(historyDao: db.locationHistoryDao);
     final historyRepository = DefaultLocationHistoryRepository(
       locationUpdatesRepository: updatesRepository,
       historyDao: db.locationHistoryDao,
       exportService: exportService,
+      h3Service: h3Service,
     );
 
     final sampleA = LatLngSample(
@@ -201,9 +216,77 @@ void main() {
     await db.close();
   });
 
+  test('imported and interpolated samples populate h3_base', () async {
+    final updatesRepository = FakeLocationUpdatesRepository();
+    final h3Service = _buildTestH3Service();
+    final db = _buildTestDb(h3Service);
+    final exportService =
+        TestLocationHistoryExportService(historyDao: db.locationHistoryDao);
+    final historyRepository = DefaultLocationHistoryRepository(
+      locationUpdatesRepository: updatesRepository,
+      historyDao: db.locationHistoryDao,
+      exportService: exportService,
+      h3Service: h3Service,
+    );
+
+    final sample = LatLngSample(
+      latitude: 12.34,
+      longitude: 56.78,
+      timestamp: DateTime.utc(2024, 1, 1),
+      isInterpolated: true,
+      source: LatLngSampleSource.imported,
+    );
+
+    await historyRepository.addImportedSamples([sample]);
+
+    final rows = await db.locationHistoryDao.fetchAllSamples();
+    expect(rows.length, 1);
+    expect(rows.first.h3Base, isNotNull);
+
+    await historyRepository.dispose();
+    await db.close();
+  });
+
+  test('applyManualEdits deletes samples by base cell', () async {
+    final updatesRepository = FakeLocationUpdatesRepository();
+    final h3Service = _buildTestH3Service();
+    final db = _buildTestDb(h3Service);
+    final exportService =
+        TestLocationHistoryExportService(historyDao: db.locationHistoryDao);
+    final historyRepository = DefaultLocationHistoryRepository(
+      locationUpdatesRepository: updatesRepository,
+      historyDao: db.locationHistoryDao,
+      exportService: exportService,
+      h3Service: h3Service,
+    );
+
+    final sample = LatLngSample(
+      latitude: 1.0,
+      longitude: 2.0,
+      timestamp: DateTime.utc(2024, 1, 1),
+    );
+    await historyRepository.addImportedSamples([sample]);
+
+    final cellId =
+        '${(sample.latitude * 100000).round()}_${(sample.longitude * 100000).round()}';
+
+    final result = await historyRepository.applyManualEdits(
+      insertSamples: const [],
+      deleteBaseCellIds: {cellId},
+    );
+
+    expect(result.deletedSamples, 1);
+    final rows = await db.locationHistoryDao.fetchAllSamples();
+    expect(rows, isEmpty);
+
+    await historyRepository.dispose();
+    await db.close();
+  });
+
   test('start loads persisted samples into memory', () async {
     final updatesRepository = FakeLocationUpdatesRepository();
-    final db = _buildTestDb();
+    final h3Service = _buildTestH3Service();
+    final db = _buildTestDb(h3Service);
     await db.locationHistoryDao.insertSamples(
       [
         LatLngSample(
@@ -232,13 +315,15 @@ void main() {
 
   test('exportHistory delegates to the export service', () async {
     final updatesRepository = FakeLocationUpdatesRepository();
-    final db = _buildTestDb();
+    final h3Service = _buildTestH3Service();
+    final db = _buildTestDb(h3Service);
     final exportService =
         TestLocationHistoryExportService(historyDao: db.locationHistoryDao);
     final historyRepository = DefaultLocationHistoryRepository(
       locationUpdatesRepository: updatesRepository,
       historyDao: db.locationHistoryDao,
       exportService: exportService,
+      h3Service: h3Service,
     );
 
     await historyRepository.exportHistory();
@@ -251,13 +336,15 @@ void main() {
 
   test('downloadHistory delegates to the export service', () async {
     final updatesRepository = FakeLocationUpdatesRepository();
-    final db = _buildTestDb();
+    final h3Service = _buildTestH3Service();
+    final db = _buildTestDb(h3Service);
     final exportService =
         TestLocationHistoryExportService(historyDao: db.locationHistoryDao);
     final historyRepository = DefaultLocationHistoryRepository(
       locationUpdatesRepository: updatesRepository,
       historyDao: db.locationHistoryDao,
       exportService: exportService,
+      h3Service: h3Service,
     );
 
     await historyRepository.downloadHistory();
@@ -271,13 +358,15 @@ void main() {
   test('exportHistory syncs persisted rows when history is ahead of storage',
       () async {
     final updatesRepository = FakeLocationUpdatesRepository();
-    final db = _buildTestDb();
+    final h3Service = _buildTestH3Service();
+    final db = _buildTestDb(h3Service);
     final exportService =
         TestLocationHistoryExportService(historyDao: db.locationHistoryDao);
     final historyRepository = DefaultLocationHistoryRepository(
       locationUpdatesRepository: updatesRepository,
       historyDao: db.locationHistoryDao,
       exportService: exportService,
+      h3Service: h3Service,
     );
 
     await historyRepository.start();

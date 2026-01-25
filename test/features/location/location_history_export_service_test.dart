@@ -8,6 +8,7 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:explored/features/location/data/models/history_export_result.dart';
 import 'package:explored/features/location/data/services/location_history_database.dart';
 import 'package:explored/features/location/data/services/location_history_export_service.dart';
+import 'package:explored/features/location/data/services/location_history_h3_service.dart';
 
 class FakeHistoryDao extends LocationHistoryDao {
   FakeHistoryDao(
@@ -79,7 +80,13 @@ class FakeFileSaveClient implements FileSaveClient {
 
 LocationHistoryDatabase _buildTestDb() {
   drift.driftRuntimeOptions.dontWarnAboutMultipleDatabases = true;
-  return LocationHistoryDatabase(executor: NativeDatabase.memory());
+  return LocationHistoryDatabase(
+    executor: NativeDatabase.memory(),
+    h3Service: LocationHistoryH3Service(
+      cellIdResolver: (lat, lon) =>
+          '${(lat * 100000).round()}_${(lon * 100000).round()}',
+    ),
+  );
 }
 
 void main() {

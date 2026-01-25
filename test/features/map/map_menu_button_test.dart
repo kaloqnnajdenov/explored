@@ -31,6 +31,7 @@ void main() {
     expect(find.text('Export'), findsOneWidget);
     expect(find.text('Download'), findsOneWidget);
     expect(find.text('Explored area'), findsOneWidget);
+    expect(find.text('Manual explore'), findsOneWidget);
     expect(find.text('Overlay tile size'), findsOneWidget);
     expect(selected, isNull);
     expect(tester.takeException(), isNull);

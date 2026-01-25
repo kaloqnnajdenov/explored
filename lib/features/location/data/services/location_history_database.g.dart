@@ -77,6 +77,15 @@ class $LocationSamplesTable extends LocationSamples
     type: DriftSqlType.string,
     requiredDuringInsert: true,
   ).withConverter<LatLngSampleSource>($LocationSamplesTable.$convertersource);
+  static const VerificationMeta _h3BaseMeta = const VerificationMeta('h3Base');
+  @override
+  late final GeneratedColumn<String> h3Base = GeneratedColumn<String>(
+    'h3_base',
+    aliasedName,
+    true,
+    type: DriftSqlType.string,
+    requiredDuringInsert: false,
+  );
   @override
   List<GeneratedColumn> get $columns => [
     latitude,
@@ -85,6 +94,7 @@ class $LocationSamplesTable extends LocationSamples
     accuracyMeters,
     isInterpolated,
     source,
+    h3Base,
   ];
   @override
   String get aliasedName => _alias ?? actualTableName;
@@ -140,6 +150,12 @@ class $LocationSamplesTable extends LocationSamples
         ),
       );
     }
+    if (data.containsKey('h3_base')) {
+      context.handle(
+        _h3BaseMeta,
+        h3Base.isAcceptableOrUnknown(data['h3_base']!, _h3BaseMeta),
+      );
+    }
     return context;
   }
 
@@ -175,6 +191,10 @@ class $LocationSamplesTable extends LocationSamples
           data['${effectivePrefix}source'],
         )!,
       ),
+      h3Base: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}h3_base'],
+      ),
     );
   }
 
@@ -198,6 +218,7 @@ class LocationSample extends DataClass implements Insertable<LocationSample> {
   final double? accuracyMeters;
   final bool isInterpolated;
   final LatLngSampleSource source;
+  final String? h3Base;
   const LocationSample({
     required this.latitude,
     required this.longitude,
@@ -205,6 +226,7 @@ class LocationSample extends DataClass implements Insertable<LocationSample> {
     this.accuracyMeters,
     required this.isInterpolated,
     required this.source,
+    this.h3Base,
   });
   @override
   Map<String, Expression> toColumns(bool nullToAbsent) {
@@ -221,6 +243,9 @@ class LocationSample extends DataClass implements Insertable<LocationSample> {
         $LocationSamplesTable.$convertersource.toSql(source),
       );
     }
+    if (!nullToAbsent || h3Base != null) {
+      map['h3_base'] = Variable<String>(h3Base);
+    }
     return map;
   }
 
@@ -234,6 +259,9 @@ class LocationSample extends DataClass implements Insertable<LocationSample> {
           : Value(accuracyMeters),
       isInterpolated: Value(isInterpolated),
       source: Value(source),
+      h3Base: h3Base == null && nullToAbsent
+          ? const Value.absent()
+          : Value(h3Base),
     );
   }
 
@@ -251,6 +279,7 @@ class LocationSample extends DataClass implements Insertable<LocationSample> {
       source: $LocationSamplesTable.$convertersource.fromJson(
         serializer.fromJson<String>(json['source']),
       ),
+      h3Base: serializer.fromJson<String?>(json['h3Base']),
     );
   }
   @override
@@ -265,6 +294,7 @@ class LocationSample extends DataClass implements Insertable<LocationSample> {
       'source': serializer.toJson<String>(
         $LocationSamplesTable.$convertersource.toJson(source),
       ),
+      'h3Base': serializer.toJson<String?>(h3Base),
     };
   }
 
@@ -275,6 +305,7 @@ class LocationSample extends DataClass implements Insertable<LocationSample> {
     Value<double?> accuracyMeters = const Value.absent(),
     bool? isInterpolated,
     LatLngSampleSource? source,
+    Value<String?> h3Base = const Value.absent(),
   }) => LocationSample(
     latitude: latitude ?? this.latitude,
     longitude: longitude ?? this.longitude,
@@ -284,6 +315,7 @@ class LocationSample extends DataClass implements Insertable<LocationSample> {
         : this.accuracyMeters,
     isInterpolated: isInterpolated ?? this.isInterpolated,
     source: source ?? this.source,
+    h3Base: h3Base.present ? h3Base.value : this.h3Base,
   );
   LocationSample copyWithCompanion(LocationSamplesCompanion data) {
     return LocationSample(
@@ -297,6 +329,7 @@ class LocationSample extends DataClass implements Insertable<LocationSample> {
           ? data.isInterpolated.value
           : this.isInterpolated,
       source: data.source.present ? data.source.value : this.source,
+      h3Base: data.h3Base.present ? data.h3Base.value : this.h3Base,
     );
   }
 
@@ -308,7 +341,8 @@ class LocationSample extends DataClass implements Insertable<LocationSample> {
           ..write('timestamp: $timestamp, ')
           ..write('accuracyMeters: $accuracyMeters, ')
           ..write('isInterpolated: $isInterpolated, ')
-          ..write('source: $source')
+          ..write('source: $source, ')
+          ..write('h3Base: $h3Base')
           ..write(')'))
         .toString();
   }
@@ -321,6 +355,7 @@ class LocationSample extends DataClass implements Insertable<LocationSample> {
     accuracyMeters,
     isInterpolated,
     source,
+    h3Base,
   );
   @override
   bool operator ==(Object other) =>
@@ -331,7 +366,8 @@ class LocationSample extends DataClass implements Insertable<LocationSample> {
           other.timestamp == this.timestamp &&
           other.accuracyMeters == this.accuracyMeters &&
           other.isInterpolated == this.isInterpolated &&
-          other.source == this.source);
+          other.source == this.source &&
+          other.h3Base == this.h3Base);
 }
 
 class LocationSamplesCompanion extends UpdateCompanion<LocationSample> {
@@ -341,6 +377,7 @@ class LocationSamplesCompanion extends UpdateCompanion<LocationSample> {
   final Value<double?> accuracyMeters;
   final Value<bool> isInterpolated;
   final Value<LatLngSampleSource> source;
+  final Value<String?> h3Base;
   final Value<int> rowid;
   const LocationSamplesCompanion({
     this.latitude = const Value.absent(),
@@ -349,6 +386,7 @@ class LocationSamplesCompanion extends UpdateCompanion<LocationSample> {
     this.accuracyMeters = const Value.absent(),
     this.isInterpolated = const Value.absent(),
     this.source = const Value.absent(),
+    this.h3Base = const Value.absent(),
     this.rowid = const Value.absent(),
   });
   LocationSamplesCompanion.insert({
@@ -358,6 +396,7 @@ class LocationSamplesCompanion extends UpdateCompanion<LocationSample> {
     this.accuracyMeters = const Value.absent(),
     this.isInterpolated = const Value.absent(),
     required LatLngSampleSource source,
+    this.h3Base = const Value.absent(),
     this.rowid = const Value.absent(),
   }) : latitude = Value(latitude),
        longitude = Value(longitude),
@@ -370,6 +409,7 @@ class LocationSamplesCompanion extends UpdateCompanion<LocationSample> {
     Expression<double>? accuracyMeters,
     Expression<bool>? isInterpolated,
     Expression<String>? source,
+    Expression<String>? h3Base,
     Expression<int>? rowid,
   }) {
     return RawValuesInsertable({
@@ -379,6 +419,7 @@ class LocationSamplesCompanion extends UpdateCompanion<LocationSample> {
       if (accuracyMeters != null) 'accuracy_meters': accuracyMeters,
       if (isInterpolated != null) 'is_interpolated': isInterpolated,
       if (source != null) 'source': source,
+      if (h3Base != null) 'h3_base': h3Base,
       if (rowid != null) 'rowid': rowid,
     });
   }
@@ -390,6 +431,7 @@ class LocationSamplesCompanion extends UpdateCompanion<LocationSample> {
     Value<double?>? accuracyMeters,
     Value<bool>? isInterpolated,
     Value<LatLngSampleSource>? source,
+    Value<String?>? h3Base,
     Value<int>? rowid,
   }) {
     return LocationSamplesCompanion(
@@ -399,6 +441,7 @@ class LocationSamplesCompanion extends UpdateCompanion<LocationSample> {
       accuracyMeters: accuracyMeters ?? this.accuracyMeters,
       isInterpolated: isInterpolated ?? this.isInterpolated,
       source: source ?? this.source,
+      h3Base: h3Base ?? this.h3Base,
       rowid: rowid ?? this.rowid,
     );
   }
@@ -426,6 +469,9 @@ class LocationSamplesCompanion extends UpdateCompanion<LocationSample> {
         $LocationSamplesTable.$convertersource.toSql(source.value),
       );
     }
+    if (h3Base.present) {
+      map['h3_base'] = Variable<String>(h3Base.value);
+    }
     if (rowid.present) {
       map['rowid'] = Variable<int>(rowid.value);
     }
@@ -441,6 +487,7 @@ class LocationSamplesCompanion extends UpdateCompanion<LocationSample> {
           ..write('accuracyMeters: $accuracyMeters, ')
           ..write('isInterpolated: $isInterpolated, ')
           ..write('source: $source, ')
+          ..write('h3Base: $h3Base, ')
           ..write('rowid: $rowid')
           ..write(')'))
         .toString();
@@ -458,6 +505,10 @@ abstract class _$LocationHistoryDatabase extends GeneratedDatabase {
     'location_samples_timestamp',
     'CREATE INDEX location_samples_timestamp ON location_samples (timestamp)',
   );
+  late final Index locationSamplesH3Base = Index(
+    'location_samples_h3_base',
+    'CREATE INDEX location_samples_h3_base ON location_samples (h3_base)',
+  );
   late final LocationHistoryDao locationHistoryDao = LocationHistoryDao(
     this as LocationHistoryDatabase,
   );
@@ -468,6 +519,7 @@ abstract class _$LocationHistoryDatabase extends GeneratedDatabase {
   List<DatabaseSchemaEntity> get allSchemaEntities => [
     locationSamples,
     locationSamplesTimestamp,
+    locationSamplesH3Base,
   ];
 }
 
@@ -479,6 +531,7 @@ typedef $$LocationSamplesTableCreateCompanionBuilder =
       Value<double?> accuracyMeters,
       Value<bool> isInterpolated,
       required LatLngSampleSource source,
+      Value<String?> h3Base,
       Value<int> rowid,
     });
 typedef $$LocationSamplesTableUpdateCompanionBuilder =
@@ -489,6 +542,7 @@ typedef $$LocationSamplesTableUpdateCompanionBuilder =
       Value<double?> accuracyMeters,
       Value<bool> isInterpolated,
       Value<LatLngSampleSource> source,
+      Value<String?> h3Base,
       Value<int> rowid,
     });
 
@@ -531,6 +585,11 @@ class $$LocationSamplesTableFilterComposer
     column: $table.source,
     builder: (column) => ColumnWithTypeConverterFilters(column),
   );
+
+  ColumnFilters<String> get h3Base => $composableBuilder(
+    column: $table.h3Base,
+    builder: (column) => ColumnFilters(column),
+  );
 }
 
 class $$LocationSamplesTableOrderingComposer
@@ -571,6 +630,11 @@ class $$LocationSamplesTableOrderingComposer
     column: $table.source,
     builder: (column) => ColumnOrderings(column),
   );
+
+  ColumnOrderings<String> get h3Base => $composableBuilder(
+    column: $table.h3Base,
+    builder: (column) => ColumnOrderings(column),
+  );
 }
 
 class $$LocationSamplesTableAnnotationComposer
@@ -603,6 +667,9 @@ class $$LocationSamplesTableAnnotationComposer
 
   GeneratedColumnWithTypeConverter<LatLngSampleSource, String> get source =>
       $composableBuilder(column: $table.source, builder: (column) => column);
+
+  GeneratedColumn<String> get h3Base =>
+      $composableBuilder(column: $table.h3Base, builder: (column) => column);
 }
 
 class $$LocationSamplesTableTableManager
@@ -648,6 +715,7 @@ class $$LocationSamplesTableTableManager
                 Value<double?> accuracyMeters = const Value.absent(),
                 Value<bool> isInterpolated = const Value.absent(),
                 Value<LatLngSampleSource> source = const Value.absent(),
+                Value<String?> h3Base = const Value.absent(),
                 Value<int> rowid = const Value.absent(),
               }) => LocationSamplesCompanion(
                 latitude: latitude,
@@ -656,6 +724,7 @@ class $$LocationSamplesTableTableManager
                 accuracyMeters: accuracyMeters,
                 isInterpolated: isInterpolated,
                 source: source,
+                h3Base: h3Base,
                 rowid: rowid,
               ),
           createCompanionCallback:
@@ -666,6 +735,7 @@ class $$LocationSamplesTableTableManager
                 Value<double?> accuracyMeters = const Value.absent(),
                 Value<bool> isInterpolated = const Value.absent(),
                 required LatLngSampleSource source,
+                Value<String?> h3Base = const Value.absent(),
                 Value<int> rowid = const Value.absent(),
               }) => LocationSamplesCompanion.insert(
                 latitude: latitude,
@@ -674,6 +744,7 @@ class $$LocationSamplesTableTableManager
                 accuracyMeters: accuracyMeters,
                 isInterpolated: isInterpolated,
                 source: source,
+                h3Base: h3Base,
                 rowid: rowid,
               ),
           withReferenceMapper: (p0) => p0

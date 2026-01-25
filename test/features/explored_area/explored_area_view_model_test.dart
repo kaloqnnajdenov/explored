@@ -46,6 +46,9 @@ class FakeVisitedGridRepository implements VisitedGridRepository {
   Future<void> ingestSamples(Iterable<LatLngSample> samples) async {}
 
   @override
+  Future<void> rebuildFromHistory() async {}
+
+  @override
   Future<VisitedGridStats> fetchStats() async => const VisitedGridStats(
         totalAreaM2: 0,
         cellCount: 0,

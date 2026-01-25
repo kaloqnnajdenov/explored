@@ -15,9 +15,12 @@ import 'features/location/data/repositories/location_history_repository.dart';
 import 'features/location/data/services/background_location_client.dart';
 import 'features/location/data/services/location_history_database.dart';
 import 'features/location/data/services/location_history_export_service.dart';
+import 'features/location/data/services/location_history_h3_service.dart';
 import 'features/location/data/services/location_permission_service.dart';
 import 'features/location/data/services/location_tracking_service_factory.dart';
 import 'features/location/data/services/platform_info.dart';
+import 'features/manual_explore/data/repositories/manual_explore_repository.dart';
+import 'features/manual_explore/view_model/manual_explore_view_model.dart';
 import 'features/map/data/repositories/map_repository.dart';
 import 'features/map/data/services/map_attribution_service.dart';
 import 'features/map/data/services/map_overlay_settings_service.dart';
@@ -92,10 +95,12 @@ Future<void> main() async {
     shareClient: SharePlusClient(),
     fileSaveClient: FilePickerSaveClient(),
   );
+  final locationHistoryH3Service = LocationHistoryH3Service();
   final locationHistoryRepository = DefaultLocationHistoryRepository(
     locationUpdatesRepository: locationUpdatesRepository,
     historyDao: locationHistoryDatabase.locationHistoryDao,
     exportService: locationHistoryExportService,
+    h3Service: locationHistoryH3Service,
   );
   const visitedGridConfig = VisitedGridConfig();
   final visitedGridDatabase = VisitedGridDatabase(shareAcrossIsolates: true);
@@ -157,6 +162,18 @@ Future<void> main() async {
   final exploredAreaViewModel = ExploredAreaViewModel(
     visitedGridRepository: visitedGridRepository,
   );
+  final manualExploreRepository = DefaultManualExploreRepository(
+    historyRepository: locationHistoryRepository,
+    historyDao: locationHistoryDatabase.locationHistoryDao,
+    visitedGridRepository: visitedGridRepository,
+    h3Service: visitedGridH3Service,
+    config: visitedGridConfig,
+  );
+  final manualExploreViewModel = ManualExploreViewModel(
+    repository: manualExploreRepository,
+    mapRepository: mapRepository,
+    overlayController: fogOverlayController,
+  );
 
   runApp(
     EasyLocalization(
@@ -168,6 +185,7 @@ Future<void> main() async {
         permissionsViewModel: permissionsViewModel,
         gpxImportViewModel: gpxImportViewModel,
         exploredAreaViewModel: exploredAreaViewModel,
+        manualExploreViewModel: manualExploreViewModel,
       ),
     ),
   );

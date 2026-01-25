@@ -6,6 +6,7 @@ import '../models/history_export_result.dart';
 import '../models/lat_lng_sample.dart';
 import '../services/location_history_database.dart';
 import '../services/location_history_export_service.dart';
+import '../services/location_history_h3_service.dart';
 import 'location_updates_repository.dart';
 
 abstract class LocationHistoryRepository {
@@ -23,6 +24,11 @@ abstract class LocationHistoryRepository {
     List<LatLngSample> samples,
   );
 
+  Future<HistoryManualEditResult> applyManualEdits({
+    required List<LatLngSample> insertSamples,
+    required Set<String> deleteBaseCellIds,
+  });
+
   /// Exports the full persisted history dataset as a CSV file.
   Future<HistoryExportResult> exportHistory();
 
@@ -30,20 +36,33 @@ abstract class LocationHistoryRepository {
   Future<HistoryExportResult> downloadHistory();
 }
 
+class HistoryManualEditResult {
+  const HistoryManualEditResult({
+    required this.insertedSamples,
+    required this.deletedSamples,
+  });
+
+  final List<LatLngSample> insertedSamples;
+  final int deletedSamples;
+}
+
 class DefaultLocationHistoryRepository implements LocationHistoryRepository {
   DefaultLocationHistoryRepository({
     required LocationUpdatesRepository locationUpdatesRepository,
     required LocationHistoryDao historyDao,
     required LocationHistoryExportService exportService,
+    LocationHistoryH3Service? h3Service,
   })  : _locationUpdatesRepository = locationUpdatesRepository,
         _historyDao = historyDao,
-        _exportService = exportService {
+        _exportService = exportService,
+        _h3Service = h3Service ?? LocationHistoryH3Service() {
     _controller = StreamController<List<LatLngSample>>.broadcast();
   }
 
   final LocationUpdatesRepository _locationUpdatesRepository;
   final LocationHistoryDao _historyDao;
   final LocationHistoryExportService _exportService;
+  final LocationHistoryH3Service _h3Service;
   late final StreamController<List<LatLngSample>> _controller;
   StreamSubscription<LatLngSample>? _subscription;
   final List<LatLngSample> _samples = <LatLngSample>[];
@@ -99,6 +118,72 @@ class DefaultLocationHistoryRepository implements LocationHistoryRepository {
     }
 
     return added;
+  }
+
+  @override
+  Future<HistoryManualEditResult> applyManualEdits({
+    required List<LatLngSample> insertSamples,
+    required Set<String> deleteBaseCellIds,
+  }) async {
+    await _ensureLoaded();
+
+    final stagedAdds = <LatLngSample>[];
+    for (final sample in insertSamples) {
+      final key = _SampleKey.fromSample(sample);
+      if (_sampleKeys.contains(key)) {
+        continue;
+      }
+      stagedAdds.add(sample);
+    }
+
+    final deleteIds =
+        deleteBaseCellIds.isEmpty ? const <String>{} : deleteBaseCellIds;
+    final removedSamples = <LatLngSample>[];
+    if (deleteIds.isNotEmpty) {
+      for (final sample in _samples) {
+        final cellId = _h3Service.cellIdForLatLng(
+          latitude: sample.latitude,
+          longitude: sample.longitude,
+        );
+        if (deleteIds.contains(cellId)) {
+          removedSamples.add(sample);
+        }
+      }
+    }
+
+    if (stagedAdds.isEmpty && removedSamples.isEmpty) {
+      return const HistoryManualEditResult(
+        insertedSamples: [],
+        deletedSamples: 0,
+      );
+    }
+
+    await _queuePersistEdits(
+      insertSamples: stagedAdds,
+      deleteBaseCellIds: deleteIds,
+    );
+
+    if (removedSamples.isNotEmpty) {
+      for (final sample in removedSamples) {
+        _sampleKeys.remove(_SampleKey.fromSample(sample));
+      }
+      _samples.removeWhere(removedSamples.contains);
+    }
+    if (stagedAdds.isNotEmpty) {
+      for (final sample in stagedAdds) {
+        _sampleKeys.add(_SampleKey.fromSample(sample));
+        _samples.add(sample);
+      }
+    }
+    if (stagedAdds.isNotEmpty || removedSamples.isNotEmpty) {
+      _samples.sort(_compareSamples);
+      _emit();
+    }
+
+    return HistoryManualEditResult(
+      insertedSamples: stagedAdds,
+      deletedSamples: removedSamples.length,
+    );
   }
 
   @override
@@ -171,6 +256,28 @@ class DefaultLocationHistoryRepository implements LocationHistoryRepository {
       } catch (error) {
         debugPrint('Failed to persist history samples: $error');
       }
+    });
+    return _persistChain;
+  }
+
+  Future<void> _queuePersistEdits({
+    required List<LatLngSample> insertSamples,
+    required Set<String> deleteBaseCellIds,
+  }) {
+    if (insertSamples.isEmpty && deleteBaseCellIds.isEmpty) {
+      return _persistChain;
+    }
+    _persistChain = _persistChain.then((_) async {
+      await _historyDao.transaction(() async {
+        if (deleteBaseCellIds.isNotEmpty) {
+          await _historyDao.deleteSamplesForBaseCellIds(
+            deleteBaseCellIds,
+          );
+        }
+        if (insertSamples.isNotEmpty) {
+          await _historyDao.insertSamples(insertSamples);
+        }
+      });
     });
     return _persistChain;
   }

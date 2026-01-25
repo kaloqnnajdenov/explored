@@ -29,6 +29,7 @@ abstract class VisitedGridRepository {
   Future<void> stop();
   Future<void> dispose();
   Future<void> ingestSamples(Iterable<LatLngSample> samples);
+  Future<void> rebuildFromHistory();
   Future<VisitedGridStats> fetchStats();
   Future<double> fetchExploredAreaKm2({
     DateTime? start,
@@ -149,6 +150,28 @@ class DefaultVisitedGridRepository implements VisitedGridRepository {
     final completer = _ensureDrainCompleter();
     _kickDrain();
     await completer.future;
+  }
+
+  @override
+  Future<void> rebuildFromHistory() async {
+    if (_disposed) {
+      return;
+    }
+    if (_isRebuilding) {
+      await _awaitRebuildIfNeeded();
+      return;
+    }
+    _ensureRebuildCompleter();
+    try {
+      await _performRebuild();
+    } catch (error) {
+      debugPrint('Visited grid rebuild failed: $error');
+    } finally {
+      _completeRebuild();
+    }
+    if (_pendingSamples.isNotEmpty) {
+      _kickDrain();
+    }
   }
 
   @override

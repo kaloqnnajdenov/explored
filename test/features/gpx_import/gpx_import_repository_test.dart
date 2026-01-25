@@ -131,6 +131,17 @@ class FakeLocationHistoryRepository implements LocationHistoryRepository {
   }
 
   @override
+  Future<HistoryManualEditResult> applyManualEdits({
+    required List<LatLngSample> insertSamples,
+    required Set<String> deleteBaseCellIds,
+  }) async {
+    return HistoryManualEditResult(
+      insertedSamples: insertSamples,
+      deletedSamples: 0,
+    );
+  }
+
+  @override
   Future<HistoryExportResult> exportHistory() async {
     exportCalls += 1;
     return const HistoryExportResult.success(filePath: 'export.csv');
@@ -172,6 +183,9 @@ class FakeVisitedGridRepository implements VisitedGridRepository {
   Future<void> ingestSamples(Iterable<LatLngSample> samples) async {
     ingested = List<LatLngSample>.from(samples);
   }
+
+  @override
+  Future<void> rebuildFromHistory() async {}
 
   @override
   Future<VisitedGridStats> fetchStats() async {

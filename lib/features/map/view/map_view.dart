@@ -336,6 +336,9 @@ class _MapViewState extends State<MapView> {
       case MapMenuAction.exploredArea:
         await _openExploredArea();
         break;
+      case MapMenuAction.manualExplore:
+        await _openManualExplore();
+        break;
       case MapMenuAction.overlayTileSize:
         await _openOverlayTileSize();
         break;
@@ -367,6 +370,14 @@ class _MapViewState extends State<MapView> {
       return;
     }
     context.push('/explored-area');
+  }
+
+  Future<void> _openManualExplore() async {
+    await Future<void>.delayed(Duration.zero);
+    if (!mounted) {
+      return;
+    }
+    context.push('/manual-explore');
   }
 
   Future<void> _openOverlayTileSize() async {

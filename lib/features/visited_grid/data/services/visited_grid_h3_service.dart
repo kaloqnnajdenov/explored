@@ -56,6 +56,10 @@ class VisitedGridH3Service {
     return _h3.cellsToMultiPolygon(cells);
   }
 
+  List<H3Index> gridDisk(H3Index cell, int ringSize) {
+    return _h3.gridDisk(cell, ringSize);
+  }
+
   double cellArea(H3Index cell, H3Units unit) {
     return _h3.cellArea(cell, unit);
   }
