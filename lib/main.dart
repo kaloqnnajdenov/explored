@@ -66,10 +66,11 @@ Future<void> main() async {
   final permissionRequestStore = SharedPreferencesPermissionRequestStore(
     preferences: sharedPreferences,
   );
-  final fileAccessPermissionService = PermissionHandlerFileAccessPermissionService(
-    client: permissionHandlerClient,
-    platformInfo: platformInfo,
-  );
+  final fileAccessPermissionService =
+      PermissionHandlerFileAccessPermissionService(
+        client: permissionHandlerClient,
+        platformInfo: platformInfo,
+      );
   final permissionsRepository = DefaultPermissionsRepository(
     locationPermissionService: locationPermissionService,
     fileAccessPermissionService: fileAccessPermissionService,
@@ -140,8 +141,6 @@ Future<void> main() async {
     locationUpdatesRepository: locationUpdatesRepository,
     locationHistoryRepository: locationHistoryRepository,
     permissionsRepository: permissionsRepository,
-    visitedGridRepository: visitedGridRepository,
-    overlayController: fogOverlayController,
   );
   final permissionsViewModel = PermissionsViewModel(
     repository: permissionsRepository,

@@ -2,7 +2,6 @@ import 'dart:async';
 
 import 'package:easy_localization/easy_localization.dart';
 import 'package:explored/features/map/data/models/map_view_state.dart';
-import 'package:explored/features/map/data/models/overlay_tile_size.dart';
 import 'package:flutter/gestures.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_map/flutter_map.dart';
@@ -14,6 +13,7 @@ import '../../gpx_import/view_model/gpx_import_view_model.dart';
 import '../../permissions/view/permissions_management_view.dart';
 import '../../permissions/view_model/permissions_view_model.dart';
 import '../../../translations/locale_keys.g.dart';
+import '../../location/data/models/lat_lng_sample.dart';
 import '../view_model/map_view_model.dart';
 import 'widgets/attribution_banner.dart';
 import 'widgets/location_tracking_panel.dart';
@@ -42,6 +42,8 @@ class MapView extends StatefulWidget {
 class _MapViewState extends State<MapView> {
   late final MapController _mapController;
   late final TapGestureRecognizer _attributionTapRecognizer;
+  List<LatLngSample>? _lastPersistedSamples;
+  List<CircleMarker> _cachedPersistedCircles = const [];
   int? _lastGpxFeedbackId;
   int? _lastExportFeedbackId;
 
@@ -81,7 +83,8 @@ class _MapViewState extends State<MapView> {
             children: [
               LayoutBuilder(
                 builder: (context, constraints) {
-                  final height = constraints.maxHeight.isFinite &&
+                  final height =
+                      constraints.maxHeight.isFinite &&
                           constraints.maxHeight > 0
                       ? constraints.maxHeight
                       : MediaQuery.sizeOf(context).height;
@@ -101,16 +104,8 @@ class _MapViewState extends State<MapView> {
                             state.tileSource.userAgentPackageName,
                         tileProvider: state.tileSource.tileProvider,
                       ),
-                      TileLayer(
-                        tileProvider: widget.viewModel.overlayTileProvider,
-                        tileSize: state.overlayTileSize.size.toDouble(),
-                        maxNativeZoom: 19,
-                        keepBuffer: 2,
-                        panBuffer: 1,
-                        tileDisplay:
-                            const TileDisplay.instantaneous(opacity: 1),
-                        reset: widget.viewModel.overlayResetStream,
-                      ),
+                      if (state.persistedSamples.isNotEmpty)
+                        CircleLayer(circles: _buildPersistedCircles(state)),
                       if (lastLocation != null)
                         MarkerLayer(
                           markers: [
@@ -138,17 +133,13 @@ class _MapViewState extends State<MapView> {
                 top: 16,
                 left: 16,
                 right: 72,
-                child: SafeArea(
-                  child: _buildLocationPanel(state),
-                ),
+                child: SafeArea(child: _buildLocationPanel(state)),
               ),
               Positioned(
                 top: 16,
                 right: 16,
                 child: SafeArea(
-                  child: MapMenuButton(
-                    onActionSelected: _handleMenuAction,
-                  ),
+                  child: MapMenuButton(onActionSelected: _handleMenuAction),
                 ),
               ),
               Positioned(
@@ -174,9 +165,7 @@ class _MapViewState extends State<MapView> {
                   tapRecognizer: _attributionTapRecognizer,
                 ),
               ),
-              GpxImportProcessingOverlay(
-                viewModel: widget.gpxImportViewModel,
-              ),
+              GpxImportProcessingOverlay(viewModel: widget.gpxImportViewModel),
               _buildGpxFeedbackListener(),
               _buildExportFeedbackListener(),
             ],
@@ -256,11 +245,7 @@ class _MapViewState extends State<MapView> {
           ],
         ),
         child: const Center(
-          child: Icon(
-            Icons.circle,
-            color: Colors.white70,
-            size: 12,
-          ),
+          child: Icon(Icons.circle, color: Colors.white70, size: 12),
         ),
       ),
     );
@@ -339,9 +324,6 @@ class _MapViewState extends State<MapView> {
       case MapMenuAction.manualExplore:
         await _openManualExplore();
         break;
-      case MapMenuAction.overlayTileSize:
-        await _openOverlayTileSize();
-        break;
     }
   }
 
@@ -358,9 +340,8 @@ class _MapViewState extends State<MapView> {
       context: context,
       isScrollControlled: true,
       showDragHandle: true,
-      builder: (_) => PermissionsManagementView(
-        viewModel: widget.permissionsViewModel,
-      ),
+      builder: (_) =>
+          PermissionsManagementView(viewModel: widget.permissionsViewModel),
     );
   }
 
@@ -380,18 +361,23 @@ class _MapViewState extends State<MapView> {
     context.push('/manual-explore');
   }
 
-  Future<void> _openOverlayTileSize() async {
-    final selected = await showModalBottomSheet<OverlayTileSize>(
-      context: context,
-      showDragHandle: true,
-      builder: (_) => _OverlayTileSizeSheet(
-        current: widget.viewModel.state.overlayTileSize,
-      ),
-    );
-    if (!mounted || selected == null) {
-      return;
+  List<CircleMarker> _buildPersistedCircles(MapViewState state) {
+    final samples = state.persistedSamples;
+    if (identical(_lastPersistedSamples, samples)) {
+      return _cachedPersistedCircles;
     }
-    await widget.viewModel.setOverlayTileSize(selected);
+    _lastPersistedSamples = samples;
+    _cachedPersistedCircles = [
+      for (final sample in state.persistedSamples)
+        CircleMarker(
+          point: LatLng(sample.latitude, sample.longitude),
+          radius: 2,
+          color: Colors.orangeAccent.withValues(alpha: 0.55),
+          borderColor: Colors.white.withValues(alpha: 0.65),
+          borderStrokeWidth: 0.5,
+        ),
+    ];
+    return _cachedPersistedCircles;
   }
 
   Widget _buildExportFeedbackListener() {
@@ -420,50 +406,6 @@ class _MapViewState extends State<MapView> {
         });
         return const SizedBox.shrink();
       },
-    );
-  }
-}
-
-class _OverlayTileSizeSheet extends StatelessWidget {
-  const _OverlayTileSizeSheet({required this.current});
-
-  final OverlayTileSize current;
-
-  @override
-  Widget build(BuildContext context) {
-    return SafeArea(
-      child: Padding(
-        padding: const EdgeInsets.only(bottom: 16),
-        child: RadioGroup<OverlayTileSize>(
-          groupValue: current,
-          onChanged: (value) {
-            if (value == null) {
-              return;
-            }
-            Navigator.of(context).pop(value);
-          },
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              Padding(
-                padding: const EdgeInsets.fromLTRB(16, 8, 16, 4),
-                child: Text(
-                  LocaleKeys.overlay_tile_size_title.tr(),
-                  style: Theme.of(context).textTheme.titleMedium,
-                ),
-              ),
-              RadioListTile<OverlayTileSize>(
-                value: OverlayTileSize.s256,
-                title: Text(LocaleKeys.overlay_tile_size_256.tr()),
-              ),
-              RadioListTile<OverlayTileSize>(
-                value: OverlayTileSize.s512,
-                title: Text(LocaleKeys.overlay_tile_size_512.tr()),
-              ),
-            ],
-          ),
-        ),
-      ),
     );
   }
 }

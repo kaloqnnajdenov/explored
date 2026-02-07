@@ -1,9 +1,5 @@
 import 'dart:async';
 
-import 'dart:typed_data';
-
-import 'package:flutter/widgets.dart';
-import 'package:flutter_map/flutter_map.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:explored/features/location/data/models/lat_lng_sample.dart';
 import 'package:explored/features/location/data/models/history_export_result.dart';
@@ -20,14 +16,6 @@ import 'package:explored/features/map/data/services/map_tile_service.dart';
 import 'package:explored/features/map/view_model/map_view_model.dart';
 import 'package:explored/features/permissions/data/models/app_permission.dart';
 import 'package:explored/features/permissions/data/repositories/permissions_repository.dart';
-import 'package:explored/features/visited_grid/data/models/visited_grid_bounds.dart';
-import 'package:explored/features/visited_grid/data/models/visited_grid_overlay.dart';
-import 'package:explored/features/visited_grid/data/models/visited_overlay_polygon.dart';
-import 'package:explored/features/visited_grid/data/models/visited_time_filter.dart';
-import 'package:explored/features/visited_grid/data/models/visited_grid_cell_update.dart';
-import 'package:explored/features/visited_grid/data/models/visited_grid_stats.dart';
-import 'package:explored/features/visited_grid/data/repositories/visited_grid_repository.dart';
-import 'package:explored/features/visited_grid/view_model/fog_of_war_overlay_controller.dart';
 
 class FakeMapTileService implements MapTileService {
   @override
@@ -60,112 +48,6 @@ class FakeOverlaySettingsService implements MapOverlaySettingsService {
     storedSize = size;
   }
 }
-
-class FakeFogOfWarOverlayController implements FogOfWarOverlayController {
-  FakeFogOfWarOverlayController();
-
-  final StreamController<void> _resetController =
-      StreamController<void>.broadcast();
-  int _tileSize = 256;
-
-  @override
-  TileProvider get tileProvider => _EmptyTileProvider();
-
-  @override
-  Stream<void> get resetStream => _resetController.stream;
-
-  @override
-  int get tileSize => _tileSize;
-
-  @override
-  Future<void> setTileSize(int tileSize) async {
-    _tileSize = tileSize;
-  }
-
-  @override
-  Future<void> dispose() async {
-    await _resetController.close();
-  }
-}
-
-class _EmptyTileProvider extends TileProvider {
-  @override
-  ImageProvider getImage(TileCoordinates coordinates, TileLayer options) {
-    return MemoryImage(_transparentImage);
-  }
-}
-
-final Uint8List _transparentImage = Uint8List.fromList(
-  <int>[
-    0x89,
-    0x50,
-    0x4E,
-    0x47,
-    0x0D,
-    0x0A,
-    0x1A,
-    0x0A,
-    0x00,
-    0x00,
-    0x00,
-    0x0D,
-    0x49,
-    0x48,
-    0x44,
-    0x52,
-    0x00,
-    0x00,
-    0x00,
-    0x01,
-    0x00,
-    0x00,
-    0x00,
-    0x01,
-    0x08,
-    0x06,
-    0x00,
-    0x00,
-    0x00,
-    0x1F,
-    0x15,
-    0xC4,
-    0x89,
-    0x00,
-    0x00,
-    0x00,
-    0x0A,
-    0x49,
-    0x44,
-    0x41,
-    0x54,
-    0x78,
-    0x9C,
-    0x63,
-    0x60,
-    0x00,
-    0x00,
-    0x00,
-    0x02,
-    0x00,
-    0x01,
-    0xE5,
-    0x27,
-    0xD4,
-    0xA2,
-    0x00,
-    0x00,
-    0x00,
-    0x00,
-    0x49,
-    0x45,
-    0x4E,
-    0x44,
-    0xAE,
-    0x42,
-    0x60,
-    0x82,
-  ],
-);
 
 class FakeLocationUpdatesRepository implements LocationUpdatesRepository {
   FakeLocationUpdatesRepository({
@@ -263,71 +145,6 @@ class FakeLocationUpdatesRepository implements LocationUpdatesRepository {
   }
 }
 
-class FakeVisitedGridRepository implements VisitedGridRepository {
-  int startCalls = 0;
-  final StreamController<VisitedGridCellUpdate> _cellUpdates =
-      StreamController<VisitedGridCellUpdate>.broadcast();
-  final StreamController<VisitedGridStats> _statsUpdates =
-      StreamController<VisitedGridStats>.broadcast();
-
-  @override
-  Stream<VisitedGridCellUpdate> get cellUpdates => _cellUpdates.stream;
-
-  @override
-  Stream<VisitedGridStats> get statsUpdates => _statsUpdates.stream;
-
-  @override
-  Future<void> start() async {
-    startCalls += 1;
-  }
-
-  @override
-  Future<void> stop() async {}
-
-  @override
-  Future<void> dispose() async {
-    await _cellUpdates.close();
-    await _statsUpdates.close();
-  }
-
-  @override
-  Future<void> ingestSamples(Iterable<LatLngSample> samples) async {}
-
-  @override
-  Future<void> rebuildFromHistory() async {}
-
-  @override
-  Future<VisitedGridStats> fetchStats() async {
-    return const VisitedGridStats(
-      totalAreaM2: 0,
-      cellCount: 0,
-      canonicalVersion: 0,
-    );
-  }
-
-  @override
-  Future<double> fetchExploredAreaKm2({
-    DateTime? start,
-    DateTime? end,
-  }) async =>
-      0;
-
-  @override
-  Future<void> logExploredAreaViewed() async {}
-
-  @override
-  Future<VisitedGridOverlay> loadOverlay({
-    required VisitedGridBounds bounds,
-    required double zoom,
-    required VisitedTimeFilter timeFilter,
-  }) async {
-    return const VisitedGridOverlay(
-      resolution: 0,
-      polygons: <VisitedOverlayPolygon>[],
-    );
-  }
-}
-
 class FakeLocationHistoryRepository implements LocationHistoryRepository {
   final StreamController<List<LatLngSample>> _controller =
       StreamController<List<LatLngSample>>.broadcast();
@@ -335,10 +152,12 @@ class FakeLocationHistoryRepository implements LocationHistoryRepository {
   int startCalls = 0;
   int exportCalls = 0;
   int downloadCalls = 0;
-  HistoryExportResult exportResult =
-      const HistoryExportResult.success(filePath: 'export.csv');
-  HistoryExportResult downloadResult =
-      const HistoryExportResult.success(filePath: 'download.csv');
+  HistoryExportResult exportResult = const HistoryExportResult.success(
+    filePath: 'export.csv',
+  );
+  HistoryExportResult downloadResult = const HistoryExportResult.success(
+    filePath: 'download.csv',
+  );
 
   @override
   Stream<List<LatLngSample>> get historyStream => _controller.stream;
@@ -432,8 +251,6 @@ void main() {
       locationUpdatesRepository: locationRepository,
       locationHistoryRepository: FakeLocationHistoryRepository(),
       permissionsRepository: FakePermissionsRepository(),
-      visitedGridRepository: FakeVisitedGridRepository(),
-      overlayController: FakeFogOfWarOverlayController(),
     );
 
     await viewModel.initialize();
@@ -462,6 +279,42 @@ void main() {
     viewModel.dispose();
   });
 
+  test('Initialize exposes persisted samples in state', () async {
+    final locationRepository = FakeLocationUpdatesRepository();
+    final historyRepository = FakeLocationHistoryRepository();
+    await historyRepository.addImportedSamples([
+      LatLngSample(
+        latitude: 42.0,
+        longitude: 23.0,
+        timestamp: DateTime(2024, 1, 1),
+        source: LatLngSampleSource.imported,
+      ),
+      LatLngSample(
+        latitude: 42.1,
+        longitude: 23.1,
+        timestamp: DateTime(2024, 1, 2),
+        source: LatLngSampleSource.live,
+      ),
+    ]);
+    final mapRepository = MapRepository(
+      tileService: FakeMapTileService(),
+      attributionService: FakeMapAttributionService(),
+      overlaySettingsService: FakeOverlaySettingsService(),
+    );
+    final viewModel = MapViewModel(
+      mapRepository: mapRepository,
+      locationUpdatesRepository: locationRepository,
+      locationHistoryRepository: historyRepository,
+      permissionsRepository: FakePermissionsRepository(),
+    );
+
+    await viewModel.initialize();
+
+    expect(viewModel.state.persistedSamples.length, 2);
+
+    viewModel.dispose();
+  });
+
   test('Location panel visibility toggles via ViewModel', () {
     final locationRepository = FakeLocationUpdatesRepository();
     final mapRepository = MapRepository(
@@ -474,8 +327,6 @@ void main() {
       locationUpdatesRepository: locationRepository,
       locationHistoryRepository: FakeLocationHistoryRepository(),
       permissionsRepository: FakePermissionsRepository(),
-      visitedGridRepository: FakeVisitedGridRepository(),
-      overlayController: FakeFogOfWarOverlayController(),
     );
 
     expect(viewModel.state.isLocationPanelVisible, isTrue);
@@ -501,8 +352,6 @@ void main() {
       locationUpdatesRepository: locationRepository,
       locationHistoryRepository: FakeLocationHistoryRepository(),
       permissionsRepository: FakePermissionsRepository(),
-      visitedGridRepository: FakeVisitedGridRepository(),
-      overlayController: FakeFogOfWarOverlayController(),
     );
 
     final initialZoom = viewModel.state.recenterZoom;
@@ -526,8 +375,6 @@ void main() {
       locationUpdatesRepository: locationRepository,
       locationHistoryRepository: FakeLocationHistoryRepository(),
       permissionsRepository: FakePermissionsRepository(),
-      visitedGridRepository: FakeVisitedGridRepository(),
-      overlayController: FakeFogOfWarOverlayController(),
     );
 
     await viewModel.initialize();
@@ -556,8 +403,6 @@ void main() {
       locationUpdatesRepository: locationRepository,
       locationHistoryRepository: FakeLocationHistoryRepository(),
       permissionsRepository: FakePermissionsRepository(),
-      visitedGridRepository: FakeVisitedGridRepository(),
-      overlayController: FakeFogOfWarOverlayController(),
     );
 
     await viewModel.initialize();
@@ -588,8 +433,6 @@ void main() {
       locationUpdatesRepository: locationRepository,
       locationHistoryRepository: FakeLocationHistoryRepository(),
       permissionsRepository: FakePermissionsRepository(),
-      visitedGridRepository: FakeVisitedGridRepository(),
-      overlayController: FakeFogOfWarOverlayController(),
     );
 
     await viewModel.initialize();
@@ -606,35 +449,34 @@ void main() {
   });
 
   test(
-      'Open settings routes to notification settings when notifications blocked',
-      () async {
-    final locationRepository = FakeLocationUpdatesRepository(
-      permissionLevel: LocationPermissionLevel.background,
-      notificationRequired: true,
-      notificationGranted: false,
-    );
-    final mapRepository = MapRepository(
-      tileService: FakeMapTileService(),
-      attributionService: FakeMapAttributionService(),
-      overlaySettingsService: FakeOverlaySettingsService(),
-    );
-    final viewModel = MapViewModel(
-      mapRepository: mapRepository,
-      locationUpdatesRepository: locationRepository,
-      locationHistoryRepository: FakeLocationHistoryRepository(),
-      permissionsRepository: FakePermissionsRepository(),
-      visitedGridRepository: FakeVisitedGridRepository(),
-      overlayController: FakeFogOfWarOverlayController(),
-    );
+    'Open settings routes to notification settings when notifications blocked',
+    () async {
+      final locationRepository = FakeLocationUpdatesRepository(
+        permissionLevel: LocationPermissionLevel.background,
+        notificationRequired: true,
+        notificationGranted: false,
+      );
+      final mapRepository = MapRepository(
+        tileService: FakeMapTileService(),
+        attributionService: FakeMapAttributionService(),
+        overlaySettingsService: FakeOverlaySettingsService(),
+      );
+      final viewModel = MapViewModel(
+        mapRepository: mapRepository,
+        locationUpdatesRepository: locationRepository,
+        locationHistoryRepository: FakeLocationHistoryRepository(),
+        permissionsRepository: FakePermissionsRepository(),
+      );
 
-    await viewModel.initialize();
-    await viewModel.openAppSettings();
+      await viewModel.initialize();
+      await viewModel.openAppSettings();
 
-    expect(locationRepository.openNotificationSettingsCalls, 1);
-    expect(locationRepository.openAppSettingsCalls, 0);
+      expect(locationRepository.openNotificationSettingsCalls, 1);
+      expect(locationRepository.openAppSettingsCalls, 0);
 
-    viewModel.dispose();
-  });
+      viewModel.dispose();
+    },
+  );
 
   test('exportHistory emits success feedback', () async {
     final locationRepository = FakeLocationUpdatesRepository();
@@ -644,15 +486,14 @@ void main() {
       overlaySettingsService: FakeOverlaySettingsService(),
     );
     final historyRepository = FakeLocationHistoryRepository()
-      ..exportResult =
-          const HistoryExportResult.success(filePath: 'export.csv');
+      ..exportResult = const HistoryExportResult.success(
+        filePath: 'export.csv',
+      );
     final viewModel = MapViewModel(
       mapRepository: mapRepository,
       locationUpdatesRepository: locationRepository,
       locationHistoryRepository: historyRepository,
       permissionsRepository: FakePermissionsRepository(),
-      visitedGridRepository: FakeVisitedGridRepository(),
-      overlayController: FakeFogOfWarOverlayController(),
     );
 
     await viewModel.exportHistory();
@@ -678,8 +519,6 @@ void main() {
       locationUpdatesRepository: locationRepository,
       locationHistoryRepository: historyRepository,
       permissionsRepository: FakePermissionsRepository(),
-      visitedGridRepository: FakeVisitedGridRepository(),
-      overlayController: FakeFogOfWarOverlayController(),
     );
 
     await viewModel.exportHistory();
@@ -699,15 +538,14 @@ void main() {
       overlaySettingsService: FakeOverlaySettingsService(),
     );
     final historyRepository = FakeLocationHistoryRepository()
-      ..downloadResult =
-          const HistoryExportResult.success(filePath: 'download.csv');
+      ..downloadResult = const HistoryExportResult.success(
+        filePath: 'download.csv',
+      );
     final viewModel = MapViewModel(
       mapRepository: mapRepository,
       locationUpdatesRepository: locationRepository,
       locationHistoryRepository: historyRepository,
       permissionsRepository: FakePermissionsRepository(),
-      visitedGridRepository: FakeVisitedGridRepository(),
-      overlayController: FakeFogOfWarOverlayController(),
     );
 
     await viewModel.downloadHistory();
@@ -733,8 +571,6 @@ void main() {
       locationUpdatesRepository: locationRepository,
       locationHistoryRepository: historyRepository,
       permissionsRepository: FakePermissionsRepository(),
-      visitedGridRepository: FakeVisitedGridRepository(),
-      overlayController: FakeFogOfWarOverlayController(),
     );
 
     await viewModel.downloadHistory();

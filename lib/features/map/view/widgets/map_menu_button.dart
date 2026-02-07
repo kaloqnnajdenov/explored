@@ -10,14 +10,10 @@ enum MapMenuAction {
   downloadHistory,
   exploredArea,
   manualExplore,
-  overlayTileSize,
 }
 
 class MapMenuButton extends StatelessWidget {
-  const MapMenuButton({
-    required this.onActionSelected,
-    super.key,
-  });
+  const MapMenuButton({required this.onActionSelected, super.key});
 
   final void Function(MapMenuAction action) onActionSelected;
 
@@ -55,10 +51,6 @@ class MapMenuButton extends StatelessWidget {
           PopupMenuItem(
             value: MapMenuAction.manualExplore,
             child: Text(LocaleKeys.menu_manual_explore.tr()),
-          ),
-          PopupMenuItem(
-            value: MapMenuAction.overlayTileSize,
-            child: Text(LocaleKeys.menu_overlay_tile_size.tr()),
           ),
         ],
       ),

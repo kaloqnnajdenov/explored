@@ -4,7 +4,6 @@ import 'map_config.dart';
 import 'map_tile_source.dart';
 import '../../../location/data/models/location_tracking_state.dart';
 import '../../../location/data/models/lat_lng_sample.dart';
-import 'overlay_tile_size.dart';
 
 /// Immutable UI state snapshot for the map screen.
 class MapViewState {
@@ -16,8 +15,7 @@ class MapViewState {
     required this.isLoading,
     required this.isLocationPanelVisible,
     required this.recenterZoom,
-    required this.overlayTileSize,
-    required this.importedSamples,
+    required this.persistedSamples,
     this.exportFeedback,
     this.error,
   });
@@ -32,8 +30,7 @@ class MapViewState {
       isLoading: true,
       isLocationPanelVisible: true,
       recenterZoom: config.recenterZoom,
-      overlayTileSize: OverlayTileSize.s256,
-      importedSamples: const [],
+      persistedSamples: const [],
       exportFeedback: null,
     );
   }
@@ -46,8 +43,7 @@ class MapViewState {
   final bool isLocationPanelVisible;
   final double recenterZoom;
   final Object? error;
-  final OverlayTileSize overlayTileSize;
-  final List<LatLngSample> importedSamples;
+  final List<LatLngSample> persistedSamples;
   final MapViewFeedback? exportFeedback;
 
   /// Create a new state with selective overrides; errors can be cleared.
@@ -61,8 +57,7 @@ class MapViewState {
     double? recenterZoom,
     Object? error,
     bool clearError = false,
-    OverlayTileSize? overlayTileSize,
-    List<LatLngSample>? importedSamples,
+    List<LatLngSample>? persistedSamples,
     MapViewFeedback? exportFeedback,
     bool clearExportFeedback = false,
   }) {
@@ -76,10 +71,10 @@ class MapViewState {
           isLocationPanelVisible ?? this.isLocationPanelVisible,
       recenterZoom: recenterZoom ?? this.recenterZoom,
       error: clearError ? null : (error ?? this.error),
-      overlayTileSize: overlayTileSize ?? this.overlayTileSize,
-      importedSamples: importedSamples ?? this.importedSamples,
-      exportFeedback:
-          clearExportFeedback ? null : (exportFeedback ?? this.exportFeedback),
+      persistedSamples: persistedSamples ?? this.persistedSamples,
+      exportFeedback: clearExportFeedback
+          ? null
+          : (exportFeedback ?? this.exportFeedback),
     );
   }
 }

@@ -1,7 +1,6 @@
 import 'dart:async';
 
 import 'package:flutter/material.dart';
-import 'package:flutter_map/flutter_map.dart';
 
 import '../../location/data/models/location_permission_level.dart';
 import '../../location/data/models/location_status.dart';
@@ -11,12 +10,9 @@ import '../../location/data/repositories/location_updates_repository.dart';
 import '../../location/data/repositories/location_history_repository.dart';
 import '../../location/data/models/history_export_result.dart';
 import '../../permissions/data/repositories/permissions_repository.dart';
-import '../../visited_grid/data/repositories/visited_grid_repository.dart';
 import '../data/models/map_config.dart';
 import '../data/models/map_view_state.dart';
-import '../data/models/overlay_tile_size.dart';
 import '../data/repositories/map_repository.dart';
-import '../../visited_grid/view_model/fog_of_war_overlay_controller.dart';
 
 /// Owns map UI state and listens to location updates for the map screen.
 class MapViewModel extends ChangeNotifier {
@@ -26,8 +22,6 @@ class MapViewModel extends ChangeNotifier {
     required LocationUpdatesRepository locationUpdatesRepository,
     required LocationHistoryRepository locationHistoryRepository,
     required PermissionsRepository permissionsRepository,
-    required VisitedGridRepository visitedGridRepository,
-    required FogOfWarOverlayController overlayController,
   }) {
     final config = mapRepository.getMapConfig();
     return MapViewModel._(
@@ -35,8 +29,6 @@ class MapViewModel extends ChangeNotifier {
       locationUpdatesRepository: locationUpdatesRepository,
       locationHistoryRepository: locationHistoryRepository,
       permissionsRepository: permissionsRepository,
-      visitedGridRepository: visitedGridRepository,
-      overlayController: overlayController,
       config: config,
     );
   }
@@ -46,24 +38,18 @@ class MapViewModel extends ChangeNotifier {
     required LocationUpdatesRepository locationUpdatesRepository,
     required LocationHistoryRepository locationHistoryRepository,
     required PermissionsRepository permissionsRepository,
-    required VisitedGridRepository visitedGridRepository,
-    required FogOfWarOverlayController overlayController,
     required MapConfig config,
-  })  : _mapRepository = mapRepository,
-        _locationUpdatesRepository = locationUpdatesRepository,
-        _locationHistoryRepository = locationHistoryRepository,
-        _permissionsRepository = permissionsRepository,
-        _visitedGridRepository = visitedGridRepository,
-        _overlayController = overlayController,
-        _config = config,
-        _state = MapViewState.initial(config);
+  }) : _mapRepository = mapRepository,
+       _locationUpdatesRepository = locationUpdatesRepository,
+       _locationHistoryRepository = locationHistoryRepository,
+       _permissionsRepository = permissionsRepository,
+       _config = config,
+       _state = MapViewState.initial(config);
 
   final MapRepository _mapRepository;
   final LocationUpdatesRepository _locationUpdatesRepository;
   final LocationHistoryRepository _locationHistoryRepository;
   final PermissionsRepository _permissionsRepository;
-  final VisitedGridRepository _visitedGridRepository;
-  final FogOfWarOverlayController _overlayController;
   final MapConfig _config;
   MapViewState _state;
   bool _hasInitialized = false;
@@ -74,8 +60,6 @@ class MapViewModel extends ChangeNotifier {
   bool _isDownloading = false;
 
   MapViewState get state => _state;
-  TileProvider get overlayTileProvider => _overlayController.tileProvider;
-  Stream<void> get overlayResetStream => _overlayController.resetStream;
 
   /// Finalizes initial map state and attaches the location stream.
   Future<void> initialize() async {
@@ -87,13 +71,10 @@ class MapViewModel extends ChangeNotifier {
     notifyListeners();
 
     try {
-      final overlayTileSize = await _mapRepository.fetchOverlayTileSize();
-      await _overlayController.setTileSize(overlayTileSize.size);
       _state = _state.copyWith(
         center: _config.initialCenter,
         zoom: _config.initialZoom,
         tileSource: _config.tileSource,
-        overlayTileSize: overlayTileSize,
         isLoading: false,
         clearError: true,
       );
@@ -113,7 +94,6 @@ class MapViewModel extends ChangeNotifier {
     _attachLocationUpdates();
     await _locationHistoryRepository.start();
     _attachHistoryUpdates();
-    await _visitedGridRepository.start();
   }
 
   Future<void> requestForegroundPermission() async {
@@ -153,7 +133,7 @@ class MapViewModel extends ChangeNotifier {
     }
   }
 
-  /// Updates the map overlay visibility based on user interaction.
+  /// Updates the tracking panel visibility based on user interaction.
   void setLocationPanelVisibility(bool visible) {
     if (_state.isLocationPanelVisible == visible) {
       return;
@@ -174,20 +154,6 @@ class MapViewModel extends ChangeNotifier {
     }
     _state = _state.copyWith(recenterZoom: zoom);
     notifyListeners();
-  }
-
-  Future<void> setOverlayTileSize(OverlayTileSize size) async {
-    if (_state.overlayTileSize == size) {
-      return;
-    }
-    _state = _state.copyWith(overlayTileSize: size);
-    notifyListeners();
-    try {
-      await _mapRepository.setOverlayTileSize(size);
-      await _overlayController.setTileSize(size.size);
-    } catch (error) {
-      debugPrint('Failed to update overlay tile size: $error');
-    }
   }
 
   /// Exports the full location history as CSV and triggers native sharing.
@@ -231,8 +197,6 @@ class MapViewModel extends ChangeNotifier {
     _locationSubscription?.cancel();
     _historySubscription?.cancel();
     _locationHistoryRepository.dispose();
-    _visitedGridRepository.dispose();
-    unawaited(_overlayController.dispose());
     super.dispose();
   }
 
@@ -267,19 +231,13 @@ class MapViewModel extends ChangeNotifier {
   }
 
   void _handleHistoryUpdate(List<LatLngSample> samples) {
-    final importedSamples = [
-      for (final sample in samples)
-        if (sample.source == LatLngSampleSource.imported) sample,
-    ];
-
-    _state = _state.copyWith(importedSamples: importedSamples);
+    _state = _state.copyWith(
+      persistedSamples: List<LatLngSample>.unmodifiable(samples),
+    );
     notifyListeners();
   }
 
-  void _emitHistoryFeedback(
-    String messageKey, {
-    bool isError = false,
-  }) {
+  void _emitHistoryFeedback(String messageKey, {bool isError = false}) {
     _exportFeedbackId += 1;
     _state = _state.copyWith(
       exportFeedback: MapViewFeedback(
@@ -330,9 +288,7 @@ class MapViewModel extends ChangeNotifier {
     }
   }
 
-  Future<void> _performPermissionAction(
-    Future<void> Function() action,
-  ) async {
+  Future<void> _performPermissionAction(Future<void> Function() action) async {
     if (_state.locationTracking.isActionInProgress) {
       return;
     }
@@ -354,14 +310,14 @@ class MapViewModel extends ChangeNotifier {
 
   Future<void> _refreshTrackingState() async {
     try {
-      final isServiceEnabled =
-          await _locationUpdatesRepository.isLocationServiceEnabled();
-      final permissionLevel =
-          await _locationUpdatesRepository.checkPermissionLevel();
+      final isServiceEnabled = await _locationUpdatesRepository
+          .isLocationServiceEnabled();
+      final permissionLevel = await _locationUpdatesRepository
+          .checkPermissionLevel();
       final notificationRequired =
           _locationUpdatesRepository.isNotificationPermissionRequired;
-      final notificationGranted =
-          await _locationUpdatesRepository.isNotificationPermissionGranted();
+      final notificationGranted = await _locationUpdatesRepository
+          .isNotificationPermissionGranted();
 
       final status = _resolveStatus(
         isServiceEnabled: isServiceEnabled,
