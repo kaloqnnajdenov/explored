@@ -1,5 +1,6 @@
 import 'package:easy_localization/easy_localization.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter_dotenv/flutter_dotenv.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
 import 'app/explored_app.dart';
@@ -10,8 +11,8 @@ import 'features/gpx_import/data/services/gpx_file_picker_service.dart';
 import 'features/gpx_import/data/services/gpx_parser_service.dart';
 import 'features/gpx_import/view_model/gpx_import_view_model.dart';
 import 'features/location/data/location_tracking_config.dart';
-import 'features/location/data/repositories/location_updates_repository.dart';
 import 'features/location/data/repositories/location_history_repository.dart';
+import 'features/location/data/repositories/location_updates_repository.dart';
 import 'features/location/data/services/background_location_client.dart';
 import 'features/location/data/services/location_history_database.dart';
 import 'features/location/data/services/location_history_export_service.dart';
@@ -24,7 +25,7 @@ import 'features/manual_explore/view_model/manual_explore_view_model.dart';
 import 'features/map/data/repositories/map_repository.dart';
 import 'features/map/data/services/map_attribution_service.dart';
 import 'features/map/data/services/map_overlay_settings_service.dart';
-import 'features/map/data/services/map_tile_service.dart';
+import 'features/map/data/services/map_provider_selection_service.dart';
 import 'features/map/view_model/map_view_model.dart';
 import 'features/permissions/data/repositories/permissions_repository.dart';
 import 'features/permissions/data/services/file_access_permission_service.dart';
@@ -44,6 +45,13 @@ import 'features/visited_grid/view_model/fog_of_war_overlay_controller.dart';
 Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
   await EasyLocalization.ensureInitialized();
+  try {
+    await dotenv.load(fileName: '.env');
+  } catch (error) {
+    debugPrint(
+      'Unable to load .env. Falling back to OSM if MapTiler key is unavailable. Error: $error',
+    );
+  }
 
   final platformInfo = DevicePlatformInfo();
   final locationTrackingConfig = LocationTrackingConfig();
@@ -58,9 +66,14 @@ Future<void> main() async {
   final overlaySettingsService = SharedPreferencesMapOverlaySettingsService(
     preferences: sharedPreferences,
   );
+  final mapProviderSelectionService = HttpMapProviderSelectionService();
+  final resolvedMapProvider = await mapProviderSelectionService
+      .resolveForSession(mapTilerKey: dotenv.env['MAPTILER_KEY'] ?? '');
   final mapRepository = MapRepository(
-    tileService: OpenStreetMapTileService(),
-    attributionService: UrlLauncherMapAttributionService(),
+    tileService: resolvedMapProvider.tileService,
+    attributionService: UrlLauncherMapAttributionService(
+      attributionUri: resolvedMapProvider.attributionUri,
+    ),
     overlaySettingsService: overlaySettingsService,
   );
   final permissionRequestStore = SharedPreferencesPermissionRequestStore(
