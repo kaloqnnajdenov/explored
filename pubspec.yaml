@@ -50,7 +50,6 @@ dependencies:
   # Mapping (OpenStreetMap)
   flutter_map: ^7.0.2
   latlong2: ^0.9.1
-  maplibre_gl: ^0.25.0
   flutter_dotenv: ^5.1.0
   http: ^1.2.0
   url_launcher: ^6.3.2

@@ -4,8 +4,6 @@ import 'package:flutter_dotenv/flutter_dotenv.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
 import 'app/explored_app.dart';
-import 'constants.dart';
-import 'features/explored_area/view_model/explored_area_view_model.dart';
 import 'features/gpx_import/data/repositories/gpx_import_repository.dart';
 import 'features/gpx_import/data/services/gpx_file_picker_service.dart';
 import 'features/gpx_import/data/services/gpx_parser_service.dart';
@@ -20,27 +18,14 @@ import 'features/location/data/services/location_history_h3_service.dart';
 import 'features/location/data/services/location_permission_service.dart';
 import 'features/location/data/services/location_tracking_service_factory.dart';
 import 'features/location/data/services/platform_info.dart';
-import 'features/manual_explore/data/repositories/manual_explore_repository.dart';
-import 'features/manual_explore/view_model/manual_explore_view_model.dart';
 import 'features/map/data/repositories/map_repository.dart';
 import 'features/map/data/services/map_attribution_service.dart';
-import 'features/map/data/services/map_overlay_settings_service.dart';
 import 'features/map/data/services/map_provider_selection_service.dart';
 import 'features/map/view_model/map_view_model.dart';
 import 'features/permissions/data/repositories/permissions_repository.dart';
 import 'features/permissions/data/services/file_access_permission_service.dart';
 import 'features/permissions/data/services/permission_request_store.dart';
 import 'features/permissions/view_model/permissions_view_model.dart';
-import 'features/visited_grid/data/models/fog_of_war_config.dart';
-import 'features/visited_grid/data/models/visited_grid_config.dart';
-import 'features/visited_grid/data/repositories/fog_of_war_tile_repository.dart';
-import 'features/visited_grid/data/repositories/visited_grid_repository.dart';
-import 'features/visited_grid/data/services/explored_area_logger.dart';
-import 'features/visited_grid/data/services/fog_of_war_tile_cache_service.dart';
-import 'features/visited_grid/data/services/fog_of_war_tile_raster_service.dart';
-import 'features/visited_grid/data/services/visited_grid_database.dart';
-import 'features/visited_grid/data/services/visited_grid_h3_service.dart';
-import 'features/visited_grid/view_model/fog_of_war_overlay_controller.dart';
 
 Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
@@ -63,9 +48,6 @@ Future<void> main() async {
     platformInfo: platformInfo,
   );
   final sharedPreferences = await SharedPreferences.getInstance();
-  final overlaySettingsService = SharedPreferencesMapOverlaySettingsService(
-    preferences: sharedPreferences,
-  );
   final mapProviderSelectionService = HttpMapProviderSelectionService();
   final resolvedMapProvider = await mapProviderSelectionService
       .resolveForSession(mapTilerKey: dotenv.env['MAPTILER_KEY'] ?? '');
@@ -74,7 +56,6 @@ Future<void> main() async {
     attributionService: UrlLauncherMapAttributionService(
       attributionUri: resolvedMapProvider.attributionUri,
     ),
-    overlaySettingsService: overlaySettingsService,
   );
   final permissionRequestStore = SharedPreferencesPermissionRequestStore(
     preferences: sharedPreferences,
@@ -116,39 +97,6 @@ Future<void> main() async {
     exportService: locationHistoryExportService,
     h3Service: locationHistoryH3Service,
   );
-  const visitedGridConfig = VisitedGridConfig();
-  final visitedGridDatabase = VisitedGridDatabase(shareAcrossIsolates: true);
-  final visitedGridH3Service = VisitedGridH3Service();
-  const fogConfig = FogOfWarConfig();
-  final fogCacheService = FogOfWarTileCacheService(
-    pathProvider: PathProviderTileCachePathProvider(),
-    maxEntries: fogConfig.cacheMaxEntries,
-  );
-  final exploredAreaLogger = ConsoleExploredAreaLogger();
-  final visitedGridRepository = DefaultVisitedGridRepository(
-    locationUpdatesRepository: locationUpdatesRepository,
-    visitedGridDao: visitedGridDatabase.visitedGridDao,
-    locationHistoryDao: locationHistoryDatabase.locationHistoryDao,
-    h3Service: visitedGridH3Service,
-    exploredAreaLogger: exploredAreaLogger,
-    overlayCacheService: fogCacheService,
-    appVersion: kAppVersion,
-    schemaVersion: visitedGridDatabase.schemaVersion,
-    config: visitedGridConfig,
-  );
-  final fogRasterService = FogOfWarTileRasterService();
-  final fogTileRepository = FogOfWarTileRepository(
-    visitedGridDao: visitedGridDatabase.visitedGridDao,
-    h3Service: visitedGridH3Service,
-    rasterService: fogRasterService,
-    cacheService: fogCacheService,
-    visitedGridConfig: visitedGridConfig,
-    config: fogConfig,
-  );
-  final fogOverlayController = DefaultFogOfWarOverlayController(
-    visitedGridRepository: visitedGridRepository,
-    tileRepository: fogTileRepository,
-  );
   final mapViewModel = MapViewModel(
     mapRepository: mapRepository,
     locationUpdatesRepository: locationUpdatesRepository,
@@ -167,24 +115,8 @@ Future<void> main() async {
       ),
       parserService: XmlGpxParserService(),
       locationHistoryRepository: locationHistoryRepository,
-      visitedGridRepository: visitedGridRepository,
       config: locationTrackingConfig,
     ),
-  );
-  final exploredAreaViewModel = ExploredAreaViewModel(
-    visitedGridRepository: visitedGridRepository,
-  );
-  final manualExploreRepository = DefaultManualExploreRepository(
-    historyRepository: locationHistoryRepository,
-    historyDao: locationHistoryDatabase.locationHistoryDao,
-    visitedGridRepository: visitedGridRepository,
-    h3Service: visitedGridH3Service,
-    config: visitedGridConfig,
-  );
-  final manualExploreViewModel = ManualExploreViewModel(
-    repository: manualExploreRepository,
-    mapRepository: mapRepository,
-    overlayController: fogOverlayController,
   );
 
   runApp(
@@ -196,8 +128,6 @@ Future<void> main() async {
         mapViewModel: mapViewModel,
         permissionsViewModel: permissionsViewModel,
         gpxImportViewModel: gpxImportViewModel,
-        exploredAreaViewModel: exploredAreaViewModel,
-        manualExploreViewModel: manualExploreViewModel,
       ),
     ),
   );

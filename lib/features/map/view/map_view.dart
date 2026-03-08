@@ -5,7 +5,6 @@ import 'package:explored/features/map/data/models/map_view_state.dart';
 import 'package:flutter/gestures.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_map/flutter_map.dart';
-import 'package:go_router/go_router.dart';
 import 'package:latlong2/latlong.dart';
 
 import '../../gpx_import/view/widgets/gpx_import_processing_overlay.dart';
@@ -16,8 +15,6 @@ import '../../../translations/locale_keys.g.dart';
 import '../../location/data/models/lat_lng_sample.dart';
 import '../view_model/map_view_model.dart';
 import 'widgets/attribution_banner.dart';
-import 'widgets/location_tracking_panel.dart';
-import 'widgets/location_tracking_panel_toggle.dart';
 import 'widgets/map_menu_button.dart';
 import 'widgets/map_scale_indicator.dart';
 
@@ -131,12 +128,6 @@ class _MapViewState extends State<MapView> {
                 ),
               Positioned(
                 top: 16,
-                left: 16,
-                right: 72,
-                child: SafeArea(child: _buildLocationPanel(state)),
-              ),
-              Positioned(
-                top: 16,
                 right: 16,
                 child: SafeArea(
                   child: MapMenuButton(onActionSelected: _handleMenuAction),
@@ -172,57 +163,6 @@ class _MapViewState extends State<MapView> {
           ),
         );
       },
-    );
-  }
-
-  Widget _buildLocationPanel(MapViewState state) {
-    return AnimatedSwitcher(
-      duration: const Duration(milliseconds: 250),
-      switchInCurve: Curves.easeInOut,
-      switchOutCurve: Curves.easeInOut,
-      child: state.isLocationPanelVisible
-          ? _buildExpandedLocationPanel(state)
-          : _buildCollapsedLocationPanel(),
-    );
-  }
-
-  Widget _buildExpandedLocationPanel(MapViewState state) {
-    return Stack(
-      key: const ValueKey('expanded-panel'),
-      clipBehavior: Clip.none,
-      children: [
-        LocationTrackingPanel(
-          key: const ValueKey('tracking-panel'),
-          state: state.locationTracking,
-        ),
-        Positioned(
-          top: -8,
-          right: -8,
-          child: Material(
-            color: Theme.of(context).colorScheme.surface,
-            shape: const CircleBorder(),
-            elevation: 2,
-            child: IconButton(
-              iconSize: 20,
-              tooltip: LocaleKeys.location_panel_collapse_tooltip.tr(),
-              onPressed: widget.viewModel.toggleLocationPanelVisibility,
-              icon: const Icon(Icons.close),
-            ),
-          ),
-        ),
-      ],
-    );
-  }
-
-  Widget _buildCollapsedLocationPanel() {
-    return Align(
-      key: const ValueKey('collapsed-panel'),
-      alignment: Alignment.centerLeft,
-      child: LocationTrackingPanelToggle(
-        label: LocaleKeys.location_panel_title.tr(),
-        tooltip: LocaleKeys.location_panel_expand_tooltip.tr(),
-        onTap: () => widget.viewModel.setLocationPanelVisibility(true),
-      ),
     );
   }
 
@@ -318,12 +258,6 @@ class _MapViewState extends State<MapView> {
       case MapMenuAction.downloadHistory:
         await widget.viewModel.downloadHistory();
         break;
-      case MapMenuAction.exploredArea:
-        await _openExploredArea();
-        break;
-      case MapMenuAction.manualExplore:
-        await _openManualExplore();
-        break;
     }
   }
 
@@ -343,22 +277,6 @@ class _MapViewState extends State<MapView> {
       builder: (_) =>
           PermissionsManagementView(viewModel: widget.permissionsViewModel),
     );
-  }
-
-  Future<void> _openExploredArea() async {
-    await Future<void>.delayed(Duration.zero);
-    if (!mounted) {
-      return;
-    }
-    context.push('/explored-area');
-  }
-
-  Future<void> _openManualExplore() async {
-    await Future<void>.delayed(Duration.zero);
-    if (!mounted) {
-      return;
-    }
-    context.push('/manual-explore');
   }
 
   List<CircleMarker> _buildPersistedCircles(MapViewState state) {

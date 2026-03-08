@@ -11,7 +11,6 @@ import 'package:explored/features/location/data/repositories/location_updates_re
 import 'package:explored/features/map/data/models/map_tile_source.dart';
 import 'package:explored/features/map/data/repositories/map_repository.dart';
 import 'package:explored/features/map/data/services/map_attribution_service.dart';
-import 'package:explored/features/map/data/services/map_overlay_settings_service.dart';
 import 'package:explored/features/map/data/services/map_tile_service.dart';
 import 'package:explored/features/map/view_model/map_view_model.dart';
 import 'package:explored/features/permissions/data/models/app_permission.dart';
@@ -34,18 +33,6 @@ class FakeMapAttributionService implements MapAttributionService {
   @override
   Future<void> openAttribution() async {
     opened = true;
-  }
-}
-
-class FakeOverlaySettingsService implements MapOverlaySettingsService {
-  int? storedSize;
-
-  @override
-  Future<int?> loadTileSize() async => storedSize;
-
-  @override
-  Future<void> saveTileSize(int size) async {
-    storedSize = size;
   }
 }
 
@@ -227,14 +214,10 @@ class FakePermissionsRepository implements PermissionsRepository {
   Future<void> requestPermission(AppPermissionType type) async {}
 }
 
-MapRepository buildMapRepository({
-  FakeOverlaySettingsService? overlaySettingsService,
-}) {
+MapRepository buildMapRepository() {
   return MapRepository(
     tileService: FakeMapTileService(),
     attributionService: FakeMapAttributionService(),
-    overlaySettingsService:
-        overlaySettingsService ?? FakeOverlaySettingsService(),
   );
 }
 
@@ -244,7 +227,6 @@ void main() {
     final mapRepository = MapRepository(
       tileService: FakeMapTileService(),
       attributionService: FakeMapAttributionService(),
-      overlaySettingsService: FakeOverlaySettingsService(),
     );
     final viewModel = MapViewModel(
       mapRepository: mapRepository,
@@ -299,7 +281,6 @@ void main() {
     final mapRepository = MapRepository(
       tileService: FakeMapTileService(),
       attributionService: FakeMapAttributionService(),
-      overlaySettingsService: FakeOverlaySettingsService(),
     );
     final viewModel = MapViewModel(
       mapRepository: mapRepository,
@@ -320,7 +301,6 @@ void main() {
     final mapRepository = MapRepository(
       tileService: FakeMapTileService(),
       attributionService: FakeMapAttributionService(),
-      overlaySettingsService: FakeOverlaySettingsService(),
     );
     final viewModel = MapViewModel(
       mapRepository: mapRepository,
@@ -345,7 +325,6 @@ void main() {
     final mapRepository = MapRepository(
       tileService: FakeMapTileService(),
       attributionService: FakeMapAttributionService(),
-      overlaySettingsService: FakeOverlaySettingsService(),
     );
     final viewModel = MapViewModel(
       mapRepository: mapRepository,
@@ -368,7 +347,6 @@ void main() {
     final mapRepository = MapRepository(
       tileService: FakeMapTileService(),
       attributionService: FakeMapAttributionService(),
-      overlaySettingsService: FakeOverlaySettingsService(),
     );
     final viewModel = MapViewModel(
       mapRepository: mapRepository,
@@ -396,7 +374,6 @@ void main() {
     final mapRepository = MapRepository(
       tileService: FakeMapTileService(),
       attributionService: FakeMapAttributionService(),
-      overlaySettingsService: FakeOverlaySettingsService(),
     );
     final viewModel = MapViewModel(
       mapRepository: mapRepository,
@@ -426,7 +403,6 @@ void main() {
     final mapRepository = MapRepository(
       tileService: FakeMapTileService(),
       attributionService: FakeMapAttributionService(),
-      overlaySettingsService: FakeOverlaySettingsService(),
     );
     final viewModel = MapViewModel(
       mapRepository: mapRepository,
@@ -459,7 +435,6 @@ void main() {
       final mapRepository = MapRepository(
         tileService: FakeMapTileService(),
         attributionService: FakeMapAttributionService(),
-        overlaySettingsService: FakeOverlaySettingsService(),
       );
       final viewModel = MapViewModel(
         mapRepository: mapRepository,
@@ -483,7 +458,6 @@ void main() {
     final mapRepository = MapRepository(
       tileService: FakeMapTileService(),
       attributionService: FakeMapAttributionService(),
-      overlaySettingsService: FakeOverlaySettingsService(),
     );
     final historyRepository = FakeLocationHistoryRepository()
       ..exportResult = const HistoryExportResult.success(
@@ -510,7 +484,6 @@ void main() {
     final mapRepository = MapRepository(
       tileService: FakeMapTileService(),
       attributionService: FakeMapAttributionService(),
-      overlaySettingsService: FakeOverlaySettingsService(),
     );
     final historyRepository = FakeLocationHistoryRepository()
       ..exportResult = const HistoryExportResult.failure(error: 'boom');
@@ -535,7 +508,6 @@ void main() {
     final mapRepository = MapRepository(
       tileService: FakeMapTileService(),
       attributionService: FakeMapAttributionService(),
-      overlaySettingsService: FakeOverlaySettingsService(),
     );
     final historyRepository = FakeLocationHistoryRepository()
       ..downloadResult = const HistoryExportResult.success(
@@ -562,7 +534,6 @@ void main() {
     final mapRepository = MapRepository(
       tileService: FakeMapTileService(),
       attributionService: FakeMapAttributionService(),
-      overlaySettingsService: FakeOverlaySettingsService(),
     );
     final historyRepository = FakeLocationHistoryRepository()
       ..downloadResult = const HistoryExportResult.failure(error: 'boom');

@@ -1,1 +1,0 @@
-enum ManualExploreEditKind { add, delete }

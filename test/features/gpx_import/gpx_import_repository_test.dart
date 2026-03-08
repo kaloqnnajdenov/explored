@@ -1,4 +1,3 @@
-import 'dart:async';
 import 'dart:typed_data';
 
 import 'package:file_picker/file_picker.dart';
@@ -14,13 +13,6 @@ import 'package:explored/features/location/data/models/lat_lng_sample.dart';
 import 'package:explored/features/location/data/repositories/location_history_repository.dart';
 import 'package:explored/features/location/data/services/platform_info.dart';
 import 'package:explored/features/permissions/data/services/file_access_permission_service.dart';
-import 'package:explored/features/visited_grid/data/models/visited_grid_bounds.dart';
-import 'package:explored/features/visited_grid/data/models/visited_grid_cell_update.dart';
-import 'package:explored/features/visited_grid/data/models/visited_grid_overlay.dart';
-import 'package:explored/features/visited_grid/data/models/visited_grid_stats.dart';
-import 'package:explored/features/visited_grid/data/models/visited_overlay_polygon.dart';
-import 'package:explored/features/visited_grid/data/models/visited_time_filter.dart';
-import 'package:explored/features/visited_grid/data/repositories/visited_grid_repository.dart';
 
 class FakePlatformInfo implements PlatformInfo {
   FakePlatformInfo({
@@ -56,18 +48,17 @@ class FakeFileAccessPermissionService implements FileAccessPermissionService {
 }
 
 class FakeGpxFilePickerService extends GpxFilePickerService {
-  FakeGpxFilePickerService(
-    this.selection, {
-    PlatformInfo? platformInfo,
-  }) : super(
-          client: _FakeFilePickerClient(selection),
-          platformInfo: platformInfo ??
-              FakePlatformInfo(
-                isAndroid: false,
-                isIOS: true,
-                androidSdkInt: null,
-              ),
-        );
+  FakeGpxFilePickerService(this.selection, {PlatformInfo? platformInfo})
+    : super(
+        client: _FakeFilePickerClient(selection),
+        platformInfo:
+            platformInfo ??
+            FakePlatformInfo(
+              isAndroid: false,
+              isIOS: true,
+              androidSdkInt: null,
+            ),
+      );
 
   final GpxSelectedFile? selection;
 }
@@ -154,71 +145,6 @@ class FakeLocationHistoryRepository implements LocationHistoryRepository {
   }
 }
 
-class FakeVisitedGridRepository implements VisitedGridRepository {
-  List<LatLngSample> ingested = <LatLngSample>[];
-  final StreamController<VisitedGridCellUpdate> _cellUpdates =
-      StreamController<VisitedGridCellUpdate>.broadcast();
-  final StreamController<VisitedGridStats> _statsUpdates =
-      StreamController<VisitedGridStats>.broadcast();
-
-  @override
-  Stream<VisitedGridCellUpdate> get cellUpdates => _cellUpdates.stream;
-
-  @override
-  Stream<VisitedGridStats> get statsUpdates => _statsUpdates.stream;
-
-  @override
-  Future<void> start() async {}
-
-  @override
-  Future<void> stop() async {}
-
-  @override
-  Future<void> dispose() async {
-    await _cellUpdates.close();
-    await _statsUpdates.close();
-  }
-
-  @override
-  Future<void> ingestSamples(Iterable<LatLngSample> samples) async {
-    ingested = List<LatLngSample>.from(samples);
-  }
-
-  @override
-  Future<void> rebuildFromHistory() async {}
-
-  @override
-  Future<VisitedGridStats> fetchStats() async {
-    return const VisitedGridStats(
-      totalAreaM2: 0,
-      cellCount: 0,
-      canonicalVersion: 0,
-    );
-  }
-
-  @override
-  Future<double> fetchExploredAreaKm2({
-    DateTime? start,
-    DateTime? end,
-  }) async =>
-      0;
-
-  @override
-  Future<void> logExploredAreaViewed() async {}
-
-  @override
-  Future<VisitedGridOverlay> loadOverlay({
-    required VisitedGridBounds bounds,
-    required double zoom,
-    required VisitedTimeFilter timeFilter,
-  }) async {
-    return const VisitedGridOverlay(
-      resolution: 0,
-      polygons: <VisitedOverlayPolygon>[],
-    );
-  }
-}
-
 void main() {
   test('prepareImport fails when permission is denied', () async {
     final repository = DefaultGpxImportRepository(
@@ -229,7 +155,6 @@ void main() {
       filePickerService: FakeGpxFilePickerService(null),
       parserService: FakeGpxParserService(const []),
       locationHistoryRepository: FakeLocationHistoryRepository(),
-      visitedGridRepository: FakeVisitedGridRepository(),
       config: const LocationTrackingConfig(),
     );
 
@@ -246,14 +171,10 @@ void main() {
         requestResult: true,
       ),
       filePickerService: FakeGpxFilePickerService(
-        GpxSelectedFile(
-          name: 'track.txt',
-          bytes: Uint8List.fromList([1, 2]),
-        ),
+        GpxSelectedFile(name: 'track.txt', bytes: Uint8List.fromList([1, 2])),
       ),
       parserService: FakeGpxParserService(const []),
       locationHistoryRepository: FakeLocationHistoryRepository(),
-      visitedGridRepository: FakeVisitedGridRepository(),
       config: const LocationTrackingConfig(),
     );
 
@@ -265,37 +186,30 @@ void main() {
 
   test('processFile parses points and fills gaps', () async {
     final historyRepository = FakeLocationHistoryRepository();
-    final visitedGridRepository = FakeVisitedGridRepository();
     final repository = DefaultGpxImportRepository(
       fileAccessPermissionService: FakeFileAccessPermissionService(
         granted: true,
         requestResult: true,
       ),
       filePickerService: FakeGpxFilePickerService(null),
-      parserService: FakeGpxParserService(
-        [
-          GpxPoint(
-            latitude: 42.0,
-            longitude: 23.0,
-            timestamp: DateTime.utc(2024, 1, 1, 0, 0, 0),
-          ),
-          GpxPoint(
-            latitude: 42.0001,
-            longitude: 23.0001,
-            timestamp: DateTime.utc(2024, 1, 1, 0, 0, 30),
-          ),
-        ],
-      ),
+      parserService: FakeGpxParserService([
+        GpxPoint(
+          latitude: 42.0,
+          longitude: 23.0,
+          timestamp: DateTime.utc(2024, 1, 1, 0, 0, 0),
+        ),
+        GpxPoint(
+          latitude: 42.0001,
+          longitude: 23.0001,
+          timestamp: DateTime.utc(2024, 1, 1, 0, 0, 30),
+        ),
+      ]),
       locationHistoryRepository: historyRepository,
-      visitedGridRepository: visitedGridRepository,
       config: const LocationTrackingConfig(gapFillIntervalSeconds: 15),
     );
 
     final result = await repository.processFile(
-      GpxSelectedFile(
-        name: 'track.gpx',
-        bytes: Uint8List.fromList([1, 2]),
-      ),
+      GpxSelectedFile(name: 'track.gpx', bytes: Uint8List.fromList([1, 2])),
     );
 
     expect(result.outcome, GpxImportOutcome.success);
@@ -304,10 +218,10 @@ void main() {
       historyRepository.addedSamples.any((sample) => sample.isInterpolated),
       isTrue,
     );
-    expect(visitedGridRepository.ingested.length, 3);
     expect(
-      historyRepository.addedSamples
-          .every((sample) => sample.source == LatLngSampleSource.imported),
+      historyRepository.addedSamples.every(
+        (sample) => sample.source == LatLngSampleSource.imported,
+      ),
       isTrue,
     );
   });

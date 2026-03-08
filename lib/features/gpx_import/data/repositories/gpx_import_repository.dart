@@ -8,7 +8,6 @@ import 'package:explored/features/location/data/location_tracking_config.dart';
 import 'package:explored/features/location/data/models/lat_lng_sample.dart';
 import 'package:explored/features/location/data/repositories/location_gap_filler.dart';
 import 'package:explored/features/location/data/repositories/location_history_repository.dart';
-import 'package:explored/features/visited_grid/data/repositories/visited_grid_repository.dart';
 
 enum GpxImportOutcome { success, cancelled, failure }
 
@@ -50,22 +49,19 @@ class DefaultGpxImportRepository implements GpxImportRepository {
     required GpxFilePickerService filePickerService,
     required GpxParserService parserService,
     required LocationHistoryRepository locationHistoryRepository,
-    required VisitedGridRepository visitedGridRepository,
     required LocationTrackingConfig config,
     DateTime Function()? nowProvider,
-  })  : _fileAccessPermissionService = fileAccessPermissionService,
-        _filePickerService = filePickerService,
-        _parserService = parserService,
-        _locationHistoryRepository = locationHistoryRepository,
-        _visitedGridRepository = visitedGridRepository,
-        _config = config,
-        _now = nowProvider ?? DateTime.now;
+  }) : _fileAccessPermissionService = fileAccessPermissionService,
+       _filePickerService = filePickerService,
+       _parserService = parserService,
+       _locationHistoryRepository = locationHistoryRepository,
+       _config = config,
+       _now = nowProvider ?? DateTime.now;
 
   final FileAccessPermissionService _fileAccessPermissionService;
   final GpxFilePickerService _filePickerService;
   final GpxParserService _parserService;
   final LocationHistoryRepository _locationHistoryRepository;
-  final VisitedGridRepository _visitedGridRepository;
   final LocationTrackingConfig _config;
   final DateTime Function() _now;
 
@@ -129,11 +125,9 @@ class DefaultGpxImportRepository implements GpxImportRepository {
       }
 
       final filledSamples = _fillGaps(samples);
-      final addedSamples =
-          await _locationHistoryRepository.addImportedSamples(filledSamples);
-      if (addedSamples.isNotEmpty) {
-        await _visitedGridRepository.ingestSamples(addedSamples);
-      }
+      final addedSamples = await _locationHistoryRepository.addImportedSamples(
+        filledSamples,
+      );
 
       return GpxImportResult(
         outcome: GpxImportOutcome.success,
@@ -164,8 +158,7 @@ class DefaultGpxImportRepository implements GpxImportRepository {
       DateTime timestamp;
       if (point.timestamp != null) {
         timestamp = point.timestamp!.toUtc();
-        if (lastTimestamp != null &&
-            !timestamp.isAfter(lastTimestamp)) {
+        if (lastTimestamp != null && !timestamp.isAfter(lastTimestamp)) {
           timestamp = lastTimestamp.add(const Duration(seconds: 1));
         }
       } else if (lastTimestamp != null) {

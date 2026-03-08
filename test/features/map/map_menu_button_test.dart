@@ -11,9 +11,7 @@ void main() {
       Scaffold(
         body: Align(
           alignment: Alignment.topRight,
-          child: MapMenuButton(
-            onActionSelected: (action) => selected = action,
-          ),
+          child: MapMenuButton(onActionSelected: (action) => selected = action),
         ),
       ),
     );
@@ -30,9 +28,6 @@ void main() {
     expect(find.text('Import GPX file'), findsOneWidget);
     expect(find.text('Export'), findsOneWidget);
     expect(find.text('Download'), findsOneWidget);
-    expect(find.text('Explored area'), findsOneWidget);
-    expect(find.text('Manual explore'), findsOneWidget);
-    expect(find.text('Overlay tile size'), findsOneWidget);
     expect(selected, isNull);
     expect(tester.takeException(), isNull);
   });
