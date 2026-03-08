@@ -7,7 +7,6 @@ import 'package:explored/features/gpx_import/data/models/gpx_point.dart';
 import 'package:explored/features/gpx_import/data/repositories/gpx_import_repository.dart';
 import 'package:explored/features/gpx_import/data/services/gpx_file_picker_service.dart';
 import 'package:explored/features/gpx_import/data/services/gpx_parser_service.dart';
-import 'package:explored/features/location/data/location_tracking_config.dart';
 import 'package:explored/features/location/data/models/history_export_result.dart';
 import 'package:explored/features/location/data/models/lat_lng_sample.dart';
 import 'package:explored/features/location/data/repositories/location_history_repository.dart';
@@ -155,7 +154,6 @@ void main() {
       filePickerService: FakeGpxFilePickerService(null),
       parserService: FakeGpxParserService(const []),
       locationHistoryRepository: FakeLocationHistoryRepository(),
-      config: const LocationTrackingConfig(),
     );
 
     final preparation = await repository.prepareImport();
@@ -175,7 +173,6 @@ void main() {
       ),
       parserService: FakeGpxParserService(const []),
       locationHistoryRepository: FakeLocationHistoryRepository(),
-      config: const LocationTrackingConfig(),
     );
 
     final preparation = await repository.prepareImport();
@@ -184,45 +181,49 @@ void main() {
     expect(preparation.messageKey, 'gpx_import_invalid_extension');
   });
 
-  test('processFile parses points and fills gaps', () async {
-    final historyRepository = FakeLocationHistoryRepository();
-    final repository = DefaultGpxImportRepository(
-      fileAccessPermissionService: FakeFileAccessPermissionService(
-        granted: true,
-        requestResult: true,
-      ),
-      filePickerService: FakeGpxFilePickerService(null),
-      parserService: FakeGpxParserService([
-        GpxPoint(
-          latitude: 42.0,
-          longitude: 23.0,
-          timestamp: DateTime.utc(2024, 1, 1, 0, 0, 0),
+  test(
+    'processFile parses points without inserting interpolated points',
+    () async {
+      final historyRepository = FakeLocationHistoryRepository();
+      final repository = DefaultGpxImportRepository(
+        fileAccessPermissionService: FakeFileAccessPermissionService(
+          granted: true,
+          requestResult: true,
         ),
-        GpxPoint(
-          latitude: 42.0001,
-          longitude: 23.0001,
-          timestamp: DateTime.utc(2024, 1, 1, 0, 0, 30),
+        filePickerService: FakeGpxFilePickerService(null),
+        parserService: FakeGpxParserService([
+          GpxPoint(
+            latitude: 42.0,
+            longitude: 23.0,
+            timestamp: DateTime.utc(2024, 1, 1, 0, 0, 0),
+          ),
+          GpxPoint(
+            latitude: 42.0001,
+            longitude: 23.0001,
+            timestamp: DateTime.utc(2024, 1, 1, 0, 0, 30),
+          ),
+        ]),
+        locationHistoryRepository: historyRepository,
+      );
+
+      final result = await repository.processFile(
+        GpxSelectedFile(name: 'track.gpx', bytes: Uint8List.fromList([1, 2])),
+      );
+
+      expect(result.outcome, GpxImportOutcome.success);
+      expect(historyRepository.addedSamples.length, 2);
+      expect(
+        historyRepository.addedSamples.every(
+          (sample) => !sample.isInterpolated,
         ),
-      ]),
-      locationHistoryRepository: historyRepository,
-      config: const LocationTrackingConfig(gapFillIntervalSeconds: 15),
-    );
-
-    final result = await repository.processFile(
-      GpxSelectedFile(name: 'track.gpx', bytes: Uint8List.fromList([1, 2])),
-    );
-
-    expect(result.outcome, GpxImportOutcome.success);
-    expect(historyRepository.addedSamples.length, 3);
-    expect(
-      historyRepository.addedSamples.any((sample) => sample.isInterpolated),
-      isTrue,
-    );
-    expect(
-      historyRepository.addedSamples.every(
-        (sample) => sample.source == LatLngSampleSource.imported,
-      ),
-      isTrue,
-    );
-  });
+        isTrue,
+      );
+      expect(
+        historyRepository.addedSamples.every(
+          (sample) => sample.source == LatLngSampleSource.imported,
+        ),
+        isTrue,
+      );
+    },
+  );
 }

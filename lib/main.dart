@@ -82,7 +82,6 @@ Future<void> main() async {
     trackingService: trackingService,
     permissionService: locationPermissionService,
     platformInfo: platformInfo,
-    config: locationTrackingConfig,
   );
   final locationHistoryDatabase = LocationHistoryDatabase(
     shareAcrossIsolates: true,
@@ -118,7 +117,6 @@ Future<void> main() async {
       ),
       parserService: XmlGpxParserService(),
       locationHistoryRepository: locationHistoryRepository,
-      config: locationTrackingConfig,
     ),
   );
   final appStateRepository = DefaultAppStateRepository(

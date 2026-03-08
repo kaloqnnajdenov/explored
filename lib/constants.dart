@@ -1,5 +1,3 @@
-const int kLocationGapFillMaxMissingPoints = 20;
-
 const double kEarthRadiusMeters = 6371000.0;
 
 const int kBaseH3Resolution = 10;

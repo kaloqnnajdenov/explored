@@ -4,9 +4,7 @@ import 'package:explored/features/gpx_import/data/models/gpx_point.dart';
 import 'package:explored/features/gpx_import/data/services/gpx_file_picker_service.dart';
 import 'package:explored/features/gpx_import/data/services/gpx_parser_service.dart';
 import 'package:explored/features/permissions/data/services/file_access_permission_service.dart';
-import 'package:explored/features/location/data/location_tracking_config.dart';
 import 'package:explored/features/location/data/models/lat_lng_sample.dart';
-import 'package:explored/features/location/data/repositories/location_gap_filler.dart';
 import 'package:explored/features/location/data/repositories/location_history_repository.dart';
 
 enum GpxImportOutcome { success, cancelled, failure }
@@ -49,20 +47,17 @@ class DefaultGpxImportRepository implements GpxImportRepository {
     required GpxFilePickerService filePickerService,
     required GpxParserService parserService,
     required LocationHistoryRepository locationHistoryRepository,
-    required LocationTrackingConfig config,
     DateTime Function()? nowProvider,
   }) : _fileAccessPermissionService = fileAccessPermissionService,
        _filePickerService = filePickerService,
        _parserService = parserService,
        _locationHistoryRepository = locationHistoryRepository,
-       _config = config,
        _now = nowProvider ?? DateTime.now;
 
   final FileAccessPermissionService _fileAccessPermissionService;
   final GpxFilePickerService _filePickerService;
   final GpxParserService _parserService;
   final LocationHistoryRepository _locationHistoryRepository;
-  final LocationTrackingConfig _config;
   final DateTime Function() _now;
 
   @override
@@ -124,9 +119,8 @@ class DefaultGpxImportRepository implements GpxImportRepository {
         );
       }
 
-      final filledSamples = _fillGaps(samples);
       final addedSamples = await _locationHistoryRepository.addImportedSamples(
-        filledSamples,
+        samples,
       );
 
       return GpxImportResult(
@@ -146,7 +140,6 @@ class DefaultGpxImportRepository implements GpxImportRepository {
 
   List<LatLngSample> _buildSamples(List<GpxPoint> points) {
     final results = <LatLngSample>[];
-    final expectedInterval = _config.gapFillInterval;
     final baseTime = _now().toUtc();
     DateTime? lastTimestamp;
 
@@ -162,7 +155,7 @@ class DefaultGpxImportRepository implements GpxImportRepository {
           timestamp = lastTimestamp.add(const Duration(seconds: 1));
         }
       } else if (lastTimestamp != null) {
-        timestamp = lastTimestamp.add(expectedInterval);
+        timestamp = lastTimestamp.add(const Duration(seconds: 1));
       } else {
         timestamp = baseTime;
       }
@@ -180,20 +173,6 @@ class DefaultGpxImportRepository implements GpxImportRepository {
     }
 
     return results;
-  }
-
-  List<LatLngSample> _fillGaps(List<LatLngSample> samples) {
-    final gapFiller = LocationGapFiller(
-      expectedInterval: _config.gapFillInterval,
-      maxSpeedMps: _config.speedMaxMetersPerSecond,
-      maxDistanceMeters: _config.gapFillMaxDistanceMeters,
-    );
-
-    final outputs = <LatLngSample>[];
-    for (final sample in samples) {
-      outputs.addAll(gapFiller.handleSample(sample));
-    }
-    return outputs;
   }
 
   bool _isGpxFile(String filename) {

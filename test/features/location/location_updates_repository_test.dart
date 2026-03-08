@@ -1,7 +1,6 @@
 import 'package:flutter/foundation.dart';
 import 'package:flutter_test/flutter_test.dart';
 
-import 'package:explored/features/location/data/location_tracking_config.dart';
 import 'package:explored/features/location/data/models/lat_lng_sample.dart';
 import 'package:explored/features/location/data/models/location_permission_level.dart';
 import 'package:explored/features/location/data/repositories/location_updates_repository.dart';
@@ -27,8 +26,7 @@ class FakePlatformInfo implements PlatformInfo {
 }
 
 class FakeTrackingService implements LocationTrackingService {
-  final Stream<LatLngSample> _stream =
-      const Stream<LatLngSample>.empty();
+  final Stream<LatLngSample> _stream = const Stream<LatLngSample>.empty();
 
   int startCalls = 0;
   int stopCalls = 0;
@@ -142,7 +140,6 @@ void main() {
           isIOS: false,
           androidSdkInt: 33,
         ),
-        config: const LocationTrackingConfig(),
       );
 
       await repository.startTracking();
@@ -172,7 +169,6 @@ void main() {
           isIOS: false,
           androidSdkInt: 33,
         ),
-        config: const LocationTrackingConfig(),
       );
 
       await repository.startTracking();
