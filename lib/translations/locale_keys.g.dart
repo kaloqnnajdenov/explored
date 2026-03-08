@@ -4,6 +4,112 @@
 
 abstract class LocaleKeys {
   static const app_title = 'app_title';
+  static const common_coming_soon = 'common_coming_soon';
+  static const common_not_implemented = 'common_not_implemented';
+  static const onboarding_action_skip = 'onboarding_action_skip';
+  static const onboarding_action_next = 'onboarding_action_next';
+  static const onboarding_action_get_started = 'onboarding_action_get_started';
+  static const onboarding_slide1_title = 'onboarding_slide1_title';
+  static const onboarding_slide1_description = 'onboarding_slide1_description';
+  static const onboarding_slide2_title = 'onboarding_slide2_title';
+  static const onboarding_slide2_description = 'onboarding_slide2_description';
+  static const onboarding_slide3_title = 'onboarding_slide3_title';
+  static const onboarding_slide3_description = 'onboarding_slide3_description';
+  static const permissions_title_enable_tracking =
+      'permissions_title_enable_tracking';
+  static const permissions_subtitle = 'permissions_subtitle';
+  static const permissions_required_label = 'permissions_required_label';
+  static const permissions_optional_label = 'permissions_optional_label';
+  static const permissions_precise_location = 'permissions_precise_location';
+  static const permissions_background_location =
+      'permissions_background_location';
+  static const permissions_motion_activity = 'permissions_motion_activity';
+  static const permissions_notifications = 'permissions_notifications';
+  static const permissions_file_access = 'permissions_file_access';
+  static const permissions_action_grant_required =
+      'permissions_action_grant_required';
+  static const permissions_action_continue_limited =
+      'permissions_action_continue_limited';
+  static const permissions_status_granted_caps =
+      'permissions_status_granted_caps';
+  static const permissions_status_not_granted_caps =
+      'permissions_status_not_granted_caps';
+  static const progress_total_explored_label = 'progress_total_explored_label';
+  static const progress_last_7_days_placeholder =
+      'progress_last_7_days_placeholder';
+  static const progress_current_region_label = 'progress_current_region_label';
+  static const progress_region_area_placeholder =
+      'progress_region_area_placeholder';
+  static const progress_tap_find_region = 'progress_tap_find_region';
+  static const progress_feature_trails = 'progress_feature_trails';
+  static const progress_feature_peaks = 'progress_feature_peaks';
+  static const progress_feature_huts = 'progress_feature_huts';
+  static const progress_tracking_active = 'progress_tracking_active';
+  static const progress_gps_status = 'progress_gps_status';
+  static const progress_battery_ok = 'progress_battery_ok';
+  static const region_finder_title = 'region_finder_title';
+  static const region_finder_search_hint = 'region_finder_search_hint';
+  static const region_finder_chip_near_me = 'region_finder_chip_near_me';
+  static const region_finder_chip_map_area = 'region_finder_chip_map_area';
+  static const region_finder_search_area = 'region_finder_search_area';
+  static const region_finder_results_count = 'region_finder_results_count';
+  static const region_finder_empty_title = 'region_finder_empty_title';
+  static const region_finder_empty_subtitle = 'region_finder_empty_subtitle';
+  static const region_finder_current_badge = 'region_finder_current_badge';
+  static const region_finder_area = 'region_finder_area';
+  static const region_finder_action_select = 'region_finder_action_select';
+  static const region_finder_action_selected = 'region_finder_action_selected';
+  static const map_action_add_point = 'map_action_add_point';
+  static const map_action_delete_point = 'map_action_delete_point';
+  static const map_banner_add_mode = 'map_banner_add_mode';
+  static const map_banner_delete_mode = 'map_banner_delete_mode';
+  static const region_detail_action_map = 'region_detail_action_map';
+  static const region_detail_stats_placeholder =
+      'region_detail_stats_placeholder';
+  static const region_detail_tab_trails = 'region_detail_tab_trails';
+  static const region_detail_tab_peaks = 'region_detail_tab_peaks';
+  static const region_detail_tab_huts = 'region_detail_tab_huts';
+  static const region_detail_search_hint = 'region_detail_search_hint';
+  static const region_detail_end_of_list = 'region_detail_end_of_list';
+  static const region_detail_item_name = 'region_detail_item_name';
+  static const region_detail_download_prompt_title =
+      'region_detail_download_prompt_title';
+  static const region_detail_download_prompt_subtitle =
+      'region_detail_download_prompt_subtitle';
+  static const region_detail_download_action = 'region_detail_download_action';
+  static const region_detail_download_later = 'region_detail_download_later';
+  static const settings_title = 'settings_title';
+  static const settings_profile_name = 'settings_profile_name';
+  static const settings_profile_subtitle = 'settings_profile_subtitle';
+  static const settings_region_packs_title = 'settings_region_packs_title';
+  static const settings_data_storage_title = 'settings_data_storage_title';
+  static const settings_manual_edit_mode = 'settings_manual_edit_mode';
+  static const settings_import_gpx = 'settings_import_gpx';
+  static const settings_export_csv = 'settings_export_csv';
+  static const settings_download_action = 'settings_download_action';
+  static const settings_version_text = 'settings_version_text';
+  static const profile_title = 'profile_title';
+  static const profile_level_badge = 'profile_level_badge';
+  static const profile_name = 'profile_name';
+  static const profile_member_since = 'profile_member_since';
+  static const profile_stat_regions_visited = 'profile_stat_regions_visited';
+  static const profile_stat_total_distance = 'profile_stat_total_distance';
+  static const profile_stat_days_active = 'profile_stat_days_active';
+  static const profile_stat_explored = 'profile_stat_explored';
+  static const profile_achievements_title = 'profile_achievements_title';
+  static const profile_achievement_peak_bagger =
+      'profile_achievement_peak_bagger';
+  static const profile_achievement_early_bird =
+      'profile_achievement_early_bird';
+  static const profile_achievement_trailblazer =
+      'profile_achievement_trailblazer';
+  static const profile_achievement_date_1 = 'profile_achievement_date_1';
+  static const profile_achievement_date_2 = 'profile_achievement_date_2';
+  static const profile_achievement_date_3 = 'profile_achievement_date_3';
+  static const profile_action_edit_profile = 'profile_action_edit_profile';
+  static const profile_action_notifications = 'profile_action_notifications';
+  static const profile_action_privacy = 'profile_action_privacy';
+  static const profile_action_sign_out = 'profile_action_sign_out';
   static const download_failed = 'download_failed';
   static const download_ready = 'download_ready';
   static const export_failed = 'export_failed';
@@ -94,9 +200,6 @@ abstract class LocaleKeys {
   static const map_scale_meters = 'map_scale_meters';
   static const menu_download = 'menu_download';
   static const menu_export = 'menu_export';
-  static const menu_import_gpx = 'menu_import_gpx';
-  static const menu_open_tooltip = 'menu_open_tooltip';
-  static const menu_permissions_management = 'menu_permissions_management';
   static const permissions_action_close = 'permissions_action_close';
   static const permissions_action_request = 'permissions_action_request';
   static const permissions_error_generic = 'permissions_error_generic';

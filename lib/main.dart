@@ -4,6 +4,9 @@ import 'package:flutter_dotenv/flutter_dotenv.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
 import 'app/explored_app.dart';
+import 'features/app_state/data/repositories/app_state_repository.dart';
+import 'features/app_state/data/services/app_state_prefs_service.dart';
+import 'features/app_state/view_model/app_state_view_model.dart';
 import 'features/gpx_import/data/repositories/gpx_import_repository.dart';
 import 'features/gpx_import/data/services/gpx_file_picker_service.dart';
 import 'features/gpx_import/data/services/gpx_parser_service.dart';
@@ -118,6 +121,14 @@ Future<void> main() async {
       config: locationTrackingConfig,
     ),
   );
+  final appStateRepository = DefaultAppStateRepository(
+    prefsService: AppStatePrefsService(preferences: sharedPreferences),
+  );
+  final appStateSnapshot = await appStateRepository.load();
+  final appStateViewModel = AppStateViewModel(
+    repository: appStateRepository,
+    initialState: appStateSnapshot,
+  );
 
   runApp(
     EasyLocalization(
@@ -125,6 +136,7 @@ Future<void> main() async {
       path: 'assets/translations',
       fallbackLocale: const Locale('en'),
       child: ExploredApp(
+        appStateViewModel: appStateViewModel,
         mapViewModel: mapViewModel,
         permissionsViewModel: permissionsViewModel,
         gpxImportViewModel: gpxImportViewModel,

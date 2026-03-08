@@ -7,29 +7,24 @@ import 'package:flutter/material.dart';
 import 'package:flutter_map/flutter_map.dart';
 import 'package:latlong2/latlong.dart';
 
-import '../../gpx_import/view/widgets/gpx_import_processing_overlay.dart';
-import '../../gpx_import/view_model/gpx_import_view_model.dart';
-import '../../permissions/view/permissions_management_view.dart';
-import '../../permissions/view_model/permissions_view_model.dart';
-import '../../../translations/locale_keys.g.dart';
 import '../../location/data/models/lat_lng_sample.dart';
+import '../../../translations/locale_keys.g.dart';
 import '../view_model/map_view_model.dart';
 import 'widgets/attribution_banner.dart';
-import 'widgets/map_menu_button.dart';
-import 'widgets/map_scale_indicator.dart';
+import 'widgets/tracked_history_map.dart';
 
 /// Map screen view; renders state from [MapViewModel] without holding logic.
 class MapView extends StatefulWidget {
   const MapView({
     required this.viewModel,
-    required this.permissionsViewModel,
-    required this.gpxImportViewModel,
     super.key,
+    this.showBackButton = false,
+    this.onBack,
   });
 
   final MapViewModel viewModel;
-  final PermissionsViewModel permissionsViewModel;
-  final GpxImportViewModel gpxImportViewModel;
+  final bool showBackButton;
+  final VoidCallback? onBack;
 
   @override
   State<MapView> createState() => _MapViewState();
@@ -39,10 +34,6 @@ class MapView extends StatefulWidget {
 class _MapViewState extends State<MapView> {
   late final MapController _mapController;
   late final TapGestureRecognizer _attributionTapRecognizer;
-  List<LatLngSample>? _lastPersistedSamples;
-  List<CircleMarker> _cachedPersistedCircles = const [];
-  int? _lastGpxFeedbackId;
-  int? _lastExportFeedbackId;
 
   @override
   void initState() {
@@ -86,36 +77,15 @@ class _MapViewState extends State<MapView> {
                       ? constraints.maxHeight
                       : MediaQuery.sizeOf(context).height;
                   final minZoom = _minZoomForHeight(height);
-                  return FlutterMap(
+                  return TrackedHistoryMap(
                     mapController: _mapController,
-                    options: MapOptions(
-                      initialCenter: state.center,
-                      initialZoom: state.zoom,
-                      minZoom: minZoom,
-                    ),
-                    children: [
-                      TileLayer(
-                        urlTemplate: state.tileSource.urlTemplate,
-                        subdomains: state.tileSource.subdomains,
-                        userAgentPackageName:
-                            state.tileSource.userAgentPackageName,
-                        tileProvider: state.tileSource.tileProvider,
-                      ),
-                      if (state.persistedSamples.isNotEmpty)
-                        CircleLayer(circles: _buildPersistedCircles(state)),
-                      if (lastLocation != null)
-                        MarkerLayer(
-                          markers: [
-                            _buildLocationMarker(
-                              LatLng(
-                                lastLocation.latitude,
-                                lastLocation.longitude,
-                              ),
-                            ),
-                          ],
-                        ),
-                      const MapScaleIndicator(),
-                    ],
+                    tileSource: state.tileSource,
+                    persistedSamples: state.persistedSamples,
+                    currentLocation: _toLatLng(lastLocation),
+                    initialCenter: state.center,
+                    initialZoom: state.zoom,
+                    minZoom: minZoom,
+                    showScaleIndicator: true,
                   );
                 },
               ),
@@ -126,13 +96,18 @@ class _MapViewState extends State<MapView> {
                   right: 72,
                   child: Icon(Icons.error_outline, color: Colors.redAccent),
                 ),
-              Positioned(
-                top: 16,
-                right: 16,
-                child: SafeArea(
-                  child: MapMenuButton(onActionSelected: _handleMenuAction),
+              if (widget.showBackButton)
+                Positioned(
+                  top: 16,
+                  left: 16,
+                  child: SafeArea(
+                    child: FloatingActionButton.small(
+                      heroTag: 'map_view_back_button',
+                      onPressed: widget.onBack,
+                      child: const Icon(Icons.arrow_back),
+                    ),
+                  ),
                 ),
-              ),
               Positioned(
                 bottom: 24,
                 right: 16,
@@ -156,38 +131,10 @@ class _MapViewState extends State<MapView> {
                   tapRecognizer: _attributionTapRecognizer,
                 ),
               ),
-              GpxImportProcessingOverlay(viewModel: widget.gpxImportViewModel),
-              _buildGpxFeedbackListener(),
-              _buildExportFeedbackListener(),
             ],
           ),
         );
       },
-    );
-  }
-
-  Marker _buildLocationMarker(LatLng position) {
-    return Marker(
-      point: position,
-      width: 28,
-      height: 28,
-      child: Container(
-        decoration: BoxDecoration(
-          shape: BoxShape.circle,
-          color: Colors.blue.shade400,
-          border: Border.all(color: Colors.white, width: 2),
-          boxShadow: [
-            BoxShadow(
-              color: Colors.blue.shade200.withValues(alpha: 0.8),
-              blurRadius: 8,
-              spreadRadius: 2,
-            ),
-          ],
-        ),
-        child: const Center(
-          child: Icon(Icons.circle, color: Colors.white70, size: 12),
-        ),
-      ),
     );
   }
 
@@ -204,6 +151,13 @@ class _MapViewState extends State<MapView> {
     return zoom < 0 ? 0 : zoom;
   }
 
+  LatLng? _toLatLng(LatLngSample? sample) {
+    if (sample == null) {
+      return null;
+    }
+    return LatLng(sample.latitude, sample.longitude);
+  }
+
   void _recenterToUserLocation(MapViewState state) {
     final lastLocation = state.locationTracking.lastLocation;
     if (lastLocation == null) {
@@ -211,119 +165,5 @@ class _MapViewState extends State<MapView> {
     }
     final target = LatLng(lastLocation.latitude, lastLocation.longitude);
     _mapController.move(target, state.recenterZoom);
-  }
-
-  Widget _buildGpxFeedbackListener() {
-    return AnimatedBuilder(
-      animation: widget.gpxImportViewModel,
-      builder: (context, _) {
-        final feedback = widget.gpxImportViewModel.state.feedback;
-        if (feedback == null || feedback.id == _lastGpxFeedbackId) {
-          return const SizedBox.shrink();
-        }
-        _lastGpxFeedbackId = feedback.id;
-        WidgetsBinding.instance.addPostFrameCallback((_) {
-          if (!mounted) {
-            return;
-          }
-          final messenger = ScaffoldMessenger.of(context);
-          messenger.hideCurrentSnackBar();
-          messenger.showSnackBar(
-            SnackBar(
-              content: Text(
-                feedback.messageKey.tr(namedArgs: feedback.namedArgs ?? {}),
-              ),
-              backgroundColor: feedback.isError
-                  ? Theme.of(context).colorScheme.error
-                  : null,
-            ),
-          );
-        });
-        return const SizedBox.shrink();
-      },
-    );
-  }
-
-  Future<void> _handleMenuAction(MapMenuAction action) async {
-    switch (action) {
-      case MapMenuAction.permissions:
-        await _openPermissions();
-        break;
-      case MapMenuAction.importGpx:
-        await _openGpxImport();
-        break;
-      case MapMenuAction.exportHistory:
-        await widget.viewModel.exportHistory();
-        break;
-      case MapMenuAction.downloadHistory:
-        await widget.viewModel.downloadHistory();
-        break;
-    }
-  }
-
-  Future<void> _openGpxImport() async {
-    await Future<void>.delayed(Duration.zero);
-    if (!mounted) {
-      return;
-    }
-    await widget.gpxImportViewModel.importGpx();
-  }
-
-  Future<void> _openPermissions() async {
-    await showModalBottomSheet<void>(
-      context: context,
-      isScrollControlled: true,
-      showDragHandle: true,
-      builder: (_) =>
-          PermissionsManagementView(viewModel: widget.permissionsViewModel),
-    );
-  }
-
-  List<CircleMarker> _buildPersistedCircles(MapViewState state) {
-    final samples = state.persistedSamples;
-    if (identical(_lastPersistedSamples, samples)) {
-      return _cachedPersistedCircles;
-    }
-    _lastPersistedSamples = samples;
-    _cachedPersistedCircles = [
-      for (final sample in state.persistedSamples)
-        CircleMarker(
-          point: LatLng(sample.latitude, sample.longitude),
-          radius: 2,
-          color: Colors.orangeAccent.withValues(alpha: 0.55),
-          borderColor: Colors.white.withValues(alpha: 0.65),
-          borderStrokeWidth: 0.5,
-        ),
-    ];
-    return _cachedPersistedCircles;
-  }
-
-  Widget _buildExportFeedbackListener() {
-    return AnimatedBuilder(
-      animation: widget.viewModel,
-      builder: (context, _) {
-        final feedback = widget.viewModel.state.exportFeedback;
-        if (feedback == null || feedback.id == _lastExportFeedbackId) {
-          return const SizedBox.shrink();
-        }
-        _lastExportFeedbackId = feedback.id;
-        WidgetsBinding.instance.addPostFrameCallback((_) {
-          if (!mounted) {
-            return;
-          }
-          final messenger = ScaffoldMessenger.of(context);
-          messenger.hideCurrentSnackBar();
-          messenger.showSnackBar(
-            SnackBar(
-              content: Text(feedback.messageKey.tr()),
-              backgroundColor: feedback.isError
-                  ? Theme.of(context).colorScheme.error
-                  : null,
-            ),
-          );
-        });
-        return const SizedBox.shrink();
-      },
-    );
   }
 }
