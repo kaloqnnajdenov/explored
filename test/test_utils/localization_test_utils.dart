@@ -47,8 +47,6 @@ const Map<String, dynamic> _enTranslations = {
   'progress_tap_find_region': 'Find region',
   'progress_current_region_label': 'Current region',
   'progress_region_area_placeholder': 'Region area',
-  'progress_gps_status': 'GPS',
-  'progress_battery_ok': 'Battery',
   'region_finder_title': 'Find region',
   'region_finder_search_hint': 'Search region',
   'region_finder_chip_near_me': 'Near me',

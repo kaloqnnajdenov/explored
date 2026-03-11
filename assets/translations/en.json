@@ -36,8 +36,6 @@
   "progress_feature_peaks": "Peaks",
   "progress_feature_huts": "Huts",
   "progress_tracking_active": "Tracking Active",
-  "progress_gps_status": "GPS",
-  "progress_battery_ok": "Battery: Ok",
 
   "region_finder_title": "Region Finder",
   "region_finder_search_hint": "Search region",

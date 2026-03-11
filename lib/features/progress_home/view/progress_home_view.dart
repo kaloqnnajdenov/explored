@@ -6,7 +6,6 @@ import 'package:flutter_map/flutter_map.dart';
 import 'package:go_router/go_router.dart';
 import 'package:latlong2/latlong.dart';
 
-import '../../app_state/data/models/gps_quality.dart';
 import '../../app_state/data/models/region.dart';
 import '../../app_state/view_model/app_state_view_model.dart';
 import '../../map/view/widgets/tracked_history_map.dart';
@@ -62,10 +61,6 @@ class _ProgressHomeViewState extends State<ProgressHomeView>
       ]),
       builder: (context, _) {
         final region = widget.appStateViewModel.currentRegion;
-        final mapState = widget.mapViewModel.state;
-        final gpsQuality = _resolveGpsQuality(
-          mapState.locationTracking.lastLocation,
-        );
 
         return Scaffold(
           backgroundColor: AppColors.slate50,
@@ -73,12 +68,6 @@ class _ProgressHomeViewState extends State<ProgressHomeView>
             children: [
               Column(
                 children: [
-                  _SystemStatusStrip(
-                    quality: gpsQuality,
-                    onGpsTap: () => showComingSoonSnackBar(context),
-                    onBatteryTap: () => showComingSoonSnackBar(context),
-                    onPermissionsTap: () => showComingSoonSnackBar(context),
-                  ),
                   Expanded(
                     child: SingleChildScrollView(
                       padding: const EdgeInsets.fromLTRB(16, 16, 16, 96),
@@ -525,122 +514,6 @@ class _ProgressHomeViewState extends State<ProgressHomeView>
         userLocation: lastLocation == null
             ? null
             : LatLng(lastLocation.latitude, lastLocation.longitude),
-      ),
-    );
-  }
-
-  GpsQuality _resolveGpsQuality(lastLocation) {
-    if (lastLocation == null) {
-      return GpsQuality.none;
-    }
-    return GpsQuality.good;
-  }
-}
-
-class _SystemStatusStrip extends StatelessWidget {
-  const _SystemStatusStrip({
-    required this.quality,
-    required this.onGpsTap,
-    required this.onBatteryTap,
-    required this.onPermissionsTap,
-  });
-
-  final GpsQuality quality;
-  final VoidCallback onGpsTap;
-  final VoidCallback onBatteryTap;
-  final VoidCallback onPermissionsTap;
-
-  @override
-  Widget build(BuildContext context) {
-    final qualityColor = switch (quality) {
-      GpsQuality.good => AppColors.emerald600,
-      GpsQuality.fair => AppColors.amber600,
-      GpsQuality.poor => AppColors.rose600,
-      GpsQuality.none => AppColors.slate400,
-    };
-
-    return Container(
-      decoration: BoxDecoration(
-        color: Colors.white,
-        border: const Border(bottom: BorderSide(color: AppColors.slate100)),
-        boxShadow: [
-          BoxShadow(
-            color: Colors.black.withValues(alpha: 0.04),
-            blurRadius: 6,
-            offset: const Offset(0, 2),
-          ),
-        ],
-      ),
-      padding: const EdgeInsets.fromLTRB(16, 8, 16, 8),
-      child: SafeArea(
-        bottom: false,
-        child: Row(
-          children: [
-            InkWell(
-              onTap: onGpsTap,
-              borderRadius: BorderRadius.circular(8),
-              child: Row(
-                children: [
-                  Icon(
-                    Icons.signal_cellular_alt,
-                    size: 12,
-                    color: qualityColor,
-                  ),
-                  const SizedBox(width: 4),
-                  Text(
-                    LocaleKeys.progress_gps_status.tr(),
-                    style: const TextStyle(
-                      color: AppColors.slate600,
-                      fontSize: 12,
-                    ),
-                  ),
-                ],
-              ),
-            ),
-            const Padding(
-              padding: EdgeInsets.symmetric(horizontal: 10),
-              child: SizedBox(
-                height: 12,
-                child: VerticalDivider(
-                  width: 1,
-                  thickness: 1,
-                  color: AppColors.slate200,
-                ),
-              ),
-            ),
-            InkWell(
-              onTap: onBatteryTap,
-              borderRadius: BorderRadius.circular(8),
-              child: Row(
-                children: [
-                  const Icon(
-                    Icons.battery_std,
-                    size: 12,
-                    color: AppColors.slate500,
-                  ),
-                  const SizedBox(width: 4),
-                  Text(
-                    LocaleKeys.progress_battery_ok.tr(),
-                    style: const TextStyle(
-                      color: AppColors.slate600,
-                      fontSize: 12,
-                    ),
-                  ),
-                ],
-              ),
-            ),
-            const Spacer(),
-            InkWell(
-              onTap: onPermissionsTap,
-              borderRadius: BorderRadius.circular(8),
-              child: const Icon(
-                Icons.shield_outlined,
-                size: 16,
-                color: AppColors.emerald600,
-              ),
-            ),
-          ],
-        ),
       ),
     );
   }

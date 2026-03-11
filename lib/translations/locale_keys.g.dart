@@ -45,8 +45,6 @@ abstract class LocaleKeys {
   static const progress_feature_peaks = 'progress_feature_peaks';
   static const progress_feature_huts = 'progress_feature_huts';
   static const progress_tracking_active = 'progress_tracking_active';
-  static const progress_gps_status = 'progress_gps_status';
-  static const progress_battery_ok = 'progress_battery_ok';
   static const region_finder_title = 'region_finder_title';
   static const region_finder_search_hint = 'region_finder_search_hint';
   static const region_finder_chip_near_me = 'region_finder_chip_near_me';
