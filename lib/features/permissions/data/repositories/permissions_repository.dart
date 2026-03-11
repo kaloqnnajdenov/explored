@@ -10,6 +10,8 @@ abstract class PermissionsRepository {
 
   Future<void> requestPermission(AppPermissionType type);
 
+  Future<void> openPermissionSettings(AppPermissionType type);
+
   Future<void> requestInitialPermissionsIfNeeded();
 }
 
@@ -19,10 +21,10 @@ class DefaultPermissionsRepository implements PermissionsRepository {
     required FileAccessPermissionService fileAccessPermissionService,
     required PermissionRequestStore requestStore,
     required PlatformInfo platformInfo,
-  })  : _locationPermissionService = locationPermissionService,
-        _fileAccessPermissionService = fileAccessPermissionService,
-        _requestStore = requestStore,
-        _platformInfo = platformInfo;
+  }) : _locationPermissionService = locationPermissionService,
+       _fileAccessPermissionService = fileAccessPermissionService,
+       _requestStore = requestStore,
+       _platformInfo = platformInfo;
 
   final LocationPermissionService _locationPermissionService;
   final FileAccessPermissionService _fileAccessPermissionService;
@@ -31,35 +33,38 @@ class DefaultPermissionsRepository implements PermissionsRepository {
 
   @override
   Future<List<AppPermissionStatus>> fetchPermissions() async {
-    final permissionLevel =
-        await _locationPermissionService.checkPermissionLevel();
-    final notificationGranted =
-        await _locationPermissionService.isNotificationPermissionGranted();
+    final permissionLevel = await _locationPermissionService
+        .checkPermissionLevel();
+    final notificationGranted = await _locationPermissionService
+        .isNotificationPermissionGranted();
     final fileAccessGranted = await _fileAccessPermissionService.isGranted();
 
-    final permissions = <AppPermissionStatus>[
+    return <AppPermissionStatus>[
       AppPermissionStatus(
         type: AppPermissionType.locationForeground,
         isGranted: _isForegroundGranted(permissionLevel),
       ),
-      if (_shouldExposeBackgroundPermission())
-        AppPermissionStatus(
-          type: AppPermissionType.locationBackground,
-          isGranted: permissionLevel == LocationPermissionLevel.background,
-        ),
-      if (_shouldExposeNotificationPermission())
-        AppPermissionStatus(
-          type: AppPermissionType.notifications,
-          isGranted: notificationGranted,
-        ),
-      if (_shouldExposeFileAccessPermission())
-        AppPermissionStatus(
-          type: AppPermissionType.fileAccess,
-          isGranted: fileAccessGranted,
-        ),
+      AppPermissionStatus(
+        type: AppPermissionType.locationBackground,
+        isGranted: permissionLevel == LocationPermissionLevel.background,
+      ),
+      const AppPermissionStatus(
+        type: AppPermissionType.motionActivity,
+        isGranted: false,
+        isInteractive: false,
+        helperMessageKey: 'permissions_helper_coming_soon',
+      ),
+      AppPermissionStatus(
+        type: AppPermissionType.notifications,
+        isGranted: notificationGranted,
+      ),
+      AppPermissionStatus(
+        type: AppPermissionType.fileAccess,
+        isGranted: fileAccessGranted,
+        isInteractive: false,
+        helperMessageKey: 'permissions_helper_not_required_on_device',
+      ),
     ];
-
-    return permissions;
   }
 
   @override
@@ -71,6 +76,8 @@ class DefaultPermissionsRepository implements PermissionsRepository {
       case AppPermissionType.locationBackground:
         await _locationPermissionService.requestBackgroundPermission();
         break;
+      case AppPermissionType.motionActivity:
+        break;
       case AppPermissionType.notifications:
         await _locationPermissionService.requestNotificationPermission();
         break;
@@ -78,6 +85,15 @@ class DefaultPermissionsRepository implements PermissionsRepository {
         await _fileAccessPermissionService.request();
         break;
     }
+  }
+
+  @override
+  Future<void> openPermissionSettings(AppPermissionType type) async {
+    if (type == AppPermissionType.notifications) {
+      await _locationPermissionService.openNotificationSettings();
+      return;
+    }
+    await _locationPermissionService.openAppSettings();
   }
 
   @override
@@ -95,23 +111,23 @@ class DefaultPermissionsRepository implements PermissionsRepository {
   }
 
   Future<void> _requestInitialPermissions() async {
-    final permissionLevel =
-        await _locationPermissionService.checkPermissionLevel();
+    final permissionLevel = await _locationPermissionService
+        .checkPermissionLevel();
     if (!_isForegroundGranted(permissionLevel)) {
       await _locationPermissionService.requestForegroundPermission();
     }
 
     if (_requiresBackgroundPermission()) {
-      final updatedLevel =
-          await _locationPermissionService.checkPermissionLevel();
+      final updatedLevel = await _locationPermissionService
+          .checkPermissionLevel();
       if (updatedLevel != LocationPermissionLevel.background) {
         await _locationPermissionService.requestBackgroundPermission();
       }
     }
 
     if (_locationPermissionService.isNotificationPermissionRequired) {
-      final granted =
-          await _locationPermissionService.isNotificationPermissionGranted();
+      final granted = await _locationPermissionService
+          .isNotificationPermissionGranted();
       if (!granted) {
         await _locationPermissionService.requestNotificationPermission();
       }
@@ -133,18 +149,6 @@ class DefaultPermissionsRepository implements PermissionsRepository {
       return (_platformInfo.androidSdkInt ?? 0) >= 29;
     }
     return false;
-  }
-
-  bool _shouldExposeBackgroundPermission() {
-    return _platformInfo.isAndroid || _platformInfo.isIOS;
-  }
-
-  bool _shouldExposeNotificationPermission() {
-    return _platformInfo.isAndroid || _platformInfo.isIOS;
-  }
-
-  bool _shouldExposeFileAccessPermission() {
-    return _platformInfo.isAndroid;
   }
 
   bool _isFileAccessRequired() {

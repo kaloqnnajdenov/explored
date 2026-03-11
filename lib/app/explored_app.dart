@@ -10,6 +10,7 @@ import '../features/map/view_model/map_view_model.dart';
 import '../features/onboarding/view/onboarding_view.dart';
 import '../features/permission_gate/view/permissions_gate_view.dart';
 import '../features/permissions/view_model/permissions_view_model.dart';
+import '../features/permissions/view/permissions_management_view.dart';
 import '../features/profile/view/profile_view.dart';
 import '../features/progress_home/view/progress_home_view.dart';
 import '../features/region_detail/view/region_detail_view.dart';
@@ -83,6 +84,11 @@ class ExploredApp extends StatelessWidget {
                mapViewModel: mapViewModel,
                gpxImportViewModel: gpxImportViewModel,
              ),
+           ),
+           GoRoute(
+             path: '/settings/permissions',
+             builder: (_, __) =>
+                 PermissionsManagementView(viewModel: permissionsViewModel),
            ),
            GoRoute(
              path: '/profile',

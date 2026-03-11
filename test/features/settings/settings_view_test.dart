@@ -5,6 +5,7 @@ import 'package:explored/features/map/view_model/map_view_model.dart';
 import 'package:explored/features/settings/view/settings_view.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:go_router/go_router.dart';
 import 'package:latlong2/latlong.dart';
 
 import '../../test_utils/localization_test_utils.dart';
@@ -97,5 +98,79 @@ void main() {
       findsOneWidget,
     );
     expect(tester.takeException(), isNull);
+  });
+
+  testWidgets('permissions action navigates to permissions settings page', (
+    tester,
+  ) async {
+    await loadTestTranslations();
+
+    final regions = const [
+      Region(
+        id: 'r1',
+        name: 'Northern Alps',
+        totalArea: 100,
+        exploredArea: 10,
+        isDownloaded: false,
+        center: LatLng(0, 0),
+        bounds: [LatLng(0, 0), LatLng(0, 1), LatLng(1, 1), LatLng(1, 0)],
+        features: RegionFeatures(
+          trails: RegionFeatureProgress(total: 1, completed: 0),
+          peaks: RegionFeatureProgress(total: 1, completed: 0),
+          huts: RegionFeatureProgress(total: 1, completed: 0),
+        ),
+      ),
+    ];
+    final appStateRepository = FakeAppStateRepository(
+      buildAppStateSnapshot(regions: regions, currentRegionId: 'r1'),
+    );
+    final appStateViewModel = AppStateViewModel(
+      repository: appStateRepository,
+      initialState: appStateRepository.snapshot,
+    );
+    final locationUpdatesRepository = FakeLocationUpdatesRepository();
+    final mapViewModel = MapViewModel(
+      mapRepository: buildMapRepository(),
+      locationUpdatesRepository: locationUpdatesRepository,
+      locationHistoryRepository: FakeLocationHistoryRepository(),
+      permissionsRepository: FakePermissionsRepository(),
+    );
+    final gpxImportViewModel = GpxImportViewModel(
+      repository: FakeGpxImportRepository(),
+    );
+
+    addTearDown(() async {
+      mapViewModel.dispose();
+      await locationUpdatesRepository.dispose();
+    });
+
+    final router = GoRouter(
+      routes: [
+        GoRoute(
+          path: '/settings',
+          builder: (_, __) => SettingsView(
+            appStateViewModel: appStateViewModel,
+            mapViewModel: mapViewModel,
+            gpxImportViewModel: gpxImportViewModel,
+          ),
+        ),
+        GoRoute(
+          path: '/settings/permissions',
+          builder: (_, __) => const Scaffold(body: Text('permissions_page')),
+        ),
+      ],
+      initialLocation: '/settings',
+    );
+
+    await tester.pumpWidget(MaterialApp.router(routerConfig: router));
+    await tester.pump(const Duration(milliseconds: 300));
+
+    await tester.tap(find.text('Permissions'));
+    await tester.pump(const Duration(milliseconds: 300));
+
+    expect(
+      router.routeInformationProvider.value.uri.path,
+      '/settings/permissions',
+    );
   });
 }

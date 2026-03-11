@@ -212,6 +212,9 @@ class FakePermissionsRepository implements PermissionsRepository {
   }
 
   @override
+  Future<void> openPermissionSettings(AppPermissionType type) async {}
+
+  @override
   Future<void> requestInitialPermissionsIfNeeded() async {}
 
   @override

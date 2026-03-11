@@ -33,6 +33,8 @@ class FakeLocationPermissionService implements LocationPermissionService {
   int foregroundRequests = 0;
   int backgroundRequests = 0;
   int notificationRequests = 0;
+  int openAppSettingsCalls = 0;
+  int openNotificationSettingsCalls = 0;
 
   @override
   Future<LocationPermissionLevel> checkPermissionLevel() async {
@@ -69,10 +71,16 @@ class FakeLocationPermissionService implements LocationPermissionService {
   bool get isNotificationPermissionRequired => notificationRequired;
 
   @override
-  Future<bool> openAppSettings() async => true;
+  Future<bool> openAppSettings() async {
+    openAppSettingsCalls += 1;
+    return true;
+  }
 
   @override
-  Future<bool> openNotificationSettings() async => true;
+  Future<bool> openNotificationSettings() async {
+    openNotificationSettingsCalls += 1;
+    return true;
+  }
 }
 
 class FakeFileAccessPermissionService implements FileAccessPermissionService {
@@ -108,118 +116,107 @@ class FakePermissionRequestStore implements PermissionRequestStore {
 }
 
 void main() {
-  test('fetchPermissions returns required permissions with status', () async {
-    final locationService = FakeLocationPermissionService()
-      ..permissionLevel = LocationPermissionLevel.foreground
-      ..notificationGranted = false
-      ..notificationRequired = true;
-    final fileService = FakeFileAccessPermissionService()..granted = false;
-    final repository = DefaultPermissionsRepository(
-      locationPermissionService: locationService,
-      fileAccessPermissionService: fileService,
-      requestStore: FakePermissionRequestStore(),
-      platformInfo: FakePlatformInfo(
-        isAndroid: true,
-        isIOS: false,
-        androidSdkInt: 30,
-      ),
-    );
+  test(
+    'fetchPermissions returns all onboarding permissions in fixed order',
+    () async {
+      final locationService = FakeLocationPermissionService()
+        ..permissionLevel = LocationPermissionLevel.foreground
+        ..notificationGranted = false
+        ..notificationRequired = true;
+      final fileService = FakeFileAccessPermissionService()..granted = false;
+      final repository = DefaultPermissionsRepository(
+        locationPermissionService: locationService,
+        fileAccessPermissionService: fileService,
+        requestStore: FakePermissionRequestStore(),
+        platformInfo: FakePlatformInfo(
+          isAndroid: true,
+          isIOS: false,
+          androidSdkInt: 30,
+        ),
+      );
 
-    final permissions = await repository.fetchPermissions();
+      final permissions = await repository.fetchPermissions();
 
-    expect(
-      permissions.any(
-        (perm) =>
-            perm.type == AppPermissionType.locationForeground &&
-            perm.isGranted,
-      ),
-      isTrue,
-    );
-    expect(
-      permissions.any(
-        (perm) =>
-            perm.type == AppPermissionType.locationBackground &&
-            !perm.isGranted,
-      ),
-      isTrue,
-    );
-    expect(
-      permissions.any(
-        (perm) =>
-            perm.type == AppPermissionType.notifications && !perm.isGranted,
-      ),
-      isTrue,
-    );
-    expect(
-      permissions.any(
-        (perm) =>
-            perm.type == AppPermissionType.fileAccess && !perm.isGranted,
-      ),
-      isTrue,
-    );
-  });
+      expect(permissions.map((permission) => permission.type), [
+        AppPermissionType.locationForeground,
+        AppPermissionType.locationBackground,
+        AppPermissionType.motionActivity,
+        AppPermissionType.notifications,
+        AppPermissionType.fileAccess,
+      ]);
+      expect(permissions[0].isGranted, isTrue);
+      expect(permissions[1].isGranted, isFalse);
+      expect(permissions[2].isInteractive, isFalse);
+      expect(permissions[2].helperMessageKey, 'permissions_helper_coming_soon');
+      expect(permissions[4].isInteractive, isFalse);
+      expect(
+        permissions[4].helperMessageKey,
+        'permissions_helper_not_required_on_device',
+      );
+    },
+  );
 
-  test('fetchPermissions includes file access on Android with unknown SDK',
-      () async {
-    final locationService = FakeLocationPermissionService()
-      ..permissionLevel = LocationPermissionLevel.foreground
-      ..notificationGranted = false
-      ..notificationRequired = true;
-    final fileService = FakeFileAccessPermissionService()..granted = true;
-    final repository = DefaultPermissionsRepository(
-      locationPermissionService: locationService,
-      fileAccessPermissionService: fileService,
-      requestStore: FakePermissionRequestStore(),
-      platformInfo: FakePlatformInfo(
-        isAndroid: true,
-        isIOS: false,
-        androidSdkInt: null,
-      ),
-    );
+  test(
+    'fetchPermissions disables file access action when unsupported',
+    () async {
+      final locationService = FakeLocationPermissionService()
+        ..permissionLevel = LocationPermissionLevel.foreground
+        ..notificationGranted = false
+        ..notificationRequired = true;
+      final fileService = FakeFileAccessPermissionService()..granted = true;
+      final repository = DefaultPermissionsRepository(
+        locationPermissionService: locationService,
+        fileAccessPermissionService: fileService,
+        requestStore: FakePermissionRequestStore(),
+        platformInfo: FakePlatformInfo(
+          isAndroid: true,
+          isIOS: false,
+          androidSdkInt: null,
+        ),
+      );
 
-    final permissions = await repository.fetchPermissions();
+      final permissions = await repository.fetchPermissions();
 
-    expect(
-      permissions.any(
-        (perm) =>
-            perm.type == AppPermissionType.fileAccess && perm.isGranted,
-      ),
-      isTrue,
-    );
-  });
+      final fileAccess = permissions.firstWhere(
+        (permission) => permission.type == AppPermissionType.fileAccess,
+      );
+      expect(fileAccess.isGranted, isTrue);
+      expect(fileAccess.isInteractive, isFalse);
+      expect(
+        fileAccess.helperMessageKey,
+        'permissions_helper_not_required_on_device',
+      );
+    },
+  );
 
-  test('fetchPermissions exposes notifications on iOS', () async {
-    final locationService = FakeLocationPermissionService()
-      ..permissionLevel = LocationPermissionLevel.foreground
-      ..notificationGranted = false
-      ..notificationRequired = false;
-    final fileService = FakeFileAccessPermissionService()..granted = false;
-    final repository = DefaultPermissionsRepository(
-      locationPermissionService: locationService,
-      fileAccessPermissionService: fileService,
-      requestStore: FakePermissionRequestStore(),
-      platformInfo: FakePlatformInfo(
-        isAndroid: false,
-        isIOS: true,
-        androidSdkInt: null,
-      ),
-    );
+  test(
+    'openPermissionSettings routes notifications and app settings correctly',
+    () async {
+      final locationService = FakeLocationPermissionService()
+        ..permissionLevel = LocationPermissionLevel.foreground
+        ..notificationGranted = false
+        ..notificationRequired = false;
+      final fileService = FakeFileAccessPermissionService()..granted = false;
+      final repository = DefaultPermissionsRepository(
+        locationPermissionService: locationService,
+        fileAccessPermissionService: fileService,
+        requestStore: FakePermissionRequestStore(),
+        platformInfo: FakePlatformInfo(
+          isAndroid: false,
+          isIOS: true,
+          androidSdkInt: null,
+        ),
+      );
 
-    final permissions = await repository.fetchPermissions();
+      await repository.openPermissionSettings(AppPermissionType.notifications);
+      await repository.openPermissionSettings(
+        AppPermissionType.locationForeground,
+      );
 
-    expect(
-      permissions.any(
-        (perm) => perm.type == AppPermissionType.locationBackground,
-      ),
-      isTrue,
-    );
-    expect(
-      permissions.any(
-        (perm) => perm.type == AppPermissionType.notifications,
-      ),
-      isTrue,
-    );
-  });
+      expect(locationService.openNotificationSettingsCalls, 1);
+      expect(locationService.openAppSettingsCalls, 1);
+    },
+  );
 
   test('requestInitialPermissionsIfNeeded requests once', () async {
     final locationService = FakeLocationPermissionService()

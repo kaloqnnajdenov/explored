@@ -84,6 +84,7 @@ abstract class LocaleKeys {
   static const settings_region_packs_title = 'settings_region_packs_title';
   static const settings_data_storage_title = 'settings_data_storage_title';
   static const settings_manual_edit_mode = 'settings_manual_edit_mode';
+  static const settings_permissions = 'settings_permissions';
   static const settings_import_gpx = 'settings_import_gpx';
   static const settings_export_csv = 'settings_export_csv';
   static const settings_download_action = 'settings_download_action';
@@ -214,4 +215,10 @@ abstract class LocaleKeys {
   static const permissions_status_granted = 'permissions_status_granted';
   static const permissions_status_label = 'permissions_status_label';
   static const permissions_title = 'permissions_title';
+  static const permissions_helper_coming_soon =
+      'permissions_helper_coming_soon';
+  static const permissions_helper_not_required_on_device =
+      'permissions_helper_not_required_on_device';
+  static const permissions_feedback_manage_in_settings =
+      'permissions_feedback_manage_in_settings';
 }

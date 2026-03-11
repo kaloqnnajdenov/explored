@@ -42,7 +42,7 @@ class _PermissionsGateViewState extends State<PermissionsGateView> {
                   Text(
                     LocaleKeys.permissions_required_label.tr(),
                     style: const TextStyle(
-                      color: AppColors.emerald800,
+                      color: AppColors.slate500,
                       fontSize: 11,
                       fontWeight: FontWeight.w700,
                       letterSpacing: 1.2,
@@ -104,13 +104,13 @@ class _PermissionsGateViewState extends State<PermissionsGateView> {
                     width: double.infinity,
                     child: FilledButton(
                       style: FilledButton.styleFrom(
-                        backgroundColor: AppColors.emerald900,
+                        backgroundColor: AppColors.slate900,
                         foregroundColor: Colors.white,
                         padding: const EdgeInsets.symmetric(vertical: 16),
                         shape: RoundedRectangleBorder(
                           borderRadius: BorderRadius.circular(12),
                         ),
-                        elevation: 4,
+                        elevation: 0,
                       ),
                       onPressed: _isGranting ? null : _grantRequiredPermissions,
                       child: _isGranting
@@ -156,9 +156,10 @@ class _PermissionsGateViewState extends State<PermissionsGateView> {
           Container(
             width: 64,
             height: 64,
-            decoration: const BoxDecoration(
+            decoration: BoxDecoration(
               shape: BoxShape.circle,
-              color: AppColors.emerald50,
+              color: Colors.white,
+              border: Border.all(color: AppColors.slate200),
             ),
             child: const Center(
               child: HexMascot(pose: HexMascotPose.checklist, size: 96),
@@ -251,7 +252,7 @@ class _PermissionRow extends StatelessWidget {
     return Container(
       padding: const EdgeInsets.all(12),
       decoration: BoxDecoration(
-        color: AppColors.slate50.withValues(alpha: 0.5),
+        color: Colors.white,
         borderRadius: BorderRadius.circular(8),
         border: Border.all(color: AppColors.slate100),
       ),
@@ -261,7 +262,7 @@ class _PermissionRow extends StatelessWidget {
             width: 34,
             height: 34,
             decoration: BoxDecoration(
-              color: granted ? AppColors.emerald100 : Colors.white,
+              color: granted ? AppColors.slate100 : Colors.white,
               borderRadius: BorderRadius.circular(10),
               border: Border.all(
                 color: granted ? Colors.transparent : AppColors.slate200,
@@ -270,7 +271,7 @@ class _PermissionRow extends StatelessWidget {
             child: Icon(
               icon,
               size: 18,
-              color: granted ? AppColors.emerald700 : AppColors.slate400,
+              color: granted ? AppColors.slate900 : AppColors.slate500,
             ),
           ),
           const SizedBox(width: 12),
@@ -300,7 +301,7 @@ class _PermissionStatusBadge extends StatelessWidget {
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
       decoration: BoxDecoration(
-        color: granted ? AppColors.emerald100 : AppColors.slate100,
+        color: granted ? AppColors.slate900 : AppColors.slate100,
         borderRadius: BorderRadius.circular(999),
       ),
       child: Row(
@@ -309,7 +310,7 @@ class _PermissionStatusBadge extends StatelessWidget {
           if (granted)
             const Padding(
               padding: EdgeInsets.only(right: 4),
-              child: Icon(Icons.check, size: 12, color: AppColors.emerald700),
+              child: Icon(Icons.check, size: 12, color: Colors.white),
             ),
           Text(
             granted
@@ -318,7 +319,7 @@ class _PermissionStatusBadge extends StatelessWidget {
             style: TextStyle(
               fontSize: 10,
               fontWeight: FontWeight.w700,
-              color: granted ? AppColors.emerald700 : AppColors.slate500,
+              color: granted ? Colors.white : AppColors.slate500,
             ),
           ),
         ],

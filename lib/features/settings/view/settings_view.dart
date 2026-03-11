@@ -187,6 +187,12 @@ class _SettingsViewState extends State<SettingsView> {
           ),
           const Divider(height: 1, color: AppColors.slate100),
           _SettingsActionRow(
+            icon: Icons.admin_panel_settings_outlined,
+            label: LocaleKeys.settings_permissions.tr(),
+            onTap: () => context.go('/settings/permissions'),
+          ),
+          const Divider(height: 1, color: AppColors.slate100),
+          _SettingsActionRow(
             icon: Icons.upload_outlined,
             label: LocaleKeys.settings_import_gpx.tr(),
             onTap: _handleImportGpx,

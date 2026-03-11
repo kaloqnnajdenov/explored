@@ -76,6 +76,7 @@
   "settings_region_packs_title": "Region Packs",
   "settings_data_storage_title": "Data & Storage",
   "settings_manual_edit_mode": "Manual Edit Mode",
+  "settings_permissions": "Permissions",
   "settings_import_gpx": "Import GPX",
   "settings_export_csv": "Export CSV",
   "settings_download_action": "Download",
@@ -173,5 +174,8 @@
   "permissions_status_denied": "Denied",
   "permissions_status_granted": "Granted",
   "permissions_status_label": "Status: {status}",
-  "permissions_title": "Permissions"
+  "permissions_title": "Permissions",
+  "permissions_helper_coming_soon": "Coming soon.",
+  "permissions_helper_not_required_on_device": "Not required on this device.",
+  "permissions_feedback_manage_in_settings": "Manage this permission in system settings."
 }

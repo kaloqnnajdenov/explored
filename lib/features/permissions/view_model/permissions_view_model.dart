@@ -40,12 +40,15 @@ class PermissionsViewState {
     List<AppPermissionStatus>? permissions,
     AppPermissionType? activeRequest,
     PermissionsFeedback? feedback,
+    bool clearActiveRequest = false,
     bool clearFeedback = false,
   }) {
     return PermissionsViewState(
       isLoading: isLoading ?? this.isLoading,
       permissions: permissions ?? this.permissions,
-      activeRequest: activeRequest ?? this.activeRequest,
+      activeRequest: clearActiveRequest
+          ? null
+          : (activeRequest ?? this.activeRequest),
       feedback: clearFeedback ? null : (feedback ?? this.feedback),
     );
   }
@@ -53,8 +56,8 @@ class PermissionsViewState {
 
 class PermissionsViewModel extends ChangeNotifier {
   PermissionsViewModel({required PermissionsRepository repository})
-      : _repository = repository,
-        _state = PermissionsViewState.initial();
+    : _repository = repository,
+      _state = PermissionsViewState.initial();
 
   final PermissionsRepository _repository;
 
@@ -69,10 +72,7 @@ class PermissionsViewModel extends ChangeNotifier {
 
     try {
       final permissions = await _repository.fetchPermissions();
-      _state = _state.copyWith(
-        isLoading: false,
-        permissions: permissions,
-      );
+      _state = _state.copyWith(isLoading: false, permissions: permissions);
     } catch (_) {
       _state = _state.copyWith(
         isLoading: false,
@@ -83,24 +83,45 @@ class PermissionsViewModel extends ChangeNotifier {
     notifyListeners();
   }
 
-  Future<void> requestPermission(AppPermissionType type) async {
+  Future<void> setPermissionEnabled(
+    AppPermissionType type,
+    bool enabled,
+  ) async {
     if (_state.isLoading) {
+      return;
+    }
+
+    final permission = _state.permissions.where((item) => item.type == type);
+    if (permission.isNotEmpty && !permission.first.isInteractive) {
       return;
     }
 
     _state = _state.copyWith(isLoading: true, activeRequest: type);
     notifyListeners();
 
+    var shouldRefresh = false;
     try {
-      await _repository.requestPermission(type);
+      if (enabled) {
+        await _repository.requestPermission(type);
+        shouldRefresh = true;
+      } else {
+        await _repository.openPermissionSettings(type);
+        _state = _state.copyWith(
+          feedback: _feedback('permissions_feedback_manage_in_settings'),
+        );
+      }
     } catch (_) {
       _state = _state.copyWith(
         feedback: _feedback('permissions_error_generic', isError: true),
       );
     }
 
-    _state = _state.copyWith(activeRequest: null);
-    await refresh();
+    _state = _state.copyWith(isLoading: false, clearActiveRequest: true);
+    notifyListeners();
+
+    if (shouldRefresh) {
+      await refresh();
+    }
   }
 
   PermissionsFeedback _feedback(String messageKey, {bool isError = false}) {
