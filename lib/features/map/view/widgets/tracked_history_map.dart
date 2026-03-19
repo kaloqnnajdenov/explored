@@ -27,6 +27,7 @@ class TrackedHistoryMap extends StatefulWidget {
     this.onTap,
     this.onPositionChanged,
     this.baseLayers = const <Widget>[],
+    this.initialCameraFit,
     this.showScaleIndicator = false,
   });
 
@@ -41,6 +42,7 @@ class TrackedHistoryMap extends StatefulWidget {
   final TrackedHistoryMapTapCallback? onTap;
   final TrackedHistoryMapPositionChangedCallback? onPositionChanged;
   final List<Widget> baseLayers;
+  final CameraFit? initialCameraFit;
   final bool showScaleIndicator;
 
   @override
@@ -58,6 +60,7 @@ class _TrackedHistoryMapState extends State<TrackedHistoryMap> {
       options: MapOptions(
         initialCenter: widget.initialCenter,
         initialZoom: widget.initialZoom,
+        initialCameraFit: widget.initialCameraFit,
         minZoom: widget.minZoom,
         interactionOptions:
             widget.interactionOptions ?? const InteractionOptions(),

@@ -2,11 +2,11 @@ import 'package:easy_localization/easy_localization.dart';
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 
-import '../../app_state/data/models/region.dart';
 import '../../app_state/view_model/app_state_view_model.dart';
 import '../../gpx_import/view/widgets/gpx_import_processing_overlay.dart';
 import '../../gpx_import/view_model/gpx_import_view_model.dart';
 import '../../map/view_model/map_view_model.dart';
+import '../../region_catalog/data/models/region_pack_node.dart';
 import '../../../translations/locale_keys.g.dart';
 import '../../../ui/core/app_colors.dart';
 import '../../../ui/core/widgets/app_back_button.dart';
@@ -32,6 +32,14 @@ class SettingsView extends StatefulWidget {
 class _SettingsViewState extends State<SettingsView> {
   int? _lastGpxFeedbackId;
   int? _lastExportFeedbackId;
+
+  @override
+  void initState() {
+    super.initState();
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      widget.appStateViewModel.ensureDownloadedPacksLoaded();
+    });
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -158,20 +166,74 @@ class _SettingsViewState extends State<SettingsView> {
   }
 
   Widget _buildRegionPacksCard(BuildContext context) {
+    final downloadedPacks = widget.appStateViewModel.downloadedPacks;
+    final isLoadingDownloadedPacks =
+        widget.appStateViewModel.isLoadingDownloadedPacks ||
+        widget.appStateViewModel.hasPendingDownloadedPackRefs;
+    final packsByCountry = <String, List<RegionPackNode>>{};
+    for (final pack in downloadedPacks) {
+      final country = widget.appStateViewModel.countryFor(pack.id);
+      final groupLabel = country?.name ?? pack.name;
+      (packsByCountry[groupLabel] ??= <RegionPackNode>[]).add(pack);
+    }
+    final sortedCountries = packsByCountry.keys.toList(growable: false)..sort();
+
     return _CardSection(
       title: LocaleKeys.settings_region_packs_title.tr(),
-      child: Column(
-        children: [
-          for (var i = 0; i < widget.appStateViewModel.regions.length; i++) ...[
-            _RegionPackRow(
-              region: widget.appStateViewModel.regions[i],
-              onDelete: () => showComingSoonSnackBar(context),
+      child: downloadedPacks.isEmpty
+          ? isLoadingDownloadedPacks
+                ? const Padding(
+                    padding: EdgeInsets.all(16),
+                    child: Center(child: CircularProgressIndicator()),
+                  )
+                : Padding(
+                    padding: const EdgeInsets.fromLTRB(16, 8, 16, 16),
+                    child: Text(
+                      LocaleKeys.settings_region_packs_empty.tr(),
+                      style: const TextStyle(color: AppColors.slate500),
+                    ),
+                  )
+          : Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                for (
+                  var countryIndex = 0;
+                  countryIndex < sortedCountries.length;
+                  countryIndex++
+                ) ...[
+                  Padding(
+                    padding: const EdgeInsets.fromLTRB(16, 8, 16, 6),
+                    child: Text(
+                      sortedCountries[countryIndex],
+                      style: const TextStyle(
+                        color: AppColors.slate500,
+                        fontSize: 12,
+                        fontWeight: FontWeight.w700,
+                      ),
+                    ),
+                  ),
+                  for (
+                    var packIndex = 0;
+                    packIndex <
+                        packsByCountry[sortedCountries[countryIndex]]!.length;
+                    packIndex++
+                  ) ...[
+                    _RegionPackRow(
+                      pack:
+                          packsByCountry[sortedCountries[countryIndex]]![packIndex],
+                      countryName: sortedCountries[countryIndex],
+                      onDelete: () => showComingSoonSnackBar(context),
+                    ),
+                    if (packIndex !=
+                        packsByCountry[sortedCountries[countryIndex]]!.length -
+                            1)
+                      const Divider(height: 1, color: AppColors.slate100),
+                  ],
+                  if (countryIndex != sortedCountries.length - 1)
+                    const Divider(height: 1, color: AppColors.slate100),
+                ],
+              ],
             ),
-            if (i != widget.appStateViewModel.regions.length - 1)
-              const Divider(height: 1, color: AppColors.slate100),
-          ],
-        ],
-      ),
     );
   }
 
@@ -368,20 +430,28 @@ class _CardSection extends StatelessWidget {
 }
 
 class _RegionPackRow extends StatelessWidget {
-  const _RegionPackRow({required this.region, required this.onDelete});
+  const _RegionPackRow({
+    required this.pack,
+    required this.countryName,
+    required this.onDelete,
+  });
 
-  final Region region;
+  final RegionPackNode pack;
+  final String countryName;
   final VoidCallback onDelete;
 
   @override
   Widget build(BuildContext context) {
+    final name = pack.name == countryName
+        ? pack.name
+        : pack.displayPath.replaceFirst('$countryName / ', '');
     return Padding(
       padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
       child: Row(
         children: [
           Expanded(
             child: Text(
-              region.name,
+              name,
               style: const TextStyle(
                 color: AppColors.slate900,
                 fontWeight: FontWeight.w600,

@@ -3,6 +3,7 @@ import 'package:explored/features/app_state/view_model/app_state_view_model.dart
 import 'package:explored/features/map/view/widgets/tracked_history_map.dart';
 import 'package:explored/features/map/view_model/map_view_model.dart';
 import 'package:explored/features/progress_home/view/progress_home_view.dart';
+import 'package:explored/features/region_catalog/data/models/region_pack_kind.dart';
 import 'package:flutter_map/flutter_map.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:flutter/widgets.dart';
@@ -72,7 +73,7 @@ void main() {
     );
 
     await tester.pumpWidget(app);
-    await tester.pump();
+    await tester.pumpAndSettle();
 
     expect(find.byType(TrackedHistoryMap), findsOneWidget);
     expect(find.byType(PolygonLayer), findsOneWidget);
@@ -81,4 +82,74 @@ void main() {
     // Dispose the repeating animation ticker in ProgressHomeView.
     await tester.pumpWidget(const SizedBox.shrink());
   });
+
+  testWidgets(
+    'home region picker chevron drills into the next level in the modal',
+    (tester) async {
+      final packs = [
+        buildTestPackNode(
+          id: 'country-de',
+          name: 'Deutschland',
+          kind: RegionPackKind.country,
+          childIds: const ['region-bayern'],
+          displayPath: 'Deutschland',
+        ),
+        buildTestPackNode(
+          id: 'region-bayern',
+          name: 'Bayern',
+          kind: RegionPackKind.region,
+          parentId: 'country-de',
+          displayPath: 'Deutschland / Bayern',
+        ),
+      ];
+      final appStateSnapshot = buildPackAppStateSnapshot(
+        packs: packs,
+        selectedPackId: 'country-de',
+      );
+      final appStateViewModel = AppStateViewModel(
+        repository: FakeAppStateRepository(appStateSnapshot),
+        initialState: appStateSnapshot,
+      );
+      final locationUpdatesRepository = FakeLocationUpdatesRepository();
+      final locationHistoryRepository = FakeLocationHistoryRepository();
+      final mapViewModel = MapViewModel(
+        mapRepository: buildMapRepository(),
+        locationUpdatesRepository: locationUpdatesRepository,
+        locationHistoryRepository: locationHistoryRepository,
+        permissionsRepository: FakePermissionsRepository(),
+      );
+      await mapViewModel.initialize();
+
+      addTearDown(() async {
+        mapViewModel.dispose();
+        await locationUpdatesRepository.dispose();
+        await locationHistoryRepository.dispose();
+      });
+
+      final app = await buildLocalizedTestApp(
+        TickerMode(
+          enabled: false,
+          child: ProgressHomeView(
+            appStateViewModel: appStateViewModel,
+            mapViewModel: mapViewModel,
+          ),
+        ),
+      );
+
+      await tester.pumpWidget(app);
+      await tester.pumpAndSettle();
+
+      await tester.tap(find.text('Browse packs'));
+      await tester.pumpAndSettle();
+
+      await tester.tap(
+        find.byKey(const ValueKey<String>('region-picker-open-country-de')),
+      );
+      await tester.pumpAndSettle();
+
+      expect(find.text('Bayern'), findsOneWidget);
+
+      await tester.pumpWidget(const SizedBox.shrink());
+    },
+  );
 }

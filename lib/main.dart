@@ -2,6 +2,7 @@ import 'package:easy_localization/easy_localization.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_dotenv/flutter_dotenv.dart';
 import 'package:shared_preferences/shared_preferences.dart';
+import 'dart:async';
 
 import 'app/explored_app.dart';
 import 'features/app_state/data/repositories/app_state_repository.dart';
@@ -29,6 +30,8 @@ import 'features/permissions/data/repositories/permissions_repository.dart';
 import 'features/permissions/data/services/file_access_permission_service.dart';
 import 'features/permissions/data/services/permission_request_store.dart';
 import 'features/permissions/view_model/permissions_view_model.dart';
+import 'features/region_catalog/data/repositories/region_catalog_repository.dart';
+import 'features/region_catalog/data/services/region_pack_asset_service.dart';
 
 Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
@@ -121,11 +124,13 @@ Future<void> main() async {
   );
   final appStateRepository = DefaultAppStateRepository(
     prefsService: AppStatePrefsService(preferences: sharedPreferences),
+    regionCatalogRepository: DefaultRegionCatalogRepository(
+      assetService: BundleRegionPackAssetService(),
+    ),
   );
-  final appStateSnapshot = await appStateRepository.load();
   final appStateViewModel = AppStateViewModel(
     repository: appStateRepository,
-    initialState: appStateSnapshot,
+    initialState: appStateRepository.createInitialState(),
   );
 
   runApp(
@@ -141,4 +146,5 @@ Future<void> main() async {
       ),
     ),
   );
+  unawaited(appStateViewModel.bootstrap());
 }

@@ -6,17 +6,19 @@ import 'package:flutter_map/flutter_map.dart';
 import 'package:go_router/go_router.dart';
 import 'package:latlong2/latlong.dart';
 
-import '../../app_state/data/models/region.dart';
 import '../../app_state/view_model/app_state_view_model.dart';
 import '../../map/view/widgets/tracked_history_map.dart';
 import '../../map/view_model/map_view_model.dart';
+import '../../region_catalog/data/models/region_pack_node.dart';
+import '../../region_catalog/view/widgets/region_boundary_layer.dart';
+import '../../region_picker/view/region_picker_view.dart';
+import '../../region_picker/view_model/region_picker_view_model.dart';
 import '../../../translations/locale_keys.g.dart';
 import '../../../ui/core/app_colors.dart';
 import '../../../ui/core/widgets/coming_soon.dart';
 import '../../../ui/core/widgets/hex_mascot.dart';
 import '../../../ui/core/widgets/not_implemented_badge.dart';
 import '../../../ui/core/widgets/placeholder_metric_value.dart';
-import 'widgets/region_finder_sheet.dart';
 
 class ProgressHomeView extends StatefulWidget {
   const ProgressHomeView({
@@ -60,7 +62,7 @@ class _ProgressHomeViewState extends State<ProgressHomeView>
         widget.mapViewModel,
       ]),
       builder: (context, _) {
-        final region = widget.appStateViewModel.currentRegion;
+        final selectedPack = widget.appStateViewModel.selectedPackOrNull;
 
         return Scaffold(
           backgroundColor: AppColors.slate50,
@@ -110,7 +112,9 @@ class _ProgressHomeViewState extends State<ProgressHomeView>
                           const SizedBox(height: 16),
                           _buildGlobalProgressCard(),
                           const SizedBox(height: 16),
-                          _buildCurrentRegionCard(region),
+                          selectedPack == null
+                              ? _buildCurrentRegionLoadingCard()
+                              : _buildCurrentRegionCard(selectedPack),
                           const SizedBox(height: 16),
                           Row(
                             children: [
@@ -306,7 +310,7 @@ class _ProgressHomeViewState extends State<ProgressHomeView>
     );
   }
 
-  Widget _buildCurrentRegionCard(Region region) {
+  Widget _buildCurrentRegionCard(RegionPackNode pack) {
     final mapState = widget.mapViewModel.state;
     final lastLocation = mapState.locationTracking.lastLocation;
     final currentLocation = lastLocation == null
@@ -337,21 +341,29 @@ class _ProgressHomeViewState extends State<ProgressHomeView>
                   tileSource: mapState.tileSource,
                   persistedSamples: mapState.persistedSamples,
                   currentLocation: currentLocation,
-                  initialCenter: region.center,
+                  initialCenter: pack.center,
                   initialZoom: 9,
+                  initialCameraFit: CameraFit.bounds(
+                    bounds: pack.bounds.toLatLngBounds(),
+                    padding: const EdgeInsets.all(12),
+                    maxZoom: 10.5,
+                  ),
                   interactionOptions: const InteractionOptions(
                     flags: InteractiveFlag.none,
                   ),
                   baseLayers: [
-                    PolygonLayer(
-                      polygons: [
-                        Polygon(
-                          points: region.bounds,
-                          color: AppColors.emerald600.withValues(alpha: 0.28),
-                          borderColor: AppColors.emerald500,
-                          borderStrokeWidth: 1.8,
-                        ),
-                      ],
+                    RegionBoundaryLayer(
+                      boundary:
+                          widget.appStateViewModel.selectedParentRegionBoundary,
+                      fillColor: AppColors.emerald100.withValues(alpha: 0.16),
+                      borderColor: AppColors.emerald200,
+                      borderStrokeWidth: 1.2,
+                    ),
+                    RegionBoundaryLayer(
+                      boundary: widget.appStateViewModel.selectedBoundary,
+                      fillColor: AppColors.emerald600.withValues(alpha: 0.28),
+                      borderColor: AppColors.emerald500,
+                      borderStrokeWidth: 1.8,
                     ),
                   ],
                 ),
@@ -455,7 +467,7 @@ class _ProgressHomeViewState extends State<ProgressHomeView>
                         shape: BoxShape.circle,
                       ),
                       child: IconButton(
-                        onPressed: () => context.go('/region/${region.id}'),
+                        onPressed: () => context.go('/pack/${pack.id}'),
                         icon: const Icon(
                           Icons.chevron_right,
                           color: Colors.white,
@@ -466,7 +478,7 @@ class _ProgressHomeViewState extends State<ProgressHomeView>
                   ],
                 ),
                 Text(
-                  region.name,
+                  pack.name,
                   style: const TextStyle(
                     color: Colors.white,
                     fontSize: 20,
@@ -500,20 +512,29 @@ class _ProgressHomeViewState extends State<ProgressHomeView>
     );
   }
 
+  Widget _buildCurrentRegionLoadingCard() {
+    return Container(
+      height: 260,
+      decoration: BoxDecoration(
+        color: AppColors.emerald900,
+        borderRadius: BorderRadius.circular(16),
+      ),
+      child: const Center(
+        child: CircularProgressIndicator(color: Colors.white),
+      ),
+    );
+  }
+
   Future<void> _openRegionFinder() async {
-    final lastLocation =
-        widget.mapViewModel.state.locationTracking.lastLocation;
     await showModalBottomSheet<void>(
       context: context,
       isScrollControlled: true,
       backgroundColor: Colors.transparent,
       barrierColor: Colors.black.withValues(alpha: 0.4),
-      builder: (_) => RegionFinderSheet(
-        appStateViewModel: widget.appStateViewModel,
-        mapViewModel: widget.mapViewModel,
-        userLocation: lastLocation == null
-            ? null
-            : LatLng(lastLocation.latitude, lastLocation.longitude),
+      builder: (_) => RegionPickerView(
+        viewModel: RegionPickerViewModel(
+          appStateViewModel: widget.appStateViewModel,
+        ),
       ),
     );
   }

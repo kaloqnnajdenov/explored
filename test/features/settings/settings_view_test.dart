@@ -1,12 +1,12 @@
-import 'package:explored/features/app_state/data/models/region.dart';
 import 'package:explored/features/app_state/view_model/app_state_view_model.dart';
 import 'package:explored/features/gpx_import/view_model/gpx_import_view_model.dart';
 import 'package:explored/features/map/view_model/map_view_model.dart';
+import 'package:explored/features/region_catalog/data/models/region_pack_bounds.dart';
+import 'package:explored/features/region_catalog/data/models/region_pack_kind.dart';
 import 'package:explored/features/settings/view/settings_view.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:go_router/go_router.dart';
-import 'package:latlong2/latlong.dart';
 
 import '../../test_utils/localization_test_utils.dart';
 import '../../test_utils/map_test_doubles.dart';
@@ -17,38 +17,39 @@ void main() {
   ) async {
     await loadTestTranslations();
 
-    final regions = const [
-      Region(
-        id: 'r1',
-        name: 'Northern Alps',
-        totalArea: 100,
-        exploredArea: 10,
-        isDownloaded: false,
-        center: LatLng(0, 0),
-        bounds: [LatLng(0, 0), LatLng(0, 1), LatLng(1, 1), LatLng(1, 0)],
-        features: RegionFeatures(
-          trails: RegionFeatureProgress(total: 1, completed: 0),
-          peaks: RegionFeatureProgress(total: 1, completed: 0),
-          huts: RegionFeatureProgress(total: 1, completed: 0),
-        ),
+    final packs = [
+      buildTestPackNode(
+        id: 'country-at',
+        name: 'Austria',
+        kind: RegionPackKind.country,
+        childIds: const ['region-tirol', 'region-vienna'],
+        displayPath: 'Austria',
       ),
-      Region(
-        id: 'r2',
-        name: 'Otztal Alps',
-        totalArea: 200,
-        exploredArea: 20,
+      buildTestPackNode(
+        id: 'region-tirol',
+        name: 'Tirol',
+        kind: RegionPackKind.region,
+        parentId: 'country-at',
         isDownloaded: true,
-        center: LatLng(1, 1),
-        bounds: [LatLng(1, 1), LatLng(1, 2), LatLng(2, 2), LatLng(2, 1)],
-        features: RegionFeatures(
-          trails: RegionFeatureProgress(total: 2, completed: 1),
-          peaks: RegionFeatureProgress(total: 2, completed: 1),
-          huts: RegionFeatureProgress(total: 2, completed: 1),
+        bounds: const RegionPackBounds(
+          west: 10,
+          south: 46,
+          east: 12,
+          north: 48,
         ),
+        displayPath: 'Austria / Tirol',
+      ),
+      buildTestPackNode(
+        id: 'region-vienna',
+        name: 'Vienna',
+        kind: RegionPackKind.region,
+        parentId: 'country-at',
+        isDownloaded: false,
+        displayPath: 'Austria / Vienna',
       ),
     ];
     final appStateRepository = FakeAppStateRepository(
-      buildAppStateSnapshot(regions: regions, currentRegionId: 'r1'),
+      buildPackAppStateSnapshot(packs: packs, selectedPackId: 'region-tirol'),
     );
     final appStateViewModel = AppStateViewModel(
       repository: appStateRepository,
@@ -87,7 +88,10 @@ void main() {
     await tester.pump(const Duration(milliseconds: 300));
 
     expect(find.byType(ActionChip), findsNothing);
-    expect(find.byIcon(Icons.delete_outline), findsNWidgets(regions.length));
+    expect(find.text('Austria'), findsOneWidget);
+    expect(find.text('Tirol'), findsOneWidget);
+    expect(find.text('Vienna'), findsNothing);
+    expect(find.byIcon(Icons.delete_outline), findsOneWidget);
 
     await tester.tap(find.byIcon(Icons.delete_outline).first);
     await tester.pump();
@@ -105,24 +109,24 @@ void main() {
   ) async {
     await loadTestTranslations();
 
-    final regions = const [
-      Region(
-        id: 'r1',
-        name: 'Northern Alps',
-        totalArea: 100,
-        exploredArea: 10,
-        isDownloaded: false,
-        center: LatLng(0, 0),
-        bounds: [LatLng(0, 0), LatLng(0, 1), LatLng(1, 1), LatLng(1, 0)],
-        features: RegionFeatures(
-          trails: RegionFeatureProgress(total: 1, completed: 0),
-          peaks: RegionFeatureProgress(total: 1, completed: 0),
-          huts: RegionFeatureProgress(total: 1, completed: 0),
-        ),
+    final packs = [
+      buildTestPackNode(
+        id: 'country-at',
+        name: 'Austria',
+        kind: RegionPackKind.country,
+        childIds: const ['region-tirol'],
+        displayPath: 'Austria',
+      ),
+      buildTestPackNode(
+        id: 'region-tirol',
+        name: 'Tirol',
+        kind: RegionPackKind.region,
+        parentId: 'country-at',
+        displayPath: 'Austria / Tirol',
       ),
     ];
     final appStateRepository = FakeAppStateRepository(
-      buildAppStateSnapshot(regions: regions, currentRegionId: 'r1'),
+      buildPackAppStateSnapshot(packs: packs, selectedPackId: 'region-tirol'),
     );
     final appStateViewModel = AppStateViewModel(
       repository: appStateRepository,

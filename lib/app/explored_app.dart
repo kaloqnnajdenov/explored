@@ -57,16 +57,21 @@ class ExploredApp extends StatelessWidget {
                  PermissionsGateView(appStateViewModel: appStateViewModel),
            ),
            GoRoute(
-             path: '/region/:id',
-             builder: (_, state) => RegionDetailView(
+             path: '/pack/:id',
+             builder: (_, state) => PackDetailView(
                appStateViewModel: appStateViewModel,
-               regionId: state.pathParameters['id']!,
+               packId: state.pathParameters['id']!,
              ),
+           ),
+           GoRoute(
+             path: '/region/:id',
+             redirect: (_, state) => '/pack/${state.pathParameters['id']!}',
            ),
            GoRoute(
              path: '/map',
              builder: (context, __) => MapView(
                viewModel: mapViewModel,
+               appStateViewModel: appStateViewModel,
                showBackButton: true,
                onBack: () {
                  if (context.canPop()) {

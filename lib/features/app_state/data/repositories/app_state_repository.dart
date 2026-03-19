@@ -1,14 +1,24 @@
-import 'package:latlong2/latlong.dart';
-
 import '../models/app_permission.dart';
 import '../models/app_state_snapshot.dart';
 import '../models/gps_quality.dart';
-import '../models/region.dart';
 import '../models/user_point.dart';
 import '../services/app_state_prefs_service.dart';
+import '../../../region_catalog/data/models/region_boundary.dart';
+import '../../../region_catalog/data/models/region_catalog.dart';
+import '../../../region_catalog/data/models/region_pack_node.dart';
+import '../../../region_catalog/data/models/selected_pack_ref.dart';
+import '../../../region_catalog/data/repositories/region_catalog_repository.dart';
 
 abstract class AppStateRepository {
-  Future<AppStateSnapshot> load();
+  AppStateSnapshot createInitialState();
+
+  Future<List<RegionPackNode>> loadRootPacks();
+
+  Future<List<RegionPackNode>> restoreSelectedPack();
+
+  Future<List<RegionPackNode>> loadChildren(String parentId);
+
+  Future<List<RegionPackNode>> loadDownloadedPacks();
 
   Future<void> setHasSeenOnboarding(bool value);
 
@@ -16,45 +26,81 @@ abstract class AppStateRepository {
     Map<TrackingPermissionType, PermissionGrantState> permissions,
   );
 
-  Future<void> setCurrentRegionId(String regionId);
+  Future<void> setSelectedPack(SelectedPackRef ref);
 
-  Future<void> setDownloadedRegionIds(Set<String> ids);
+  Future<void> setDownloadedPacks(List<SelectedPackRef> refs);
 
   Future<void> setUserPoints(List<UserPoint> points);
+
+  Future<RegionBoundary> loadBoundary(String packId);
 }
 
 class DefaultAppStateRepository implements AppStateRepository {
-  DefaultAppStateRepository({required AppStatePrefsService prefsService})
-    : _prefsService = prefsService;
+  DefaultAppStateRepository({
+    required AppStatePrefsService prefsService,
+    required RegionCatalogRepository regionCatalogRepository,
+  }) : _prefsService = prefsService,
+       _regionCatalogRepository = regionCatalogRepository;
 
   final AppStatePrefsService _prefsService;
+  final RegionCatalogRepository _regionCatalogRepository;
 
   @override
-  Future<AppStateSnapshot> load() async {
-    final seedRegions = _seedRegions();
-    final downloadedIds = _prefsService.readDownloadedRegionIds();
-    final regions = seedRegions
-        .map(
-          (region) =>
-              region.copyWith(isDownloaded: downloadedIds.contains(region.id)),
-        )
-        .toList(growable: false);
-    final defaultRegionId = regions.first.id;
-    final persistedRegionId = _prefsService.readCurrentRegionId();
-    final currentRegionId =
-        regions.any((region) => region.id == persistedRegionId)
-        ? persistedRegionId!
-        : defaultRegionId;
-
+  AppStateSnapshot createInitialState() {
+    final selectedPackRef = _prefsService.readSelectedPackRef();
     return AppStateSnapshot(
       hasSeenOnboarding: _prefsService.readHasSeenOnboarding(),
       permissions: _prefsService.readPermissions(),
       isTracking: true,
       gpsQuality: GpsQuality.good,
-      regions: regions,
-      currentRegionId: currentRegionId,
+      regionCatalog: RegionCatalog.empty,
+      selectedPackId:
+          selectedPackRef?.id ?? _prefsService.readSelectedPackId() ?? '',
+      selectedPackRef: selectedPackRef,
+      downloadedPackRefs: _prefsService.readDownloadedPackRefs(),
+      isCatalogLoading: false,
+      catalogError: null,
+      hasLoadedRootPacks: false,
       userPoints: _prefsService.readUserPoints(),
     );
+  }
+
+  @override
+  Future<List<RegionPackNode>> loadRootPacks() async {
+    return _markDownloaded(await _regionCatalogRepository.loadRootCountries());
+  }
+
+  @override
+  Future<List<RegionPackNode>> restoreSelectedPack() async {
+    final selectedPackRef = _prefsService.readSelectedPackRef();
+    if (selectedPackRef == null) {
+      return const <RegionPackNode>[];
+    }
+    return _markDownloaded(
+      await _regionCatalogRepository.loadNodesForSelectionRef(selectedPackRef),
+    );
+  }
+
+  @override
+  Future<List<RegionPackNode>> loadChildren(String parentId) async {
+    return _markDownloaded(
+      await _regionCatalogRepository.loadChildren(parentId),
+    );
+  }
+
+  @override
+  Future<List<RegionPackNode>> loadDownloadedPacks() async {
+    final refs = _prefsService.readDownloadedPackRefs();
+    final nodesById = <String, RegionPackNode>{};
+    for (final ref in refs) {
+      final nodes = await _regionCatalogRepository.loadNodesForSelectionRef(
+        ref,
+      );
+      for (final node in nodes) {
+        nodesById[node.id] = node;
+      }
+    }
+    return _markDownloaded(nodesById.values.toList(growable: false));
   }
 
   @override
@@ -70,13 +116,13 @@ class DefaultAppStateRepository implements AppStateRepository {
   }
 
   @override
-  Future<void> setCurrentRegionId(String regionId) {
-    return _prefsService.writeCurrentRegionId(regionId);
+  Future<void> setSelectedPack(SelectedPackRef ref) {
+    return _prefsService.writeSelectedPackRef(ref);
   }
 
   @override
-  Future<void> setDownloadedRegionIds(Set<String> ids) {
-    return _prefsService.writeDownloadedRegionIds(ids);
+  Future<void> setDownloadedPacks(List<SelectedPackRef> refs) {
+    return _prefsService.writeDownloadedPackRefs(refs);
   }
 
   @override
@@ -84,122 +130,19 @@ class DefaultAppStateRepository implements AppStateRepository {
     return _prefsService.writeUserPoints(points);
   }
 
-  List<Region> _seedRegions() {
-    return const [
-      Region(
-        id: 'northern-alps',
-        name: 'Northern Alps',
-        totalArea: 1580,
-        exploredArea: 0,
-        isDownloaded: false,
-        center: LatLng(47.312, 10.716),
-        bounds: [
-          LatLng(47.650, 10.060),
-          LatLng(47.610, 11.160),
-          LatLng(47.060, 11.340),
-          LatLng(46.980, 10.080),
-        ],
-        features: RegionFeatures(
-          trails: RegionFeatureProgress(total: 320, completed: 0),
-          peaks: RegionFeatureProgress(total: 88, completed: 0),
-          huts: RegionFeatureProgress(total: 52, completed: 0),
-        ),
-      ),
-      Region(
-        id: 'eastern-dolomites',
-        name: 'Eastern Dolomites',
-        totalArea: 910,
-        exploredArea: 0,
-        isDownloaded: false,
-        center: LatLng(46.537, 12.131),
-        bounds: [
-          LatLng(46.820, 11.700),
-          LatLng(46.770, 12.570),
-          LatLng(46.220, 12.660),
-          LatLng(46.200, 11.720),
-        ],
-        features: RegionFeatures(
-          trails: RegionFeatureProgress(total: 250, completed: 0),
-          peaks: RegionFeatureProgress(total: 72, completed: 0),
-          huts: RegionFeatureProgress(total: 45, completed: 0),
-        ),
-      ),
-      Region(
-        id: 'zillertal-alps',
-        name: 'Zillertal Alps',
-        totalArea: 1090,
-        exploredArea: 0,
-        isDownloaded: false,
-        center: LatLng(47.037, 11.885),
-        bounds: [
-          LatLng(47.350, 11.420),
-          LatLng(47.350, 12.320),
-          LatLng(46.760, 12.320),
-          LatLng(46.740, 11.430),
-        ],
-        features: RegionFeatures(
-          trails: RegionFeatureProgress(total: 280, completed: 0),
-          peaks: RegionFeatureProgress(total: 79, completed: 0),
-          huts: RegionFeatureProgress(total: 41, completed: 0),
-        ),
-      ),
-      Region(
-        id: 'stubai-valley',
-        name: 'Stubai Valley',
-        totalArea: 540,
-        exploredArea: 0,
-        isDownloaded: false,
-        center: LatLng(47.083, 11.239),
-        bounds: [
-          LatLng(47.270, 10.980),
-          LatLng(47.250, 11.520),
-          LatLng(46.860, 11.530),
-          LatLng(46.840, 10.970),
-        ],
-        features: RegionFeatures(
-          trails: RegionFeatureProgress(total: 134, completed: 0),
-          peaks: RegionFeatureProgress(total: 36, completed: 0),
-          huts: RegionFeatureProgress(total: 21, completed: 0),
-        ),
-      ),
-      Region(
-        id: 'brenta-dolomites',
-        name: 'Brenta Dolomites',
-        totalArea: 670,
-        exploredArea: 0,
-        isDownloaded: false,
-        center: LatLng(46.173, 10.914),
-        bounds: [
-          LatLng(46.410, 10.610),
-          LatLng(46.430, 11.220),
-          LatLng(45.970, 11.250),
-          LatLng(45.930, 10.590),
-        ],
-        features: RegionFeatures(
-          trails: RegionFeatureProgress(total: 186, completed: 0),
-          peaks: RegionFeatureProgress(total: 55, completed: 0),
-          huts: RegionFeatureProgress(total: 33, completed: 0),
-        ),
-      ),
-      Region(
-        id: 'otztal-alps',
-        name: 'Otztal Alps',
-        totalArea: 1230,
-        exploredArea: 0,
-        isDownloaded: false,
-        center: LatLng(46.868, 10.879),
-        bounds: [
-          LatLng(47.200, 10.350),
-          LatLng(47.180, 11.420),
-          LatLng(46.530, 11.430),
-          LatLng(46.490, 10.320),
-        ],
-        features: RegionFeatures(
-          trails: RegionFeatureProgress(total: 298, completed: 0),
-          peaks: RegionFeatureProgress(total: 82, completed: 0),
-          huts: RegionFeatureProgress(total: 48, completed: 0),
-        ),
-      ),
-    ];
+  @override
+  Future<RegionBoundary> loadBoundary(String packId) {
+    return _regionCatalogRepository.loadBoundary(packId);
+  }
+
+  List<RegionPackNode> _markDownloaded(List<RegionPackNode> nodes) {
+    final downloadedIds = _prefsService.readDownloadedPackIds();
+    return nodes
+        .map(
+          (node) => downloadedIds.contains(node.id)
+              ? node.copyWith(isDownloaded: true)
+              : node,
+        )
+        .toList(growable: false);
   }
 }
