@@ -4,16 +4,21 @@ import 'package:go_router/go_router.dart';
 import 'package:provider/provider.dart';
 
 import '../features/app_state/view_model/app_state_view_model.dart';
+import '../features/entity_detail/view/entity_detail_view.dart';
+import '../features/entity_detail/view_model/entity_details_view_model.dart';
+import '../features/exploration/data/repositories/entity_repository.dart';
+import '../features/exploration/data/repositories/progress_repository.dart';
+import '../features/exploration/data/repositories/selection_repository.dart';
 import '../features/gpx_import/view_model/gpx_import_view_model.dart';
 import '../features/map/view/map_view.dart';
 import '../features/map/view_model/map_view_model.dart';
 import '../features/onboarding/view/onboarding_view.dart';
 import '../features/permission_gate/view/permissions_gate_view.dart';
-import '../features/permissions/view_model/permissions_view_model.dart';
 import '../features/permissions/view/permissions_management_view.dart';
+import '../features/permissions/view_model/permissions_view_model.dart';
 import '../features/profile/view/profile_view.dart';
 import '../features/progress_home/view/progress_home_view.dart';
-import '../features/region_detail/view/region_detail_view.dart';
+import '../features/progress_home/view_model/progress_view_model.dart';
 import '../features/settings/view/settings_view.dart';
 import '../translations/locale_keys.g.dart';
 import '../ui/core/app_theme.dart';
@@ -24,8 +29,14 @@ class ExploredApp extends StatelessWidget {
     required this.mapViewModel,
     required this.permissionsViewModel,
     required this.gpxImportViewModel,
+    required this.progressViewModel,
+    required this.entityRepository,
+    required this.selectionRepository,
+    required this.progressRepository,
+    this.initialLocation,
     super.key,
   }) : _router = GoRouter(
+         initialLocation: initialLocation,
          refreshListenable: appStateViewModel,
          redirect: (_, state) {
            final currentPath = state.uri.path;
@@ -43,8 +54,10 @@ class ExploredApp extends StatelessWidget {
            GoRoute(
              path: '/',
              builder: (_, __) => ProgressHomeView(
-               appStateViewModel: appStateViewModel,
+               progressViewModel: progressViewModel,
                mapViewModel: mapViewModel,
+               entityRepository: entityRepository,
+               selectionRepository: selectionRepository,
              ),
            ),
            GoRoute(
@@ -57,21 +70,28 @@ class ExploredApp extends StatelessWidget {
                  PermissionsGateView(appStateViewModel: appStateViewModel),
            ),
            GoRoute(
-             path: '/pack/:id',
-             builder: (_, state) => PackDetailView(
-               appStateViewModel: appStateViewModel,
-               packId: state.pathParameters['id']!,
+             path: '/entity/:id',
+             builder: (_, state) => EntityDetailView(
+               entityId: state.pathParameters['id']!,
+               mapViewModel: mapViewModel,
+               viewModel: EntityDetailsViewModel(
+                 entityRepository: entityRepository,
+                 progressRepository: progressRepository,
+               ),
              ),
            ),
            GoRoute(
+             path: '/pack/:id',
+             redirect: (_, state) => '/entity/${state.pathParameters['id']!}',
+           ),
+           GoRoute(
              path: '/region/:id',
-             redirect: (_, state) => '/pack/${state.pathParameters['id']!}',
+             redirect: (_, state) => '/entity/${state.pathParameters['id']!}',
            ),
            GoRoute(
              path: '/map',
              builder: (context, __) => MapView(
                viewModel: mapViewModel,
-               appStateViewModel: appStateViewModel,
                showBackButton: true,
                onBack: () {
                  if (context.canPop()) {
@@ -85,7 +105,6 @@ class ExploredApp extends StatelessWidget {
            GoRoute(
              path: '/settings',
              builder: (_, __) => SettingsView(
-               appStateViewModel: appStateViewModel,
                mapViewModel: mapViewModel,
                gpxImportViewModel: gpxImportViewModel,
              ),
@@ -107,6 +126,11 @@ class ExploredApp extends StatelessWidget {
   final MapViewModel mapViewModel;
   final PermissionsViewModel permissionsViewModel;
   final GpxImportViewModel gpxImportViewModel;
+  final ProgressViewModel progressViewModel;
+  final EntityRepository entityRepository;
+  final SelectionRepository selectionRepository;
+  final ProgressRepository progressRepository;
+  final String? initialLocation;
   final GoRouter _router;
 
   @override
@@ -122,6 +146,9 @@ class ExploredApp extends StatelessWidget {
         ),
         ChangeNotifierProvider<GpxImportViewModel>.value(
           value: gpxImportViewModel,
+        ),
+        ChangeNotifierProvider<ProgressViewModel>.value(
+          value: progressViewModel,
         ),
       ],
       child: MaterialApp.router(

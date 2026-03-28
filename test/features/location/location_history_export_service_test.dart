@@ -11,10 +11,7 @@ import 'package:explored/features/location/data/services/location_history_export
 import 'package:explored/features/location/data/services/location_history_h3_service.dart';
 
 class FakeHistoryDao extends LocationHistoryDao {
-  FakeHistoryDao(
-    super.db, {
-    required this.exportData,
-  });
+  FakeHistoryDao(super.db, {required this.exportData});
 
   final LocationHistoryExportData exportData;
 
@@ -141,8 +138,9 @@ void main() {
     final tempDir = await Directory.systemTemp.createTemp('download_test_');
     final pathProvider = FakePathProviderClient(tempDir);
     final shareClient = FakeShareClient();
-    final fileSaveClient =
-        FakeFileSaveClient('${tempDir.path}/saved_export.csv');
+    final fileSaveClient = FakeFileSaveClient(
+      '${tempDir.path}/saved_export.csv',
+    );
     final service = LocationHistoryExportService(
       historyDao: dao,
       pathProvider: pathProvider,
@@ -160,8 +158,7 @@ void main() {
 
     final file = File(result.filePath!);
     final content = await file.readAsString();
-    const expected =
-        'alpha,beta\n"value,with,comma","quote ""here"""\n';
+    const expected = 'alpha,beta\n"value,with,comma","quote ""here"""\n';
     expect(content, expected);
 
     await tempDir.delete(recursive: true);

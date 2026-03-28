@@ -20,9 +20,7 @@ abstract class LocationHistoryRepository {
 
   Future<void> dispose();
 
-  Future<List<LatLngSample>> addImportedSamples(
-    List<LatLngSample> samples,
-  );
+  Future<List<LatLngSample>> addImportedSamples(List<LatLngSample> samples);
 
   Future<HistoryManualEditResult> applyManualEdits({
     required List<LatLngSample> insertSamples,
@@ -52,10 +50,10 @@ class DefaultLocationHistoryRepository implements LocationHistoryRepository {
     required LocationHistoryDao historyDao,
     required LocationHistoryExportService exportService,
     LocationHistoryH3Service? h3Service,
-  })  : _locationUpdatesRepository = locationUpdatesRepository,
-        _historyDao = historyDao,
-        _exportService = exportService,
-        _h3Service = h3Service ?? LocationHistoryH3Service() {
+  }) : _locationUpdatesRepository = locationUpdatesRepository,
+       _historyDao = historyDao,
+       _exportService = exportService,
+       _h3Service = h3Service ?? LocationHistoryH3Service() {
     _controller = StreamController<List<LatLngSample>>.broadcast();
   }
 
@@ -66,6 +64,7 @@ class DefaultLocationHistoryRepository implements LocationHistoryRepository {
   late final StreamController<List<LatLngSample>> _controller;
   StreamSubscription<LatLngSample>? _subscription;
   final List<LatLngSample> _samples = <LatLngSample>[];
+  List<LatLngSample> _samplesView = const <LatLngSample>[];
   final Set<_SampleKey> _sampleKeys = <_SampleKey>{};
   Future<void> _persistChain = Future<void>.value();
   bool _hasLoaded = false;
@@ -74,14 +73,14 @@ class DefaultLocationHistoryRepository implements LocationHistoryRepository {
   Stream<List<LatLngSample>> get historyStream => _controller.stream;
 
   @override
-  List<LatLngSample> get currentSamples =>
-      List<LatLngSample>.unmodifiable(_samples);
+  List<LatLngSample> get currentSamples => _samplesView;
 
   @override
   Future<void> start() async {
     await _ensureLoaded();
-    _subscription ??=
-        _locationUpdatesRepository.locationUpdates.listen(_handleSample);
+    _subscription ??= _locationUpdatesRepository.locationUpdates.listen(
+      _handleSample,
+    );
   }
 
   @override
@@ -136,8 +135,9 @@ class DefaultLocationHistoryRepository implements LocationHistoryRepository {
       stagedAdds.add(sample);
     }
 
-    final deleteIds =
-        deleteBaseCellIds.isEmpty ? const <String>{} : deleteBaseCellIds;
+    final deleteIds = deleteBaseCellIds.isEmpty
+        ? const <String>{}
+        : deleteBaseCellIds;
     final removedSamples = <LatLngSample>[];
     if (deleteIds.isNotEmpty) {
       for (final sample in _samples) {
@@ -270,9 +270,7 @@ class DefaultLocationHistoryRepository implements LocationHistoryRepository {
     _persistChain = _persistChain.then((_) async {
       await _historyDao.transaction(() async {
         if (deleteBaseCellIds.isNotEmpty) {
-          await _historyDao.deleteSamplesForBaseCellIds(
-            deleteBaseCellIds,
-          );
+          await _historyDao.deleteSamplesForBaseCellIds(deleteBaseCellIds);
         }
         if (insertSamples.isNotEmpty) {
           await _historyDao.insertSamples(insertSamples);
@@ -312,7 +310,8 @@ class DefaultLocationHistoryRepository implements LocationHistoryRepository {
     if (_controller.isClosed) {
       return;
     }
-    _controller.add(List<LatLngSample>.unmodifiable(_samples));
+    _samplesView = List<LatLngSample>.unmodifiable(_samples);
+    _controller.add(_samplesView);
   }
 
   int _compareSamples(LatLngSample a, LatLngSample b) {

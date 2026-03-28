@@ -17,10 +17,7 @@ class PendingGpxImportRepository implements GpxImportRepository {
   Future<GpxImportPreparation> prepareImport() async {
     return GpxImportPreparation(
       outcome: GpxImportOutcome.success,
-      file: GpxSelectedFile(
-        name: 'track.gpx',
-        bytes: Uint8List.fromList([1]),
-      ),
+      file: GpxSelectedFile(name: 'track.gpx', bytes: Uint8List.fromList([1])),
     );
   }
 

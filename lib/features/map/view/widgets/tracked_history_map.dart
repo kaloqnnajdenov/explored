@@ -29,6 +29,7 @@ class TrackedHistoryMap extends StatefulWidget {
     this.baseLayers = const <Widget>[],
     this.initialCameraFit,
     this.showScaleIndicator = false,
+    this.maxRenderedSamples = 4000,
   });
 
   final MapTileSource tileSource;
@@ -44,6 +45,7 @@ class TrackedHistoryMap extends StatefulWidget {
   final List<Widget> baseLayers;
   final CameraFit? initialCameraFit;
   final bool showScaleIndicator;
+  final int maxRenderedSamples;
 
   @override
   State<TrackedHistoryMap> createState() => _TrackedHistoryMapState();
@@ -90,18 +92,33 @@ class _TrackedHistoryMapState extends State<TrackedHistoryMap> {
       return _cachedPersistedCircles;
     }
 
+    final step = _sampleStep(samples.length);
     _lastPersistedSamples = samples;
     _cachedPersistedCircles = [
-      for (final sample in samples)
-        CircleMarker(
-          point: LatLng(sample.latitude, sample.longitude),
-          radius: 2,
-          color: Colors.orangeAccent.withValues(alpha: 0.55),
-          borderColor: Colors.white.withValues(alpha: 0.65),
-          borderStrokeWidth: 0.5,
-        ),
+      for (var index = 0; index < samples.length; index += step)
+        _buildPersistedCircle(samples[index]),
+      if (samples.isNotEmpty && (samples.length - 1) % step != 0)
+        _buildPersistedCircle(samples.last),
     ];
     return _cachedPersistedCircles;
+  }
+
+  int _sampleStep(int sampleCount) {
+    if (widget.maxRenderedSamples <= 0 ||
+        sampleCount <= widget.maxRenderedSamples) {
+      return 1;
+    }
+    return (sampleCount / widget.maxRenderedSamples).ceil();
+  }
+
+  CircleMarker _buildPersistedCircle(LatLngSample sample) {
+    return CircleMarker(
+      point: LatLng(sample.latitude, sample.longitude),
+      radius: 2,
+      color: Colors.orangeAccent.withValues(alpha: 0.55),
+      borderColor: Colors.white.withValues(alpha: 0.65),
+      borderStrokeWidth: 0.5,
+    );
   }
 
   Marker _buildLocationMarker(LatLng position) {

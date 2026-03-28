@@ -67,10 +67,7 @@ void main() {
     final service = LocationTrackingServiceFactory.create(
       client: FakeBackgroundLocationClient(),
       config: const LocationTrackingConfig(),
-      platformInfo: FakePlatformInfo(
-        isAndroid: false,
-        isIOS: true,
-      ),
+      platformInfo: FakePlatformInfo(isAndroid: false, isIOS: true),
     );
 
     expect(service, isA<IOSLocationTrackingService>());
@@ -80,10 +77,7 @@ void main() {
     final service = LocationTrackingServiceFactory.create(
       client: FakeBackgroundLocationClient(),
       config: const LocationTrackingConfig(),
-      platformInfo: FakePlatformInfo(
-        isAndroid: false,
-        isIOS: false,
-      ),
+      platformInfo: FakePlatformInfo(isAndroid: false, isIOS: false),
     );
 
     expect(

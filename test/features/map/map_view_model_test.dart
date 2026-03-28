@@ -1,6 +1,7 @@
 import 'dart:async';
 
 import 'package:flutter_test/flutter_test.dart';
+import 'package:explored/domain/objects/object_category.dart';
 import 'package:explored/features/location/data/models/lat_lng_sample.dart';
 import 'package:explored/features/location/data/models/history_export_result.dart';
 import 'package:explored/features/location/data/models/location_permission_level.dart';
@@ -15,6 +16,8 @@ import 'package:explored/features/map/data/services/map_tile_service.dart';
 import 'package:explored/features/map/view_model/map_view_model.dart';
 import 'package:explored/features/permissions/data/models/app_permission.dart';
 import 'package:explored/features/permissions/data/repositories/permissions_repository.dart';
+
+import '../../test_utils/exploration_test_harness.dart';
 
 class FakeMapTileService implements MapTileService {
   @override
@@ -552,6 +555,50 @@ void main() {
     expect(historyRepository.downloadCalls, 1);
     expect(viewModel.state.exportFeedback?.messageKey, 'download_failed');
     expect(viewModel.state.exportFeedback?.isError, isTrue);
+
+    viewModel.dispose();
+  });
+
+  test('refreshSelectedEntity loads peaks, huts, and monuments', () async {
+    final harness = await buildExplorationTestHarness();
+    addTearDown(harness.dispose);
+    await harness.importCountryPack();
+    await harness.selectionRepository.setSelectedEntityId(testRegionEntityId);
+
+    final locationRepository = FakeLocationUpdatesRepository();
+    final historyRepository = FakeLocationHistoryRepository();
+    final viewModel = MapViewModel(
+      mapRepository: buildMapRepository(),
+      locationUpdatesRepository: locationRepository,
+      locationHistoryRepository: historyRepository,
+      permissionsRepository: FakePermissionsRepository(),
+      entityRepository: harness.entityRepository,
+      objectRepository: harness.objectRepository,
+      selectionRepository: harness.selectionRepository,
+    );
+
+    await viewModel.refreshSelectedEntity();
+
+    expect(viewModel.state.selectedEntity?.entityId, testRegionEntityId);
+    expect(viewModel.state.pointsOfInterest, hasLength(4));
+    expect(
+      viewModel.state.pointsOfInterest.where(
+        (point) => point.category == ObjectCategory.peak,
+      ),
+      hasLength(1),
+    );
+    expect(
+      viewModel.state.pointsOfInterest.where(
+        (point) => point.category == ObjectCategory.hut,
+      ),
+      hasLength(1),
+    );
+    expect(
+      viewModel.state.pointsOfInterest.where(
+        (point) => point.category == ObjectCategory.monument,
+      ),
+      hasLength(2),
+    );
 
     viewModel.dispose();
   });

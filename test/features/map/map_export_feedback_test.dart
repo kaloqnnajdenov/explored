@@ -6,8 +6,9 @@ import 'package:explored/translations/locale_keys.g.dart';
 import '../../test_utils/localization_test_utils.dart';
 
 void main() {
-  testWidgets('export feedback snackbars render without overflow',
-      (tester) async {
+  testWidgets('export feedback snackbars render without overflow', (
+    tester,
+  ) async {
     final app = await buildLocalizedTestApp(
       Scaffold(
         body: Builder(
@@ -17,9 +18,7 @@ void main() {
                 ElevatedButton(
                   onPressed: () {
                     ScaffoldMessenger.of(context).showSnackBar(
-                      SnackBar(
-                        content: Text(LocaleKeys.export_ready.tr()),
-                      ),
+                      SnackBar(content: Text(LocaleKeys.export_ready.tr())),
                     );
                   },
                   child: const Text('show_ready'),
@@ -29,9 +28,7 @@ void main() {
                     final messenger = ScaffoldMessenger.of(context);
                     messenger.removeCurrentSnackBar();
                     messenger.showSnackBar(
-                      SnackBar(
-                        content: Text(LocaleKeys.export_failed.tr()),
-                      ),
+                      SnackBar(content: Text(LocaleKeys.export_failed.tr())),
                     );
                   },
                   child: const Text('show_failed'),
@@ -41,9 +38,7 @@ void main() {
                     final messenger = ScaffoldMessenger.of(context);
                     messenger.removeCurrentSnackBar();
                     messenger.showSnackBar(
-                      SnackBar(
-                        content: Text(LocaleKeys.download_ready.tr()),
-                      ),
+                      SnackBar(content: Text(LocaleKeys.download_ready.tr())),
                     );
                   },
                   child: const Text('show_download_ready'),
@@ -53,9 +48,7 @@ void main() {
                     final messenger = ScaffoldMessenger.of(context);
                     messenger.removeCurrentSnackBar();
                     messenger.showSnackBar(
-                      SnackBar(
-                        content: Text(LocaleKeys.download_failed.tr()),
-                      ),
+                      SnackBar(content: Text(LocaleKeys.download_failed.tr())),
                     );
                   },
                   child: const Text('show_download_failed'),

@@ -1,27 +1,42 @@
+import 'dart:convert';
 import 'dart:async';
 
 import 'package:flutter/material.dart';
+import 'package:latlong2/latlong.dart';
 
+import '../../../domain/entities/entity.dart';
+import '../../../domain/objects/explorable_object.dart';
+import '../../../domain/objects/object_category.dart';
+import '../../../domain/objects/road_metric.dart';
+import '../../../domain/objects/road_segment.dart';
+import '../../../domain/shared/entity_boundary.dart';
+import '../../exploration/data/repositories/entity_repository.dart';
+import '../../exploration/data/repositories/object_repository.dart';
+import '../../exploration/data/repositories/selection_repository.dart';
+import '../../exploration/data/services/geojson_boundary_parser.dart';
+import '../../location/data/models/history_export_result.dart';
+import '../../location/data/models/lat_lng_sample.dart';
 import '../../location/data/models/location_permission_level.dart';
 import '../../location/data/models/location_status.dart';
 import '../../location/data/models/location_tracking_mode.dart';
-import '../../location/data/models/lat_lng_sample.dart';
-import '../../location/data/repositories/location_updates_repository.dart';
 import '../../location/data/repositories/location_history_repository.dart';
-import '../../location/data/models/history_export_result.dart';
+import '../../location/data/repositories/location_updates_repository.dart';
 import '../../permissions/data/repositories/permissions_repository.dart';
 import '../data/models/map_config.dart';
+import '../data/models/map_point_of_interest.dart';
 import '../data/models/map_view_state.dart';
 import '../data/repositories/map_repository.dart';
 
-/// Owns map UI state and listens to location updates for the map screen.
 class MapViewModel extends ChangeNotifier {
-  /// Builds the ViewModel with injected dependencies and seeded config.
   factory MapViewModel({
     required MapRepository mapRepository,
     required LocationUpdatesRepository locationUpdatesRepository,
     required LocationHistoryRepository locationHistoryRepository,
     required PermissionsRepository permissionsRepository,
+    EntityRepository? entityRepository,
+    ObjectRepository? objectRepository,
+    SelectionRepository? selectionRepository,
+    GeoJsonBoundaryParser? boundaryParser,
   }) {
     final config = mapRepository.getMapConfig();
     return MapViewModel._(
@@ -29,6 +44,10 @@ class MapViewModel extends ChangeNotifier {
       locationUpdatesRepository: locationUpdatesRepository,
       locationHistoryRepository: locationHistoryRepository,
       permissionsRepository: permissionsRepository,
+      entityRepository: entityRepository ?? _EmptyEntityRepository(),
+      objectRepository: objectRepository ?? _EmptyObjectRepository(),
+      selectionRepository: selectionRepository ?? _EmptySelectionRepository(),
+      boundaryParser: boundaryParser ?? const GeoJsonBoundaryParser(),
       config: config,
     );
   }
@@ -38,11 +57,19 @@ class MapViewModel extends ChangeNotifier {
     required LocationUpdatesRepository locationUpdatesRepository,
     required LocationHistoryRepository locationHistoryRepository,
     required PermissionsRepository permissionsRepository,
+    required EntityRepository entityRepository,
+    required ObjectRepository objectRepository,
+    required SelectionRepository selectionRepository,
+    required GeoJsonBoundaryParser boundaryParser,
     required MapConfig config,
   }) : _mapRepository = mapRepository,
        _locationUpdatesRepository = locationUpdatesRepository,
        _locationHistoryRepository = locationHistoryRepository,
        _permissionsRepository = permissionsRepository,
+       _entityRepository = entityRepository,
+       _objectRepository = objectRepository,
+       _selectionRepository = selectionRepository,
+       _boundaryParser = boundaryParser,
        _config = config,
        _state = MapViewState.initial(config);
 
@@ -50,7 +77,12 @@ class MapViewModel extends ChangeNotifier {
   final LocationUpdatesRepository _locationUpdatesRepository;
   final LocationHistoryRepository _locationHistoryRepository;
   final PermissionsRepository _permissionsRepository;
+  final EntityRepository _entityRepository;
+  final ObjectRepository _objectRepository;
+  final SelectionRepository _selectionRepository;
+  final GeoJsonBoundaryParser _boundaryParser;
   final MapConfig _config;
+
   MapViewState _state;
   bool _hasInitialized = false;
   StreamSubscription<LatLngSample>? _locationSubscription;
@@ -58,10 +90,10 @@ class MapViewModel extends ChangeNotifier {
   int _exportFeedbackId = 0;
   bool _isExporting = false;
   bool _isDownloading = false;
+  int _selectedEntityRequestId = 0;
 
   MapViewState get state => _state;
 
-  /// Finalizes initial map state and attaches the location stream.
   Future<void> initialize() async {
     if (_hasInitialized) {
       return;
@@ -80,11 +112,7 @@ class MapViewModel extends ChangeNotifier {
       );
       _hasInitialized = true;
     } catch (error) {
-      _state = _state.copyWith(
-        isLoading: false,
-        error: error,
-        clearError: false,
-      );
+      _state = _state.copyWith(isLoading: false, error: error);
     }
 
     notifyListeners();
@@ -94,6 +122,49 @@ class MapViewModel extends ChangeNotifier {
     _attachLocationUpdates();
     await _locationHistoryRepository.start();
     _attachHistoryUpdates();
+    await refreshSelectedEntity();
+  }
+
+  Future<void> refreshSelectedEntity() async {
+    final requestId = ++_selectedEntityRequestId;
+    final selected = await _selectionRepository.getSelectedEntityResolved();
+    if (requestId != _selectedEntityRequestId) {
+      return;
+    }
+
+    if (selected == null) {
+      _state = _state.copyWith(
+        clearSelectedEntity: true,
+        selectedBoundary: EntityBoundary.empty,
+        selectedParentBoundary: EntityBoundary.empty,
+        pointsOfInterest: const <MapPointOfInterest>[],
+      );
+      notifyListeners();
+      return;
+    }
+
+    final boundary = _boundaryParser.parseString(selected.geometryGeoJson);
+    var parentBoundary = EntityBoundary.empty;
+    final parentId = selected.parentEntityId;
+    if (parentId != null) {
+      final parent = await _entityRepository.getEntity(parentId);
+      if (parent != null) {
+        parentBoundary = _boundaryParser.parseString(parent.geometryGeoJson);
+      }
+    }
+    final pointsOfInterest = await _loadPointsOfInterest(selected.entityId);
+    if (requestId != _selectedEntityRequestId) {
+      return;
+    }
+
+    _state = _state.copyWith(
+      selectedEntity: selected,
+      selectedBoundary: boundary,
+      selectedParentBoundary: parentBoundary,
+      center: selected.centroid,
+      pointsOfInterest: pointsOfInterest,
+    );
+    notifyListeners();
   }
 
   Future<void> requestForegroundPermission() async {
@@ -124,7 +195,6 @@ class MapViewModel extends ChangeNotifier {
     );
   }
 
-  /// Opens the map attribution link; errors are logged without altering state.
   Future<void> openAttribution() async {
     try {
       await _mapRepository.openAttribution();
@@ -133,7 +203,6 @@ class MapViewModel extends ChangeNotifier {
     }
   }
 
-  /// Updates the tracking panel visibility based on user interaction.
   void setLocationPanelVisibility(bool visible) {
     if (_state.isLocationPanelVisible == visible) {
       return;
@@ -142,12 +211,10 @@ class MapViewModel extends ChangeNotifier {
     notifyListeners();
   }
 
-  /// Convenience helper used by the view to toggle the tracking panel.
   void toggleLocationPanelVisibility() {
     setLocationPanelVisibility(!_state.isLocationPanelVisible);
   }
 
-  /// Updates the zoom level to use when recentering the map.
   void setRecenterZoom(double zoom) {
     if (_state.recenterZoom == zoom) {
       return;
@@ -156,7 +223,6 @@ class MapViewModel extends ChangeNotifier {
     notifyListeners();
   }
 
-  /// Exports the full location history as CSV and triggers native sharing.
   Future<void> exportHistory() async {
     if (_isExporting) {
       return;
@@ -174,7 +240,6 @@ class MapViewModel extends ChangeNotifier {
     }
   }
 
-  /// Saves the full location history CSV to device storage.
   Future<void> downloadHistory() async {
     if (_isDownloading) {
       return;
@@ -206,9 +271,7 @@ class MapViewModel extends ChangeNotifier {
     }
 
     _locationSubscription = _locationUpdatesRepository.locationUpdates.listen(
-      (location) {
-        _updateLocationFromStream(location);
-      },
+      _updateLocationFromStream,
       onError: (error) {
         debugPrint('Location update error: $error');
         _updateLocationState(status: LocationStatus.error);
@@ -231,9 +294,10 @@ class MapViewModel extends ChangeNotifier {
   }
 
   void _handleHistoryUpdate(List<LatLngSample> samples) {
-    _state = _state.copyWith(
-      persistedSamples: List<LatLngSample>.unmodifiable(samples),
-    );
+    if (identical(_state.persistedSamples, samples)) {
+      return;
+    }
+    _state = _state.copyWith(persistedSamples: samples);
     notifyListeners();
   }
 
@@ -318,40 +382,36 @@ class MapViewModel extends ChangeNotifier {
           _locationUpdatesRepository.isNotificationPermissionRequired;
       final notificationGranted = await _locationUpdatesRepository
           .isNotificationPermissionGranted();
-
-      final status = _resolveStatus(
-        isServiceEnabled: isServiceEnabled,
-        permissionLevel: permissionLevel,
-        notificationRequired: notificationRequired,
-        notificationGranted: notificationGranted,
-      );
-
       final trackingMode = _locationUpdatesRepository.isRunning
           ? LocationTrackingMode.background
           : LocationTrackingMode.none;
-
       _updateLocationState(
+        trackingMode: trackingMode,
+        status: _resolveStatus(
+          isServiceEnabled: isServiceEnabled,
+          permissionLevel: permissionLevel,
+          isNotificationRequired: notificationRequired,
+          isNotificationGranted: notificationGranted,
+        ),
         permissionLevel: permissionLevel,
+        isActionInProgress: false,
         isServiceEnabled: isServiceEnabled,
         isNotificationPermissionGranted: notificationGranted,
-        status: status,
-        trackingMode: trackingMode,
-        isActionInProgress: false,
       );
     } catch (error) {
-      debugPrint('Failed to refresh tracking state: $error');
       _updateLocationState(
         status: LocationStatus.error,
         isActionInProgress: false,
       );
+      debugPrint('Failed to refresh tracking state: $error');
     }
   }
 
   LocationStatus _resolveStatus({
     required bool isServiceEnabled,
     required LocationPermissionLevel permissionLevel,
-    required bool notificationRequired,
-    required bool notificationGranted,
+    required bool isNotificationRequired,
+    required bool isNotificationGranted,
   }) {
     if (!isServiceEnabled) {
       return LocationStatus.locationServicesDisabled;
@@ -360,7 +420,9 @@ class MapViewModel extends ChangeNotifier {
     if (permissionLevel == LocationPermissionLevel.deniedForever) {
       return LocationStatus.permissionDeniedForever;
     }
-
+    if (permissionLevel == LocationPermissionLevel.denied) {
+      return LocationStatus.permissionDenied;
+    }
     if (permissionLevel == LocationPermissionLevel.restricted) {
       return LocationStatus.permissionRestricted;
     }
@@ -369,12 +431,9 @@ class MapViewModel extends ChangeNotifier {
       if (permissionLevel != LocationPermissionLevel.background) {
         return LocationStatus.backgroundPermissionDenied;
       }
-    } else if (permissionLevel == LocationPermissionLevel.denied ||
-        permissionLevel == LocationPermissionLevel.unknown) {
-      return LocationStatus.permissionDenied;
     }
 
-    if (notificationRequired && !notificationGranted) {
+    if (isNotificationRequired && !isNotificationGranted) {
       return LocationStatus.notificationPermissionDenied;
     }
 
@@ -383,5 +442,154 @@ class MapViewModel extends ChangeNotifier {
     }
 
     return LocationStatus.idle;
+  }
+
+  Future<List<MapPointOfInterest>> _loadPointsOfInterest(
+    String entityId,
+  ) async {
+    final objects = await _objectRepository.getObjectsForEntity(entityId);
+    return objects
+        .map(_toPointOfInterest)
+        .whereType<MapPointOfInterest>()
+        .toList(growable: false);
+  }
+
+  MapPointOfInterest? _toPointOfInterest(ExplorableObject object) {
+    try {
+      switch (object.category) {
+        case ObjectCategory.peak:
+        case ObjectCategory.hut:
+        case ObjectCategory.monument:
+          break;
+        case ObjectCategory.roadSegment:
+          return null;
+      }
+
+      final decoded = jsonDecode(object.geometryGeoJson);
+      if (decoded is! Map<String, dynamic>) {
+        return null;
+      }
+      if (decoded['type'] != 'Point') {
+        return null;
+      }
+
+      final coordinates = decoded['coordinates'];
+      if (coordinates is! List || coordinates.length < 2) {
+        return null;
+      }
+      final longitude = coordinates[0];
+      final latitude = coordinates[1];
+      if (longitude is! num || latitude is! num) {
+        return null;
+      }
+
+      return MapPointOfInterest(
+        id: object.objectId,
+        category: object.category,
+        position: LatLng(latitude.toDouble(), longitude.toDouble()),
+        name: object.name,
+      );
+    } on FormatException {
+      return null;
+    } on TypeError {
+      return null;
+    }
+  }
+}
+
+class _EmptyEntityRepository implements EntityRepository {
+  @override
+  Future<void> importCountryPack(String countrySlug) async {}
+
+  @override
+  Future<List<Entity>> getCountries() async {
+    return const <Entity>[];
+  }
+
+  @override
+  Future<Entity?> getEntity(String entityId) async {
+    return null;
+  }
+
+  @override
+  Future<List<Entity>> getChildren(String entityId) async {
+    return const <Entity>[];
+  }
+
+  @override
+  Future<List<Entity>> getCities({
+    required String countryEntityId,
+    String? regionEntityId,
+  }) async {
+    return const <Entity>[];
+  }
+
+  @override
+  Future<List<Entity>> getCityCenters(String cityEntityId) async {
+    return const <Entity>[];
+  }
+
+  @override
+  Future<List<Entity>> getRegions(String countryEntityId) async {
+    return const <Entity>[];
+  }
+
+  @override
+  Future<List<Entity>> searchEntities(
+    String query, {
+    String? countryId,
+    String? type,
+  }) async {
+    return const <Entity>[];
+  }
+}
+
+class _EmptySelectionRepository implements SelectionRepository {
+  @override
+  Future<String?> getSelectedCountrySlug() async => null;
+
+  @override
+  Future<String?> getSelectedEntityId() async => null;
+
+  @override
+  Future<Entity?> getSelectedEntityResolved() async {
+    return null;
+  }
+
+  @override
+  Future<void> setSelectedEntityId(String entityId) async {}
+}
+
+class _EmptyObjectRepository implements ObjectRepository {
+  @override
+  Future<int> countObjectsForEntity(
+    String entityId,
+    ObjectCategory category,
+  ) async {
+    return 0;
+  }
+
+  @override
+  Future<List<ExplorableObject>> getObjectsForEntity(
+    String entityId, {
+    ObjectCategory? category,
+  }) async {
+    return const <ExplorableObject>[];
+  }
+
+  @override
+  Future<List<RoadSegment>> getRoadsForEntity(
+    String entityId, {
+    RoadMetric? metric,
+  }) async {
+    return const <RoadSegment>[];
+  }
+
+  @override
+  Future<double> sumRoadLengthForEntity(
+    String entityId,
+    RoadMetric metric,
+  ) async {
+    return 0;
   }
 }

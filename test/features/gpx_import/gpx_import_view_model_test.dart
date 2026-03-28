@@ -7,10 +7,7 @@ import 'package:explored/features/gpx_import/data/services/gpx_file_picker_servi
 import 'package:explored/features/gpx_import/view_model/gpx_import_view_model.dart';
 
 class FakeGpxImportRepository implements GpxImportRepository {
-  FakeGpxImportRepository({
-    required this.preparation,
-    required this.result,
-  });
+  FakeGpxImportRepository({required this.preparation, required this.result});
 
   GpxImportPreparation preparation;
   GpxImportResult result;

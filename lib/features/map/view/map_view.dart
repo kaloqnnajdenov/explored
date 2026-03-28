@@ -1,33 +1,30 @@
 import 'dart:async';
 
 import 'package:easy_localization/easy_localization.dart';
-import 'package:explored/features/app_state/view_model/app_state_view_model.dart';
-import 'package:explored/features/map/data/models/map_view_state.dart';
-import 'package:explored/features/region_catalog/view/widgets/region_boundary_layer.dart';
 import 'package:flutter/gestures.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_map/flutter_map.dart';
 import 'package:latlong2/latlong.dart';
 
-import '../../location/data/models/lat_lng_sample.dart';
 import '../../../translations/locale_keys.g.dart';
 import '../../../ui/core/app_colors.dart';
+import '../../entity_map/view/widgets/entity_boundary_layer.dart';
+import '../../location/data/models/lat_lng_sample.dart';
+import '../data/models/map_view_state.dart';
 import '../view_model/map_view_model.dart';
 import 'widgets/attribution_banner.dart';
+import 'widgets/points_of_interest_layer.dart';
 import 'widgets/tracked_history_map.dart';
 
-/// Map screen view; renders state from [MapViewModel] without holding logic.
 class MapView extends StatefulWidget {
   const MapView({
     required this.viewModel,
-    this.appStateViewModel,
     super.key,
     this.showBackButton = false,
     this.onBack,
   });
 
   final MapViewModel viewModel;
-  final AppStateViewModel? appStateViewModel;
   final bool showBackButton;
   final VoidCallback? onBack;
 
@@ -35,11 +32,10 @@ class MapView extends StatefulWidget {
   State<MapView> createState() => _MapViewState();
 }
 
-/// Bridges MapView to the ViewModel via AnimatedBuilder.
 class _MapViewState extends State<MapView> {
   late final MapController _mapController;
   late final TapGestureRecognizer _attributionTapRecognizer;
-  String? _lastSelectedPackId;
+  String? _lastSelectedEntityId;
 
   @override
   void initState() {
@@ -61,11 +57,7 @@ class _MapViewState extends State<MapView> {
   @override
   Widget build(BuildContext context) {
     return AnimatedBuilder(
-      animation: Listenable.merge(
-        widget.appStateViewModel == null
-            ? [widget.viewModel]
-            : [widget.viewModel, widget.appStateViewModel!],
-      ),
+      animation: widget.viewModel,
       builder: (context, _) {
         final state = widget.viewModel.state;
 
@@ -76,21 +68,19 @@ class _MapViewState extends State<MapView> {
         }
 
         final lastLocation = state.locationTracking.lastLocation;
-        final selectedPack = widget.appStateViewModel?.selectedPackOrNull;
-        final selectedBoundary = widget.appStateViewModel?.selectedBoundary;
-        final selectedParentRegionBoundary =
-            widget.appStateViewModel?.selectedParentRegionBoundary;
-        if (selectedPack != null && _lastSelectedPackId != selectedPack.id) {
-          _lastSelectedPackId = selectedPack.id;
+        final selectedEntity = state.selectedEntity;
+        if (selectedEntity != null &&
+            _lastSelectedEntityId != selectedEntity.entityId) {
+          _lastSelectedEntityId = selectedEntity.entityId;
           WidgetsBinding.instance.addPostFrameCallback((_) {
             if (!mounted) {
               return;
             }
             _mapController.fitCamera(
               CameraFit.bounds(
-                bounds: selectedPack.bounds.toLatLngBounds(),
+                bounds: selectedEntity.bbox.toLatLngBounds(),
                 padding: const EdgeInsets.all(28),
-                maxZoom: 11,
+                maxZoom: 12.5,
               ),
             );
           });
@@ -112,35 +102,38 @@ class _MapViewState extends State<MapView> {
                     tileSource: state.tileSource,
                     persistedSamples: state.persistedSamples,
                     currentLocation: _toLatLng(lastLocation),
-                    initialCenter: selectedPack?.center ?? state.center,
+                    initialCenter: selectedEntity?.centroid ?? state.center,
                     initialZoom: state.zoom,
-                    initialCameraFit: selectedPack == null
+                    initialCameraFit: selectedEntity == null
                         ? null
                         : CameraFit.bounds(
-                            bounds: selectedPack.bounds.toLatLngBounds(),
+                            bounds: selectedEntity.bbox.toLatLngBounds(),
                             padding: const EdgeInsets.all(28),
-                            maxZoom: 11,
+                            maxZoom: 12.5,
                           ),
                     minZoom: minZoom,
                     showScaleIndicator: true,
                     baseLayers: [
-                      RegionBoundaryLayer(
-                        boundary: selectedParentRegionBoundary,
+                      EntityBoundaryLayer(
+                        boundary: state.selectedParentBoundary,
                         fillColor: AppColors.emerald100.withValues(alpha: 0.16),
                         borderColor: AppColors.emerald200,
                         borderStrokeWidth: 1.2,
                       ),
-                      RegionBoundaryLayer(
-                        boundary: selectedBoundary,
+                      EntityBoundaryLayer(
+                        boundary: state.selectedBoundary,
                         fillColor: AppColors.emerald600.withValues(alpha: 0.22),
                         borderColor: AppColors.emerald700,
                         borderStrokeWidth: 1.6,
                       ),
+                      if (state.pointsOfInterest.isNotEmpty)
+                        PointsOfInterestLayer(
+                          pointsOfInterest: state.pointsOfInterest,
+                        ),
                     ],
                   );
                 },
               ),
-              // Keep any load errors visible without blocking the map render.
               if (state.error != null)
                 const Positioned(
                   top: 16,

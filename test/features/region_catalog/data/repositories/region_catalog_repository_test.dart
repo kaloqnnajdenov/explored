@@ -335,12 +335,12 @@ void main() {
 
       final rootCountries = await repository.loadRootCountries();
       final germany = rootCountries.firstWhere(
-        (node) => node.name == 'Deutschland',
+        (node) => node.name == 'Germany',
       );
       final regions = await repository.loadChildren(germany.id);
 
-      expect(regions, hasLength(16));
-      expect(regions.any((node) => node.name == 'Bayern'), isTrue);
+      expect(regions, hasLength(17));
+      expect(regions.any((node) => node.name == 'Bavaria'), isTrue);
       expect(regions.any((node) => node.name == 'Berlin'), isTrue);
       expect(regions.any((node) => node.name == '_unassigned'), isFalse);
     },

@@ -18,9 +18,7 @@ void main() {
               initialCenter: LatLng(0, 0),
               initialZoom: 13,
             ),
-            children: const [
-              MapScaleIndicator(),
-            ],
+            children: const [MapScaleIndicator()],
           ),
         ),
       ),

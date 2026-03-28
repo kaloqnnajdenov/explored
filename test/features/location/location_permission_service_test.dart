@@ -1,6 +1,7 @@
 import 'package:flutter_test/flutter_test.dart';
 import 'package:geolocator/geolocator.dart';
-import 'package:permission_handler/permission_handler.dart' as permission_handler;
+import 'package:permission_handler/permission_handler.dart'
+    as permission_handler;
 
 import 'package:explored/features/location/data/models/location_permission_level.dart';
 import 'package:explored/features/location/data/services/location_permission_service.dart';
@@ -95,10 +96,10 @@ class FakeGeolocatorPermissionClient implements GeolocatorPermissionClient {
     required List<LocationPermission> requestResults,
     required this.serviceEnabled,
     List<LocationPermission>? checkResults,
-  })  : _requestResults = List<LocationPermission>.from(requestResults),
-        _checkResults = checkResults == null
-            ? null
-            : List<LocationPermission>.from(checkResults);
+  }) : _requestResults = List<LocationPermission>.from(requestResults),
+       _checkResults = checkResults == null
+           ? null
+           : List<LocationPermission>.from(checkResults);
 
   LocationPermission checkPermissionResult;
   final List<LocationPermission> _requestResults;

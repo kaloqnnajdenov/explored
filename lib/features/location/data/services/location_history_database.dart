@@ -1,3 +1,5 @@
+// ignore_for_file: overridden_fields
+
 import 'package:drift/drift.dart';
 import 'package:drift_flutter/drift_flutter.dart';
 
@@ -12,6 +14,7 @@ part 'location_history_database.g.dart';
 class LocationSamples extends Table {
   RealColumn get latitude => real()();
   RealColumn get longitude => real()();
+
   /// ISO-8601 UTC timestamp for stable ordering and export.
   TextColumn get timestamp => text()();
   RealColumn get accuracyMeters => real().nullable()();
@@ -28,16 +31,16 @@ class LocationHistoryDatabase extends _$LocationHistoryDatabase {
     String databaseName = 'location_history',
     bool shareAcrossIsolates = false,
     LocationHistoryH3Service? h3Service,
-  })  : _h3Service = h3Service ?? LocationHistoryH3Service(),
-        super(
-          executor ??
-              driftDatabase(
-                name: databaseName,
-                native: DriftNativeOptions(
-                  shareAcrossIsolates: shareAcrossIsolates,
-                ),
-              ),
-        );
+  }) : _h3Service = h3Service ?? LocationHistoryH3Service(),
+       super(
+         executor ??
+             driftDatabase(
+               name: databaseName,
+               native: DriftNativeOptions(
+                 shareAcrossIsolates: shareAcrossIsolates,
+               ),
+             ),
+       );
 
   final LocationHistoryH3Service _h3Service;
 
@@ -52,17 +55,17 @@ class LocationHistoryDatabase extends _$LocationHistoryDatabase {
 
   @override
   MigrationStrategy get migration => MigrationStrategy(
-        onUpgrade: (m, from, to) async {
-          if (from < 2) {
-            await m.addColumn(locationSamples, locationSamples.h3Base);
-            await customStatement(
-              'CREATE INDEX IF NOT EXISTS location_samples_h3_base '
-              'ON location_samples(h3_base)',
-            );
-            await _backfillH3Base();
-          }
-        },
-      );
+    onUpgrade: (m, from, to) async {
+      if (from < 2) {
+        await m.addColumn(locationSamples, locationSamples.h3Base);
+        await customStatement(
+          'CREATE INDEX IF NOT EXISTS location_samples_h3_base '
+          'ON location_samples(h3_base)',
+        );
+        await _backfillH3Base();
+      }
+    },
+  );
 
   Future<void> _backfillH3Base() async {
     final rows = await customSelect(
@@ -114,10 +117,8 @@ class LocationHistoryExportData {
 @DriftAccessor(tables: [LocationSamples])
 class LocationHistoryDao extends DatabaseAccessor<LocationHistoryDatabase>
     with _$LocationHistoryDaoMixin {
-  LocationHistoryDao(
-    super.db, {
-    LocationHistoryH3Service? h3Service,
-  }) : _h3Service = h3Service ?? LocationHistoryH3Service();
+  LocationHistoryDao(super.db, {LocationHistoryH3Service? h3Service})
+    : _h3Service = h3Service ?? LocationHistoryH3Service();
 
   final LocationHistoryH3Service _h3Service;
 
@@ -125,24 +126,17 @@ class LocationHistoryDao extends DatabaseAccessor<LocationHistoryDatabase>
       locationSamples.$columns.map((column) => column.$name).toList();
 
   Future<List<LocationSample>> fetchAllSamples() {
-    return (select(locationSamples)
-          ..orderBy(
-            [
-              (tbl) => OrderingTerm(expression: tbl.timestamp),
-            ],
-          ))
-        .get();
+    return (select(
+      locationSamples,
+    )..orderBy([(tbl) => OrderingTerm(expression: tbl.timestamp)])).get();
   }
 
   Future<List<LocationSample>> fetchAllSamplesStable() {
-    return (select(locationSamples)
-          ..orderBy(
-            [
-              (tbl) => OrderingTerm(expression: tbl.timestamp),
-              (tbl) => OrderingTerm(expression: tbl.latitude),
-              (tbl) => OrderingTerm(expression: tbl.longitude),
-            ],
-          ))
+    return (select(locationSamples)..orderBy([
+          (tbl) => OrderingTerm(expression: tbl.timestamp),
+          (tbl) => OrderingTerm(expression: tbl.latitude),
+          (tbl) => OrderingTerm(expression: tbl.longitude),
+        ]))
         .get();
   }
 
@@ -159,9 +153,7 @@ class LocationHistoryDao extends DatabaseAccessor<LocationHistoryDatabase>
       if (samples.isEmpty) {
         return;
       }
-      final entries = [
-        for (final sample in samples) _toCompanion(sample),
-      ];
+      final entries = [for (final sample in samples) _toCompanion(sample)];
       await batch((batch) {
         batch.insertAll(locationSamples, entries);
       });
@@ -173,16 +165,11 @@ class LocationHistoryDao extends DatabaseAccessor<LocationHistoryDatabase>
     final columnNames = exportColumnNames;
     final rowValues = <List<Object?>>[];
     for (final row in rows) {
-      rowValues.add(
-        [
-          for (final name in columnNames) _valueForColumn(row, name),
-        ],
-      );
+      rowValues.add([
+        for (final name in columnNames) _valueForColumn(row, name),
+      ]);
     }
-    return LocationHistoryExportData(
-      columnNames: columnNames,
-      rows: rowValues,
-    );
+    return LocationHistoryExportData(columnNames: columnNames, rows: rowValues);
   }
 
   Object? _valueForColumn(LocationSample row, String columnName) {
@@ -210,9 +197,7 @@ class LocationHistoryDao extends DatabaseAccessor<LocationHistoryDatabase>
     if (samples.isEmpty) {
       return;
     }
-    final entries = [
-      for (final sample in samples) _toCompanion(sample),
-    ];
+    final entries = [for (final sample in samples) _toCompanion(sample)];
     await batch((batch) {
       batch.insertAll(locationSamples, entries);
     });
@@ -234,9 +219,7 @@ class LocationHistoryDao extends DatabaseAccessor<LocationHistoryDatabase>
     );
   }
 
-  Future<Set<String>> fetchExistingBaseCellIds(
-    Iterable<String> cellIds,
-  ) async {
+  Future<Set<String>> fetchExistingBaseCellIds(Iterable<String> cellIds) async {
     final ids = cellIds.toList(growable: false);
     if (ids.isEmpty) {
       return const <String>{};
@@ -257,9 +240,7 @@ class LocationHistoryDao extends DatabaseAccessor<LocationHistoryDatabase>
     return results;
   }
 
-  Future<int> countSamplesForBaseCellIds(
-    Iterable<String> cellIds,
-  ) async {
+  Future<int> countSamplesForBaseCellIds(Iterable<String> cellIds) async {
     final ids = cellIds.toList(growable: false);
     if (ids.isEmpty) {
       return 0;
@@ -277,9 +258,7 @@ class LocationHistoryDao extends DatabaseAccessor<LocationHistoryDatabase>
     return total;
   }
 
-  Future<int> deleteSamplesForBaseCellIds(
-    Iterable<String> cellIds,
-  ) async {
+  Future<int> deleteSamplesForBaseCellIds(Iterable<String> cellIds) async {
     final ids = cellIds.toList(growable: false);
     if (ids.isEmpty) {
       return 0;
@@ -291,8 +270,7 @@ class LocationHistoryDao extends DatabaseAccessor<LocationHistoryDatabase>
         'DELETE FROM location_samples WHERE h3_base IN ($placeholders)',
         chunk,
       );
-      final row =
-          await customSelect('SELECT changes() AS count').getSingle();
+      final row = await customSelect('SELECT changes() AS count').getSingle();
       deleted += row.read<int>('count');
     }
     return deleted;

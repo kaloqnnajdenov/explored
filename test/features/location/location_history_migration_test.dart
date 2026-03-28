@@ -24,7 +24,8 @@ CREATE TABLE location_samples (
 );
 ''');
     sqliteDb.execute(
-      'CREATE INDEX location_samples_timestamp ON location_samples(timestamp)');
+      'CREATE INDEX location_samples_timestamp ON location_samples(timestamp)',
+    );
     sqliteDb.execute('PRAGMA user_version = 1');
     sqliteDb.execute('''
 INSERT INTO location_samples (
@@ -33,32 +34,27 @@ INSERT INTO location_samples (
 ''');
     sqliteDb.dispose();
 
-    final resolver = (double lat, double lon) =>
+    String resolver(double lat, double lon) =>
         '${(lat * 100000).round()}_${(lon * 100000).round()}';
     final driftDb = LocationHistoryDatabase(
       executor: NativeDatabase(dbFile),
       h3Service: LocationHistoryH3Service(cellIdResolver: resolver),
     );
 
-    final rows = await driftDb.customSelect(
-      'SELECT h3_base FROM location_samples',
-    ).get();
+    final rows = await driftDb
+        .customSelect('SELECT h3_base FROM location_samples')
+        .get();
     expect(rows.length, 1);
     final h3Base = rows.first.read<String>('h3_base');
     final expected = LocationHistoryH3Service(
       cellIdResolver: resolver,
-    ).cellIdForLatLng(
-      latitude: 10.0,
-      longitude: 20.0,
-    );
+    ).cellIdForLatLng(latitude: 10.0, longitude: 20.0);
     expect(h3Base, expected);
 
     final indexRows = await driftDb
         .customSelect("PRAGMA index_list('location_samples')")
         .get();
-    final indexNames = [
-      for (final row in indexRows) row.read<String>('name'),
-    ];
+    final indexNames = [for (final row in indexRows) row.read<String>('name')];
     expect(indexNames, contains('location_samples_h3_base'));
 
     await driftDb.close();

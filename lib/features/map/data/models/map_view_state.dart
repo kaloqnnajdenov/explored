@@ -1,11 +1,13 @@
 import 'package:latlong2/latlong.dart';
 
+import '../../../../domain/entities/entity.dart';
+import '../../../../domain/shared/entity_boundary.dart';
 import 'map_config.dart';
+import 'map_point_of_interest.dart';
 import 'map_tile_source.dart';
 import '../../../location/data/models/location_tracking_state.dart';
 import '../../../location/data/models/lat_lng_sample.dart';
 
-/// Immutable UI state snapshot for the map screen.
 class MapViewState {
   const MapViewState({
     required this.center,
@@ -16,11 +18,14 @@ class MapViewState {
     required this.isLocationPanelVisible,
     required this.recenterZoom,
     required this.persistedSamples,
+    required this.pointsOfInterest,
+    this.selectedEntity,
+    this.selectedBoundary,
+    this.selectedParentBoundary,
     this.exportFeedback,
     this.error,
   });
 
-  /// Seed state using the map config before async work finishes.
   factory MapViewState.initial(MapConfig config) {
     return MapViewState(
       center: config.initialCenter,
@@ -31,6 +36,7 @@ class MapViewState {
       isLocationPanelVisible: true,
       recenterZoom: config.recenterZoom,
       persistedSamples: const [],
+      pointsOfInterest: const [],
       exportFeedback: null,
     );
   }
@@ -44,9 +50,12 @@ class MapViewState {
   final double recenterZoom;
   final Object? error;
   final List<LatLngSample> persistedSamples;
+  final List<MapPointOfInterest> pointsOfInterest;
+  final Entity? selectedEntity;
+  final EntityBoundary? selectedBoundary;
+  final EntityBoundary? selectedParentBoundary;
   final MapViewFeedback? exportFeedback;
 
-  /// Create a new state with selective overrides; errors can be cleared.
   MapViewState copyWith({
     LatLng? center,
     double? zoom,
@@ -58,6 +67,11 @@ class MapViewState {
     Object? error,
     bool clearError = false,
     List<LatLngSample>? persistedSamples,
+    List<MapPointOfInterest>? pointsOfInterest,
+    Entity? selectedEntity,
+    bool clearSelectedEntity = false,
+    EntityBoundary? selectedBoundary,
+    EntityBoundary? selectedParentBoundary,
     MapViewFeedback? exportFeedback,
     bool clearExportFeedback = false,
   }) {
@@ -72,6 +86,13 @@ class MapViewState {
       recenterZoom: recenterZoom ?? this.recenterZoom,
       error: clearError ? null : (error ?? this.error),
       persistedSamples: persistedSamples ?? this.persistedSamples,
+      pointsOfInterest: pointsOfInterest ?? this.pointsOfInterest,
+      selectedEntity: clearSelectedEntity
+          ? null
+          : (selectedEntity ?? this.selectedEntity),
+      selectedBoundary: selectedBoundary ?? this.selectedBoundary,
+      selectedParentBoundary:
+          selectedParentBoundary ?? this.selectedParentBoundary,
       exportFeedback: clearExportFeedback
           ? null
           : (exportFeedback ?? this.exportFeedback),

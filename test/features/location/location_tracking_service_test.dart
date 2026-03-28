@@ -320,14 +320,8 @@ void main() {
           ),
         );
 
-        expect(
-          logs.any((line) => line.contains('Location update')),
-          isTrue,
-        );
-        expect(
-          logs.any((line) => line.contains('reason=interval')),
-          isTrue,
-        );
+        expect(logs.any((line) => line.contains('Location update')), isTrue);
+        expect(logs.any((line) => line.contains('reason=interval')), isTrue);
         expect(
           logs.any((line) => line.contains('No location updates')),
           isTrue,
@@ -377,8 +371,9 @@ void main() {
           ),
         );
 
-        final notices =
-            logs.where((line) => line.contains('No location updates')).length;
+        final notices = logs
+            .where((line) => line.contains('No location updates'))
+            .length;
         expect(notices, 1);
       });
     });
@@ -439,8 +434,9 @@ void main() {
           ),
         );
 
-        final notices =
-            logs.where((line) => line.contains('No location updates')).length;
+        final notices = logs
+            .where((line) => line.contains('No location updates'))
+            .length;
         expect(notices, 1);
       });
     });
@@ -478,8 +474,9 @@ void main() {
           ),
         );
 
-        final notices =
-            logs.where((line) => line.contains('No location updates')).length;
+        final notices = logs
+            .where((line) => line.contains('No location updates'))
+            .length;
         expect(notices, 3);
       });
     });

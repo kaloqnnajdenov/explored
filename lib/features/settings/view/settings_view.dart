@@ -2,26 +2,21 @@ import 'package:easy_localization/easy_localization.dart';
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 
-import '../../app_state/view_model/app_state_view_model.dart';
-import '../../gpx_import/view/widgets/gpx_import_processing_overlay.dart';
-import '../../gpx_import/view_model/gpx_import_view_model.dart';
-import '../../map/view_model/map_view_model.dart';
-import '../../region_catalog/data/models/region_pack_node.dart';
 import '../../../translations/locale_keys.g.dart';
 import '../../../ui/core/app_colors.dart';
 import '../../../ui/core/widgets/app_back_button.dart';
-import '../../../ui/core/widgets/coming_soon.dart';
 import '../../../ui/core/widgets/hex_mascot.dart';
+import '../../gpx_import/view/widgets/gpx_import_processing_overlay.dart';
+import '../../gpx_import/view_model/gpx_import_view_model.dart';
+import '../../map/view_model/map_view_model.dart';
 
 class SettingsView extends StatefulWidget {
   const SettingsView({
-    required this.appStateViewModel,
     required this.mapViewModel,
     required this.gpxImportViewModel,
     super.key,
   });
 
-  final AppStateViewModel appStateViewModel;
   final MapViewModel mapViewModel;
   final GpxImportViewModel gpxImportViewModel;
 
@@ -34,18 +29,9 @@ class _SettingsViewState extends State<SettingsView> {
   int? _lastExportFeedbackId;
 
   @override
-  void initState() {
-    super.initState();
-    WidgetsBinding.instance.addPostFrameCallback((_) {
-      widget.appStateViewModel.ensureDownloadedPacksLoaded();
-    });
-  }
-
-  @override
   Widget build(BuildContext context) {
     return AnimatedBuilder(
       animation: Listenable.merge([
-        widget.appStateViewModel,
         widget.mapViewModel,
         widget.gpxImportViewModel,
       ]),
@@ -89,8 +75,6 @@ class _SettingsViewState extends State<SettingsView> {
                       sliver: SliverList.list(
                         children: [
                           _buildProfileCard(),
-                          const SizedBox(height: 16),
-                          _buildRegionPacksCard(context),
                           const SizedBox(height: 16),
                           _buildDataStorageCard(context),
                           const SizedBox(height: 18),
@@ -165,89 +149,11 @@ class _SettingsViewState extends State<SettingsView> {
     );
   }
 
-  Widget _buildRegionPacksCard(BuildContext context) {
-    final downloadedPacks = widget.appStateViewModel.downloadedPacks;
-    final isLoadingDownloadedPacks =
-        widget.appStateViewModel.isLoadingDownloadedPacks ||
-        widget.appStateViewModel.hasPendingDownloadedPackRefs;
-    final packsByCountry = <String, List<RegionPackNode>>{};
-    for (final pack in downloadedPacks) {
-      final country = widget.appStateViewModel.countryFor(pack.id);
-      final groupLabel = country?.name ?? pack.name;
-      (packsByCountry[groupLabel] ??= <RegionPackNode>[]).add(pack);
-    }
-    final sortedCountries = packsByCountry.keys.toList(growable: false)..sort();
-
-    return _CardSection(
-      title: LocaleKeys.settings_region_packs_title.tr(),
-      child: downloadedPacks.isEmpty
-          ? isLoadingDownloadedPacks
-                ? const Padding(
-                    padding: EdgeInsets.all(16),
-                    child: Center(child: CircularProgressIndicator()),
-                  )
-                : Padding(
-                    padding: const EdgeInsets.fromLTRB(16, 8, 16, 16),
-                    child: Text(
-                      LocaleKeys.settings_region_packs_empty.tr(),
-                      style: const TextStyle(color: AppColors.slate500),
-                    ),
-                  )
-          : Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                for (
-                  var countryIndex = 0;
-                  countryIndex < sortedCountries.length;
-                  countryIndex++
-                ) ...[
-                  Padding(
-                    padding: const EdgeInsets.fromLTRB(16, 8, 16, 6),
-                    child: Text(
-                      sortedCountries[countryIndex],
-                      style: const TextStyle(
-                        color: AppColors.slate500,
-                        fontSize: 12,
-                        fontWeight: FontWeight.w700,
-                      ),
-                    ),
-                  ),
-                  for (
-                    var packIndex = 0;
-                    packIndex <
-                        packsByCountry[sortedCountries[countryIndex]]!.length;
-                    packIndex++
-                  ) ...[
-                    _RegionPackRow(
-                      pack:
-                          packsByCountry[sortedCountries[countryIndex]]![packIndex],
-                      countryName: sortedCountries[countryIndex],
-                      onDelete: () => showComingSoonSnackBar(context),
-                    ),
-                    if (packIndex !=
-                        packsByCountry[sortedCountries[countryIndex]]!.length -
-                            1)
-                      const Divider(height: 1, color: AppColors.slate100),
-                  ],
-                  if (countryIndex != sortedCountries.length - 1)
-                    const Divider(height: 1, color: AppColors.slate100),
-                ],
-              ],
-            ),
-    );
-  }
-
   Widget _buildDataStorageCard(BuildContext context) {
     return _CardSection(
       title: LocaleKeys.settings_data_storage_title.tr(),
       child: Column(
         children: [
-          _SettingsActionRow(
-            icon: Icons.edit_outlined,
-            label: LocaleKeys.settings_manual_edit_mode.tr(),
-            onTap: () => context.go('/map'),
-          ),
-          const Divider(height: 1, color: AppColors.slate100),
           _SettingsActionRow(
             icon: Icons.admin_panel_settings_outlined,
             label: LocaleKeys.settings_permissions.tr(),
@@ -423,45 +329,6 @@ class _CardSection extends StatelessWidget {
             ),
           ),
           child,
-        ],
-      ),
-    );
-  }
-}
-
-class _RegionPackRow extends StatelessWidget {
-  const _RegionPackRow({
-    required this.pack,
-    required this.countryName,
-    required this.onDelete,
-  });
-
-  final RegionPackNode pack;
-  final String countryName;
-  final VoidCallback onDelete;
-
-  @override
-  Widget build(BuildContext context) {
-    final name = pack.name == countryName
-        ? pack.name
-        : pack.displayPath.replaceFirst('$countryName / ', '');
-    return Padding(
-      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
-      child: Row(
-        children: [
-          Expanded(
-            child: Text(
-              name,
-              style: const TextStyle(
-                color: AppColors.slate900,
-                fontWeight: FontWeight.w600,
-              ),
-            ),
-          ),
-          IconButton(
-            onPressed: onDelete,
-            icon: const Icon(Icons.delete_outline, color: AppColors.rose500),
-          ),
         ],
       ),
     );

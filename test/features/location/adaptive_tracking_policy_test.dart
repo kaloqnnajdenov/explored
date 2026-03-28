@@ -145,10 +145,7 @@ void main() {
     test('First update always emits', () {
       final logs = <String>[];
       final policy = AdaptiveTrackingPolicy(
-        config: _basePolicyConfig(
-          stillSpeedMaxMps: 100,
-          driveSpeedMinMps: 200,
-        ),
+        config: _basePolicyConfig(stillSpeedMaxMps: 100, driveSpeedMinMps: 200),
         log: logs.add,
       );
       final clock = TestClock(DateTime(2024, 1, 1));
@@ -156,12 +153,7 @@ void main() {
       final decision = _updatePolicy(
         policy: policy,
         clock: clock,
-        raw: _rawAt(
-          time: clock.now,
-          latitude: 0,
-          longitude: 0,
-          speed: 2,
-        ),
+        raw: _rawAt(time: clock.now, latitude: 0, longitude: 0, speed: 2),
       );
 
       expect(decision.shouldEmit, isTrue);
@@ -171,10 +163,7 @@ void main() {
 
     test('Interval trigger emits even if distance small', () {
       final policy = AdaptiveTrackingPolicy(
-        config: _basePolicyConfig(
-          stillSpeedMaxMps: 100,
-          driveSpeedMinMps: 200,
-        ),
+        config: _basePolicyConfig(stillSpeedMaxMps: 100, driveSpeedMinMps: 200),
         log: (_) {},
       );
       final clock = TestClock(DateTime(2024, 1, 1));
@@ -182,12 +171,7 @@ void main() {
       _updatePolicy(
         policy: policy,
         clock: clock,
-        raw: _rawAt(
-          time: clock.now,
-          latitude: 0,
-          longitude: 0,
-          speed: 2,
-        ),
+        raw: _rawAt(time: clock.now, latitude: 0, longitude: 0, speed: 2),
       );
 
       final decision = _updatePolicy(
@@ -208,10 +192,7 @@ void main() {
 
     test('Distance trigger emits even if interval not reached', () {
       final policy = AdaptiveTrackingPolicy(
-        config: _basePolicyConfig(
-          stillSpeedMaxMps: 100,
-          driveSpeedMinMps: 200,
-        ),
+        config: _basePolicyConfig(stillSpeedMaxMps: 100, driveSpeedMinMps: 200),
         log: (_) {},
       );
       final clock = TestClock(DateTime(2024, 1, 1));
@@ -219,12 +200,7 @@ void main() {
       _updatePolicy(
         policy: policy,
         clock: clock,
-        raw: _rawAt(
-          time: clock.now,
-          latitude: 0,
-          longitude: 0,
-          speed: 2,
-        ),
+        raw: _rawAt(time: clock.now, latitude: 0, longitude: 0, speed: 2),
       );
 
       final decision = _updatePolicy(
@@ -245,10 +221,7 @@ void main() {
 
     test('Neither interval nor distance: no emit', () {
       final policy = AdaptiveTrackingPolicy(
-        config: _basePolicyConfig(
-          stillSpeedMaxMps: 100,
-          driveSpeedMinMps: 200,
-        ),
+        config: _basePolicyConfig(stillSpeedMaxMps: 100, driveSpeedMinMps: 200),
         log: (_) {},
       );
       final clock = TestClock(DateTime(2024, 1, 1));
@@ -256,12 +229,7 @@ void main() {
       _updatePolicy(
         policy: policy,
         clock: clock,
-        raw: _rawAt(
-          time: clock.now,
-          latitude: 0,
-          longitude: 0,
-          speed: 2,
-        ),
+        raw: _rawAt(time: clock.now, latitude: 0, longitude: 0, speed: 2),
       );
 
       final decision = _updatePolicy(
@@ -288,21 +256,13 @@ void main() {
         stillSpeedMaxMps: 100,
         driveSpeedMinMps: 200,
       );
-      final policy = AdaptiveTrackingPolicy(
-        config: config,
-        log: (_) {},
-      );
+      final policy = AdaptiveTrackingPolicy(config: config, log: (_) {});
       final clock = TestClock(DateTime(2024, 1, 1));
 
       _updatePolicy(
         policy: policy,
         clock: clock,
-        raw: _rawAt(
-          time: clock.now,
-          latitude: 0,
-          longitude: 0,
-          speed: 2,
-        ),
+        raw: _rawAt(time: clock.now, latitude: 0, longitude: 0, speed: 2),
       );
 
       final decision = _updatePolicy(
@@ -329,21 +289,13 @@ void main() {
         stillSpeedMaxMps: 100,
         driveSpeedMinMps: 200,
       );
-      final policy = AdaptiveTrackingPolicy(
-        config: config,
-        log: (_) {},
-      );
+      final policy = AdaptiveTrackingPolicy(config: config, log: (_) {});
       final clock = TestClock(DateTime(2024, 1, 1));
 
       _updatePolicy(
         policy: policy,
         clock: clock,
-        raw: _rawAt(
-          time: clock.now,
-          latitude: 0,
-          longitude: 0,
-          speed: 2,
-        ),
+        raw: _rawAt(time: clock.now, latitude: 0, longitude: 0, speed: 2),
       );
 
       final decision = _updatePolicy(
@@ -363,10 +315,7 @@ void main() {
 
     test('Burst updates do not spam emissions', () {
       final policy = AdaptiveTrackingPolicy(
-        config: _basePolicyConfig(
-          stillSpeedMaxMps: 100,
-          driveSpeedMinMps: 200,
-        ),
+        config: _basePolicyConfig(stillSpeedMaxMps: 100, driveSpeedMinMps: 200),
         log: (_) {},
       );
       final clock = TestClock(DateTime(2024, 1, 1));
@@ -374,12 +323,7 @@ void main() {
       _updatePolicy(
         policy: policy,
         clock: clock,
-        raw: _rawAt(
-          time: clock.now,
-          latitude: 0,
-          longitude: 0,
-          speed: 2,
-        ),
+        raw: _rawAt(time: clock.now, latitude: 0, longitude: 0, speed: 2),
       );
 
       var emits = 1;
@@ -405,10 +349,7 @@ void main() {
 
     test('GPS jump emits without crashing', () {
       final policy = AdaptiveTrackingPolicy(
-        config: _basePolicyConfig(
-          stillSpeedMaxMps: 100,
-          driveSpeedMinMps: 200,
-        ),
+        config: _basePolicyConfig(stillSpeedMaxMps: 100, driveSpeedMinMps: 200),
         log: (_) {},
       );
       final clock = TestClock(DateTime(2024, 1, 1));
@@ -416,12 +357,7 @@ void main() {
       _updatePolicy(
         policy: policy,
         clock: clock,
-        raw: _rawAt(
-          time: clock.now,
-          latitude: 0,
-          longitude: 0,
-          speed: 2,
-        ),
+        raw: _rawAt(time: clock.now, latitude: 0, longitude: 0, speed: 2),
       );
 
       final decision = _updatePolicy(
@@ -521,11 +457,7 @@ void main() {
       final decision = _updatePolicy(
         policy: policy,
         clock: clock,
-        raw: _rawAt(
-          time: clock.now,
-          latitude: 200,
-          longitude: 0,
-        ),
+        raw: _rawAt(time: clock.now, latitude: 200, longitude: 0),
       );
 
       expect(decision.shouldEmit, isFalse);
@@ -543,11 +475,7 @@ void main() {
       final decision = _updatePolicy(
         policy: policy,
         clock: clock,
-        raw: _rawAt(
-          time: clock.now,
-          latitude: double.nan,
-          longitude: 0,
-        ),
+        raw: _rawAt(time: clock.now, latitude: double.nan, longitude: 0),
       );
 
       expect(decision.shouldEmit, isFalse);
@@ -576,8 +504,9 @@ void main() {
         ),
       );
 
-      final logLine =
-          logs.firstWhere((line) => line.contains('Location update'));
+      final logLine = logs.firstWhere(
+        (line) => line.contains('Location update'),
+      );
       expect(logLine.contains('lat=1.12346'), isTrue);
       expect(logLine.contains('lng=2.65432'), isTrue);
       expect(logLine.contains('reason=initial'), isTrue);
@@ -588,9 +517,7 @@ void main() {
   group('AdaptiveTrackingPolicy adaptive mapping', () {
     test('Policy clamps at low speed', () {
       final policy = AdaptiveTrackingPolicy(
-        config: _basePolicyConfig(
-          minSpeedForIntervalMps: 0.5,
-        ),
+        config: _basePolicyConfig(minSpeedForIntervalMps: 0.5),
         log: (_) {},
       );
       final clock = TestClock(DateTime(2024, 1, 1));
@@ -608,17 +535,12 @@ void main() {
       );
 
       expect(decision.policy.distanceFilterMeters, closeTo(10, 0.1));
-      expect(
-        decision.policy.interval.inSeconds.toDouble(),
-        closeTo(20, 0.5),
-      );
+      expect(decision.policy.interval.inSeconds.toDouble(), closeTo(20, 0.5));
     });
 
     test('Policy at walking speed', () {
       final policy = AdaptiveTrackingPolicy(
-        config: _basePolicyConfig(
-          minSpeedForIntervalMps: 0.5,
-        ),
+        config: _basePolicyConfig(minSpeedForIntervalMps: 0.5),
         log: (_) {},
       );
       final clock = TestClock(DateTime(2024, 1, 1));
@@ -636,17 +558,12 @@ void main() {
       );
 
       expect(decision.policy.distanceFilterMeters, closeTo(11, 0.8));
-      expect(
-        decision.policy.interval.inMilliseconds / 1000,
-        closeTo(7.5, 0.4),
-      );
+      expect(decision.policy.interval.inMilliseconds / 1000, closeTo(7.5, 0.4));
     });
 
     test('Policy at driving speed', () {
       final policy = AdaptiveTrackingPolicy(
-        config: _basePolicyConfig(
-          minSpeedForIntervalMps: 0.5,
-        ),
+        config: _basePolicyConfig(minSpeedForIntervalMps: 0.5),
         log: (_) {},
       );
       final clock = TestClock(DateTime(2024, 1, 1));
@@ -664,17 +581,12 @@ void main() {
       );
 
       expect(decision.policy.distanceFilterMeters, closeTo(25, 0.5));
-      expect(
-        decision.policy.interval.inMilliseconds / 1000,
-        closeTo(1.5, 0.3),
-      );
+      expect(decision.policy.interval.inMilliseconds / 1000, closeTo(1.5, 0.3));
     });
 
     test('Extreme speed clamps', () {
       final policy = AdaptiveTrackingPolicy(
-        config: _basePolicyConfig(
-          minSpeedForIntervalMps: 0.5,
-        ),
+        config: _basePolicyConfig(minSpeedForIntervalMps: 0.5),
         log: (_) {},
       );
       final clock = TestClock(DateTime(2024, 1, 1));
@@ -722,8 +634,9 @@ void main() {
         );
       }
 
-      final policyLogs =
-          logs.where((line) => line.startsWith('Policy update')).toList();
+      final policyLogs = logs
+          .where((line) => line.startsWith('Policy update'))
+          .toList();
       expect(policyLogs.length <= 4, isTrue);
     });
   });
@@ -1033,9 +946,7 @@ void main() {
     test('Heading change triggers turn boost', () {
       final logs = <String>[];
       final policy = AdaptiveTrackingPolicy(
-        config: _basePolicyConfig(
-          minSpeedForIntervalMps: 0.5,
-        ),
+        config: _basePolicyConfig(minSpeedForIntervalMps: 0.5),
         log: logs.add,
       );
       final clock = TestClock(DateTime(2024, 1, 1));
@@ -1075,9 +986,7 @@ void main() {
     test('Bearing-based turn detection works without heading', () {
       final logs = <String>[];
       final policy = AdaptiveTrackingPolicy(
-        config: _basePolicyConfig(
-          minSpeedForIntervalMps: 0.5,
-        ),
+        config: _basePolicyConfig(minSpeedForIntervalMps: 0.5),
         log: logs.add,
       );
       final clock = TestClock(DateTime(2024, 1, 1));
@@ -1213,9 +1122,7 @@ void main() {
 
     test('Turn triggers immediate emit', () {
       final policy = AdaptiveTrackingPolicy(
-        config: _basePolicyConfig(
-          minSpeedForIntervalMps: 0.5,
-        ),
+        config: _basePolicyConfig(minSpeedForIntervalMps: 0.5),
         log: (_) {},
       );
       final clock = TestClock(DateTime(2024, 1, 1));
@@ -1255,9 +1162,7 @@ void main() {
   group('AdaptiveTrackingPolicy background bias', () {
     test('Background multiplies interval and distance', () {
       final policy = AdaptiveTrackingPolicy(
-        config: _basePolicyConfig(
-          minSpeedForIntervalMps: 0.5,
-        ),
+        config: _basePolicyConfig(minSpeedForIntervalMps: 0.5),
         log: (_) {},
       );
       final clock = TestClock(DateTime(2024, 1, 1));
@@ -1309,9 +1214,7 @@ void main() {
 
     test('Turn boost still applies in background', () {
       final policy = AdaptiveTrackingPolicy(
-        config: _basePolicyConfig(
-          minSpeedForIntervalMps: 0.5,
-        ),
+        config: _basePolicyConfig(minSpeedForIntervalMps: 0.5),
         log: (_) {},
       );
       final clock = TestClock(DateTime(2024, 1, 1));
@@ -1351,9 +1254,7 @@ void main() {
 
     test('Switching foreground/background preserves state', () {
       final policy = AdaptiveTrackingPolicy(
-        config: _basePolicyConfig(
-          minSpeedForIntervalMps: 0.5,
-        ),
+        config: _basePolicyConfig(minSpeedForIntervalMps: 0.5),
         log: (_) {},
       );
       final clock = TestClock(DateTime(2024, 1, 1));
@@ -1562,7 +1463,10 @@ void main() {
       }
 
       expect(policy.state, isNot(AdaptiveTrackingState.unreliable));
-      expect(logs.any((line) => line.contains('GPS accuracy recovered')), isTrue);
+      expect(
+        logs.any((line) => line.contains('GPS accuracy recovered')),
+        isTrue,
+      );
     });
 
     test('Sporadic updates trigger unreliable warning', () {
@@ -1615,7 +1519,10 @@ void main() {
         ),
       );
 
-      expect(logs.any((line) => line.contains('Location stream unreliable')), isTrue);
+      expect(
+        logs.any((line) => line.contains('Location stream unreliable')),
+        isTrue,
+      );
     });
   });
 
@@ -1626,12 +1533,7 @@ void main() {
         log: (_) {},
       );
       final clock = TestClock(DateTime(2024, 1, 1));
-      final raw = _rawAt(
-        time: clock.now,
-        latitude: 0,
-        longitude: 0,
-        speed: 1,
-      );
+      final raw = _rawAt(time: clock.now, latitude: 0, longitude: 0, speed: 1);
 
       _updatePolicy(policy: policy, clock: clock, raw: raw);
       expect(
@@ -1642,10 +1544,7 @@ void main() {
 
     test('Out-of-order raw timestamp still emits with raw time', () {
       final policy = AdaptiveTrackingPolicy(
-        config: _basePolicyConfig(
-          stillSpeedMaxMps: 100,
-          driveSpeedMinMps: 200,
-        ),
+        config: _basePolicyConfig(stillSpeedMaxMps: 100, driveSpeedMinMps: 200),
         log: (_) {},
       );
       final clock = TestClock(DateTime(2024, 1, 1, 12, 0, 0));
@@ -1653,12 +1552,7 @@ void main() {
       final first = _updatePolicy(
         policy: policy,
         clock: clock,
-        raw: _rawAt(
-          time: clock.now,
-          latitude: 0,
-          longitude: 0,
-          speed: 2,
-        ),
+        raw: _rawAt(time: clock.now, latitude: 0, longitude: 0, speed: 2),
       );
       expect(first.shouldEmit, isTrue);
 
@@ -1697,12 +1591,7 @@ void main() {
       _updatePolicy(
         policy: policy,
         clock: clock,
-        raw: _rawAt(
-          time: clock.now,
-          latitude: 0,
-          longitude: 179.999,
-          speed: 1,
-        ),
+        raw: _rawAt(time: clock.now, latitude: 0, longitude: 179.999, speed: 1),
       );
 
       final decision = _updatePolicy(
@@ -1737,12 +1626,7 @@ void main() {
       _updatePolicy(
         policy: policy,
         clock: clock,
-        raw: _rawAt(
-          time: clock.now,
-          latitude: 89.999,
-          longitude: 0,
-          speed: 1,
-        ),
+        raw: _rawAt(time: clock.now, latitude: 89.999, longitude: 0, speed: 1),
       );
 
       final decision = _updatePolicy(

@@ -1,5 +1,6 @@
 import 'package:flutter_test/flutter_test.dart';
-import 'package:permission_handler/permission_handler.dart' as permission_handler;
+import 'package:permission_handler/permission_handler.dart'
+    as permission_handler;
 
 import 'package:explored/features/location/data/services/location_permission_service.dart';
 import 'package:explored/features/location/data/services/platform_info.dart';
@@ -23,9 +24,7 @@ class FakePlatformInfo implements PlatformInfo {
 }
 
 class FakePermissionHandlerClient implements PermissionHandlerClient {
-  FakePermissionHandlerClient({
-    required this.statusValue,
-  });
+  FakePermissionHandlerClient({required this.statusValue});
 
   permission_handler.PermissionStatus statusValue;
   permission_handler.Permission? lastPermission;

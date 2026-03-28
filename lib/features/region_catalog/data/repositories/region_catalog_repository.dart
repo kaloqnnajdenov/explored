@@ -392,10 +392,24 @@ class DefaultRegionCatalogRepository implements RegionCatalogRepository {
   List<String> _countryRootsFromAssetKeys(Set<String> assetKeys) {
     return assetKeys
         .where((key) => key.endsWith('/manifest.json'))
-        .where((key) => key.split('/').length == 4)
-        .map((key) => key.substring(0, key.length - '/manifest.json'.length))
+        .map(_legacyOrLayeredCountryRootForManifest)
+        .whereType<String>()
         .toList(growable: false)
       ..sort();
+  }
+
+  String? _legacyOrLayeredCountryRootForManifest(String assetPath) {
+    final parts = assetPath.split('/');
+    if (parts.length == 4) {
+      return assetPath.substring(0, assetPath.length - '/manifest.json'.length);
+    }
+    if (parts.length == 5 &&
+        parts[0] == 'assets' &&
+        parts[1] == 'region_packs' &&
+        parts[2] == 'regions') {
+      return assetPath.substring(0, assetPath.length - '/manifest.json'.length);
+    }
+    return null;
   }
 
   List<String> _childRoots(

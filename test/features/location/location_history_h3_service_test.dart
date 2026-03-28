@@ -7,10 +7,7 @@ void main() {
       cellIdResolver: (lat, lon) => 'cell_${lat}_$lon',
     );
 
-    final actual = service.cellIdForLatLng(
-      latitude: 12.34,
-      longitude: 56.78,
-    );
+    final actual = service.cellIdForLatLng(latitude: 12.34, longitude: 56.78);
 
     expect(actual, 'cell_12.34_56.78');
   });

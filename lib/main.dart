@@ -1,13 +1,25 @@
+import 'dart:async';
+
 import 'package:easy_localization/easy_localization.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_dotenv/flutter_dotenv.dart';
 import 'package:shared_preferences/shared_preferences.dart';
-import 'dart:async';
 
 import 'app/explored_app.dart';
 import 'features/app_state/data/repositories/app_state_repository.dart';
 import 'features/app_state/data/services/app_state_prefs_service.dart';
 import 'features/app_state/view_model/app_state_view_model.dart';
+import 'features/exploration/data/repositories/entity_repository.dart';
+import 'features/exploration/data/repositories/object_repository.dart';
+import 'features/exploration/data/repositories/pack_management_repository.dart';
+import 'features/exploration/data/repositories/progress_repository.dart';
+import 'features/exploration/data/repositories/selection_repository.dart';
+import 'features/exploration/data/repositories/totals_repository.dart';
+import 'features/exploration/data/services/bundled_pack_asset_service.dart';
+import 'features/exploration/data/services/exploration_database.dart';
+import 'features/exploration/data/services/legacy_selection_service.dart';
+import 'features/exploration/data/services/local_user_prefs_service.dart';
+import 'features/exploration/data/services/pack_import_service.dart';
 import 'features/gpx_import/data/repositories/gpx_import_repository.dart';
 import 'features/gpx_import/data/services/gpx_file_picker_service.dart';
 import 'features/gpx_import/data/services/gpx_parser_service.dart';
@@ -30,8 +42,7 @@ import 'features/permissions/data/repositories/permissions_repository.dart';
 import 'features/permissions/data/services/file_access_permission_service.dart';
 import 'features/permissions/data/services/permission_request_store.dart';
 import 'features/permissions/view_model/permissions_view_model.dart';
-import 'features/region_catalog/data/repositories/region_catalog_repository.dart';
-import 'features/region_catalog/data/services/region_pack_asset_service.dart';
+import 'features/progress_home/view_model/progress_view_model.dart';
 
 Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
@@ -102,11 +113,57 @@ Future<void> main() async {
     exportService: locationHistoryExportService,
     h3Service: locationHistoryH3Service,
   );
+
+  final explorationDatabase = ExplorationDatabase(shareAcrossIsolates: true);
+  final bundledPackAssetService = BundleBundledPackAssetService();
+  final packImportService = PackImportService(
+    assetService: bundledPackAssetService,
+    explorationDao: explorationDatabase.explorationDao,
+  );
+  final localUserPrefsService = LocalUserPrefsService(
+    preferences: sharedPreferences,
+  );
+  final entityRepository = DefaultEntityRepository(
+    packImportService: packImportService,
+    explorationDao: explorationDatabase.explorationDao,
+  );
+  final selectionRepository = DefaultSelectionRepository(
+    explorationDao: explorationDatabase.explorationDao,
+    entityRepository: entityRepository,
+    localUserPrefsService: localUserPrefsService,
+  );
+  final objectRepository = DefaultObjectRepository(
+    entityRepository: entityRepository,
+    explorationDao: explorationDatabase.explorationDao,
+  );
+  final totalsRepository = DefaultTotalsRepository(
+    explorationDao: explorationDatabase.explorationDao,
+  );
+  final progressRepository = DefaultProgressRepository(
+    entityRepository: entityRepository,
+    totalsRepository: totalsRepository,
+    explorationDao: explorationDatabase.explorationDao,
+    localUserPrefsService: localUserPrefsService,
+  );
+  final legacySelectionService = LegacySelectionService(
+    preferences: sharedPreferences,
+  );
+  final packManagementRepository = DefaultPackManagementRepository(
+    packImportService: packImportService,
+    explorationDao: explorationDatabase.explorationDao,
+    legacySelectionService: legacySelectionService,
+    localUserPrefsService: localUserPrefsService,
+  );
+  await packManagementRepository.bootstrapBundledCountryPacks();
+
   final mapViewModel = MapViewModel(
     mapRepository: mapRepository,
     locationUpdatesRepository: locationUpdatesRepository,
     locationHistoryRepository: locationHistoryRepository,
     permissionsRepository: permissionsRepository,
+    entityRepository: entityRepository,
+    objectRepository: objectRepository,
+    selectionRepository: selectionRepository,
   );
   final permissionsViewModel = PermissionsViewModel(
     repository: permissionsRepository,
@@ -124,13 +181,15 @@ Future<void> main() async {
   );
   final appStateRepository = DefaultAppStateRepository(
     prefsService: AppStatePrefsService(preferences: sharedPreferences),
-    regionCatalogRepository: DefaultRegionCatalogRepository(
-      assetService: BundleRegionPackAssetService(),
-    ),
   );
   final appStateViewModel = AppStateViewModel(
     repository: appStateRepository,
     initialState: appStateRepository.createInitialState(),
+  );
+  final progressViewModel = ProgressViewModel(
+    entityRepository: entityRepository,
+    progressRepository: progressRepository,
+    selectionRepository: selectionRepository,
   );
 
   runApp(
@@ -143,6 +202,10 @@ Future<void> main() async {
         mapViewModel: mapViewModel,
         permissionsViewModel: permissionsViewModel,
         gpxImportViewModel: gpxImportViewModel,
+        progressViewModel: progressViewModel,
+        entityRepository: entityRepository,
+        selectionRepository: selectionRepository,
+        progressRepository: progressRepository,
       ),
     ),
   );
