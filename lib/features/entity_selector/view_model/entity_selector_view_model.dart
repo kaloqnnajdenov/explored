@@ -15,27 +15,36 @@ class EntitySelectorViewModel extends ChangeNotifier {
   final EntityRepository _entityRepository;
   final SelectionRepository _selectionRepository;
 
+  final Map<String, List<Entity>> _childrenByParentId =
+      <String, List<Entity>>{};
+  final Set<String> _expandedEntityIds = <String>{};
+  final Set<String> _loadingChildEntityIds = <String>{};
+
   List<Entity> _countries = const <Entity>[];
-  List<Entity> _regions = const <Entity>[];
-  List<Entity> _cities = const <Entity>[];
-  List<Entity> _cityCenters = const <Entity>[];
-  String? _selectedCountryId;
-  String? _selectedRegionId;
-  String? _selectedCityId;
-  String? _selectedCityCenterId;
+  String? _selectedEntityId;
   bool _isLoading = false;
   Object? _error;
 
   List<Entity> get countries => _countries;
-  List<Entity> get regions => _regions;
-  List<Entity> get cities => _cities;
-  List<Entity> get cityCenters => _cityCenters;
-  String? get selectedCountryId => _selectedCountryId;
-  String? get selectedRegionId => _selectedRegionId;
-  String? get selectedCityId => _selectedCityId;
-  String? get selectedCityCenterId => _selectedCityCenterId;
+  String? get selectedEntityId => _selectedEntityId;
   bool get isLoading => _isLoading;
   Object? get error => _error;
+
+  List<Entity> childrenFor(String entityId) =>
+      _childrenByParentId[entityId] ?? const <Entity>[];
+
+  bool isExpanded(String entityId) => _expandedEntityIds.contains(entityId);
+
+  bool isLoadingChildren(String entityId) =>
+      _loadingChildEntityIds.contains(entityId);
+
+  bool canExpand(Entity entity) {
+    if (entity.type == EntityType.cityCenter) {
+      return false;
+    }
+    final loadedChildren = _childrenByParentId[entity.entityId];
+    return loadedChildren == null || loadedChildren.isNotEmpty;
+  }
 
   Future<void> loadCountries() async {
     _isLoading = true;
@@ -44,9 +53,11 @@ class EntitySelectorViewModel extends ChangeNotifier {
 
     try {
       _countries = await _entityRepository.getCountries();
+
       final selected = await _selectionRepository.getSelectedEntityResolved();
       if (selected != null) {
-        await _hydrateSelection(selected);
+        _selectedEntityId = selected.entityId;
+        await _expandSelectionPath(selected);
       }
     } catch (error) {
       _error = error;
@@ -56,92 +67,97 @@ class EntitySelectorViewModel extends ChangeNotifier {
     }
   }
 
-  Future<void> selectCountry(String entityId) async {
-    _selectedCountryId = entityId;
-    _selectedRegionId = null;
-    _selectedCityId = null;
-    _selectedCityCenterId = null;
-    _regions = await _entityRepository.getRegions(entityId);
-    _cities = await _entityRepository.getCities(countryEntityId: entityId);
-    _cityCenters = const <Entity>[];
-    notifyListeners();
-  }
-
-  Future<void> selectRegion(String entityId) async {
-    _selectedRegionId = entityId;
-    _selectedCityId = null;
-    _selectedCityCenterId = null;
-
-    final region = await _entityRepository.getEntity(entityId);
-    if (region == null) {
+  void selectEntity(String entityId) {
+    if (_selectedEntityId == entityId) {
       return;
     }
-    _selectedCountryId = region.countryId;
-    _cities = await _entityRepository.getCities(
-      countryEntityId: region.countryId!,
-      regionEntityId: entityId,
-    );
-    _cityCenters = const <Entity>[];
+    _selectedEntityId = entityId;
     notifyListeners();
   }
 
-  Future<void> selectCity(String entityId) async {
-    _selectedCityId = entityId;
-    _selectedCityCenterId = null;
-
-    final city = await _entityRepository.getEntity(entityId);
-    if (city == null) {
+  Future<void> toggleExpanded(String entityId) async {
+    if (_expandedEntityIds.remove(entityId)) {
+      notifyListeners();
       return;
     }
-    _selectedCountryId = city.countryId;
-    _selectedRegionId = city.regionId;
-    _cityCenters = await _entityRepository.getCityCenters(entityId);
-    notifyListeners();
-  }
 
-  void selectCityCenter(String entityId) {
-    _selectedCityCenterId = entityId;
+    final children = await _ensureChildrenLoaded(entityId);
+    if (children.isEmpty) {
+      return;
+    }
+
+    _expandedEntityIds.add(entityId);
     notifyListeners();
   }
 
   Future<void> confirmSelection() async {
-    final entityId =
-        _selectedCityCenterId ??
-        _selectedCityId ??
-        _selectedRegionId ??
-        _selectedCountryId;
+    final entityId = _selectedEntityId;
     if (entityId == null) {
       return;
     }
     await _selectionRepository.setSelectedEntityId(entityId);
   }
 
-  Future<void> _hydrateSelection(Entity selected) async {
-    if (selected.type == EntityType.country) {
-      await selectCountry(selected.entityId);
-      return;
-    }
-
-    if (selected.type == EntityType.region) {
-      await selectCountry(selected.countryId!);
-      await selectRegion(selected.entityId);
-      return;
-    }
-
-    if (selected.type == EntityType.city) {
-      await selectCountry(selected.countryId!);
-      if (selected.regionId != null) {
-        await selectRegion(selected.regionId!);
+  Future<void> _expandSelectionPath(Entity selected) async {
+    final seenIds = <String>{};
+    for (final entityId in _selectionExpansionPath(selected)) {
+      if (!seenIds.add(entityId)) {
+        continue;
       }
-      await selectCity(selected.entityId);
-      return;
+      final children = await _ensureChildrenLoaded(
+        entityId,
+        emitChanges: false,
+      );
+      if (children.isNotEmpty) {
+        _expandedEntityIds.add(entityId);
+      }
+    }
+  }
+
+  Iterable<String> _selectionExpansionPath(Entity selected) sync* {
+    if (selected.countryId != null) {
+      yield selected.countryId!;
+    }
+    if (selected.regionId != null) {
+      yield selected.regionId!;
+    }
+    if (selected.cityId != null) {
+      yield selected.cityId!;
+    }
+    if (selected.type != EntityType.cityCenter) {
+      yield selected.entityId;
+    }
+  }
+
+  Future<List<Entity>> _ensureChildrenLoaded(
+    String entityId, {
+    bool emitChanges = true,
+  }) async {
+    final cachedChildren = _childrenByParentId[entityId];
+    if (cachedChildren != null) {
+      return cachedChildren;
+    }
+    if (_loadingChildEntityIds.contains(entityId)) {
+      return const <Entity>[];
     }
 
-    await selectCountry(selected.countryId!);
-    if (selected.regionId != null) {
-      await selectRegion(selected.regionId!);
+    _loadingChildEntityIds.add(entityId);
+    if (emitChanges) {
+      notifyListeners();
     }
-    await selectCity(selected.cityId!);
-    selectCityCenter(selected.entityId);
+
+    try {
+      final children = await _entityRepository.getChildren(entityId);
+      _childrenByParentId[entityId] = children;
+      return children;
+    } catch (error) {
+      _error = error;
+      return const <Entity>[];
+    } finally {
+      _loadingChildEntityIds.remove(entityId);
+      if (emitChanges) {
+        notifyListeners();
+      }
+    }
   }
 }

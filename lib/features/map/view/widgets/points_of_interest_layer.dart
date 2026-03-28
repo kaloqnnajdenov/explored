@@ -3,22 +3,22 @@ import 'package:flutter_map/flutter_map.dart';
 
 import '../../../../domain/objects/object_category.dart';
 import '../../../../ui/core/app_colors.dart';
-import '../../data/models/map_point_of_interest.dart';
+import '../../data/models/map_point_of_interest_marker.dart';
 
 class PointsOfInterestLayer extends StatelessWidget {
-  const PointsOfInterestLayer({required this.pointsOfInterest, super.key});
+  const PointsOfInterestLayer({required this.pointMarkers, super.key});
 
-  final List<MapPointOfInterest> pointsOfInterest;
+  final List<MapPointOfInterestMarker> pointMarkers;
 
   @override
   Widget build(BuildContext context) {
     return MarkerLayer(
       markers: [
-        for (final pointOfInterest in pointsOfInterest)
+        for (final pointOfInterest in pointMarkers)
           Marker(
             point: pointOfInterest.position,
-            width: 30,
-            height: 30,
+            width: pointOfInterest.isCluster ? 38 : 30,
+            height: pointOfInterest.isCluster ? 38 : 30,
             child: IgnorePointer(
               child: _PointOfInterestMarker(pointOfInterest: pointOfInterest),
             ),
@@ -31,7 +31,7 @@ class PointsOfInterestLayer extends StatelessWidget {
 class _PointOfInterestMarker extends StatelessWidget {
   const _PointOfInterestMarker({required this.pointOfInterest});
 
-  final MapPointOfInterest pointOfInterest;
+  final MapPointOfInterestMarker pointOfInterest;
 
   @override
   Widget build(BuildContext context) {
@@ -39,7 +39,11 @@ class _PointOfInterestMarker extends StatelessWidget {
     final backgroundColor = _backgroundColor(pointOfInterest.category);
 
     return Container(
-      key: ValueKey<String>('poi-${pointOfInterest.id}'),
+      key: ValueKey<String>(
+        pointOfInterest.isCluster
+            ? 'poi-cluster-${pointOfInterest.id}'
+            : 'poi-${pointOfInterest.id}',
+      ),
       decoration: BoxDecoration(
         color: backgroundColor,
         shape: BoxShape.circle,
@@ -56,11 +60,20 @@ class _PointOfInterestMarker extends StatelessWidget {
         ],
       ),
       child: Center(
-        child: Icon(
-          _icon(pointOfInterest.category),
-          size: 16,
-          color: accentColor,
-        ),
+        child: pointOfInterest.isCluster
+            ? Text(
+                pointOfInterest.count.toString(),
+                style: TextStyle(
+                  color: accentColor,
+                  fontSize: pointOfInterest.count >= 100 ? 10 : 12,
+                  fontWeight: FontWeight.w700,
+                ),
+              )
+            : Icon(
+                _icon(pointOfInterest.category),
+                size: 16,
+                color: accentColor,
+              ),
       ),
     );
   }

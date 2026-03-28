@@ -12,6 +12,7 @@ import 'package:explored/features/location/data/repositories/location_updates_re
 import 'package:explored/features/map/data/models/map_tile_source.dart';
 import 'package:explored/features/map/data/repositories/map_repository.dart';
 import 'package:explored/features/map/data/services/map_attribution_service.dart';
+import 'package:explored/features/map/data/services/map_point_cluster_service.dart';
 import 'package:explored/features/map/data/services/map_tile_service.dart';
 import 'package:explored/features/map/view_model/map_view_model.dart';
 import 'package:explored/features/permissions/data/models/app_permission.dart';
@@ -602,4 +603,56 @@ void main() {
 
     viewModel.dispose();
   });
+
+  test(
+    'updateVisibleZoom expands clustered point markers when zooming in',
+    () async {
+      final harness = await buildExplorationTestHarness();
+      addTearDown(harness.dispose);
+      await harness.importCountryPack();
+      await harness.selectionRepository.setSelectedEntityId(testRegionEntityId);
+
+      final locationRepository = FakeLocationUpdatesRepository();
+      final historyRepository = FakeLocationHistoryRepository();
+      final mapRepository = MapRepository(
+        tileService: FakeMapTileService(),
+        attributionService: FakeMapAttributionService(),
+        pointClusterService: const GridMapPointClusterService(
+          minimumClusterPointCount: 2,
+          clusterBelowZoom: 12,
+        ),
+      );
+      final viewModel = MapViewModel(
+        mapRepository: mapRepository,
+        locationUpdatesRepository: locationRepository,
+        locationHistoryRepository: historyRepository,
+        permissionsRepository: FakePermissionsRepository(),
+        entityRepository: harness.entityRepository,
+        objectRepository: harness.objectRepository,
+        selectionRepository: harness.selectionRepository,
+      );
+
+      await viewModel.refreshSelectedEntity();
+
+      expect(viewModel.state.pointsOfInterest, hasLength(4));
+      expect(viewModel.state.pointMarkers, hasLength(3));
+      expect(
+        viewModel.state.pointMarkers
+            .where((marker) => marker.category == ObjectCategory.monument)
+            .single
+            .count,
+        2,
+      );
+
+      viewModel.updateVisibleZoom(12.5);
+
+      expect(viewModel.state.pointMarkers, hasLength(4));
+      expect(
+        viewModel.state.pointMarkers.every((marker) => marker.count == 1),
+        isTrue,
+      );
+
+      viewModel.dispose();
+    },
+  );
 }

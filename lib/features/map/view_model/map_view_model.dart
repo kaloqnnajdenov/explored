@@ -138,6 +138,7 @@ class MapViewModel extends ChangeNotifier {
         selectedBoundary: EntityBoundary.empty,
         selectedParentBoundary: EntityBoundary.empty,
         pointsOfInterest: const <MapPointOfInterest>[],
+        pointMarkers: const [],
       );
       notifyListeners();
       return;
@@ -153,6 +154,10 @@ class MapViewModel extends ChangeNotifier {
       }
     }
     final pointsOfInterest = await _loadPointsOfInterest(selected.entityId);
+    final pointMarkers = _mapRepository.buildPointOfInterestMarkers(
+      pointsOfInterest: pointsOfInterest,
+      zoom: _state.zoom,
+    );
     if (requestId != _selectedEntityRequestId) {
       return;
     }
@@ -163,6 +168,7 @@ class MapViewModel extends ChangeNotifier {
       selectedParentBoundary: parentBoundary,
       center: selected.centroid,
       pointsOfInterest: pointsOfInterest,
+      pointMarkers: pointMarkers,
     );
     notifyListeners();
   }
@@ -220,6 +226,21 @@ class MapViewModel extends ChangeNotifier {
       return;
     }
     _state = _state.copyWith(recenterZoom: zoom);
+    notifyListeners();
+  }
+
+  void updateVisibleZoom(double zoom) {
+    if (!zoom.isFinite || (_state.zoom - zoom).abs() < 0.05) {
+      return;
+    }
+
+    _state = _state.copyWith(
+      zoom: zoom,
+      pointMarkers: _mapRepository.buildPointOfInterestMarkers(
+        pointsOfInterest: _state.pointsOfInterest,
+        zoom: zoom,
+      ),
+    );
     notifyListeners();
   }
 

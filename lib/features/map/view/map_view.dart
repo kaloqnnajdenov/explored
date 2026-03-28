@@ -112,6 +112,9 @@ class _MapViewState extends State<MapView> {
                             maxZoom: 12.5,
                           ),
                     minZoom: minZoom,
+                    onPositionChanged: (camera, _) {
+                      widget.viewModel.updateVisibleZoom(camera.zoom);
+                    },
                     showScaleIndicator: true,
                     baseLayers: [
                       EntityBoundaryLayer(
@@ -126,10 +129,8 @@ class _MapViewState extends State<MapView> {
                         borderColor: AppColors.emerald700,
                         borderStrokeWidth: 1.6,
                       ),
-                      if (state.pointsOfInterest.isNotEmpty)
-                        PointsOfInterestLayer(
-                          pointsOfInterest: state.pointsOfInterest,
-                        ),
+                      if (state.pointMarkers.isNotEmpty)
+                        PointsOfInterestLayer(pointMarkers: state.pointMarkers),
                     ],
                   );
                 },

@@ -2,8 +2,9 @@ import 'package:latlong2/latlong.dart';
 
 import '../../../../domain/entities/entity.dart';
 import '../../../../domain/shared/entity_boundary.dart';
-import 'map_config.dart';
 import 'map_point_of_interest.dart';
+import 'map_point_of_interest_marker.dart';
+import 'map_config.dart';
 import 'map_tile_source.dart';
 import '../../../location/data/models/location_tracking_state.dart';
 import '../../../location/data/models/lat_lng_sample.dart';
@@ -19,6 +20,7 @@ class MapViewState {
     required this.recenterZoom,
     required this.persistedSamples,
     required this.pointsOfInterest,
+    required this.pointMarkers,
     this.selectedEntity,
     this.selectedBoundary,
     this.selectedParentBoundary,
@@ -37,6 +39,7 @@ class MapViewState {
       recenterZoom: config.recenterZoom,
       persistedSamples: const [],
       pointsOfInterest: const [],
+      pointMarkers: const [],
       exportFeedback: null,
     );
   }
@@ -51,6 +54,7 @@ class MapViewState {
   final Object? error;
   final List<LatLngSample> persistedSamples;
   final List<MapPointOfInterest> pointsOfInterest;
+  final List<MapPointOfInterestMarker> pointMarkers;
   final Entity? selectedEntity;
   final EntityBoundary? selectedBoundary;
   final EntityBoundary? selectedParentBoundary;
@@ -68,6 +72,7 @@ class MapViewState {
     bool clearError = false,
     List<LatLngSample>? persistedSamples,
     List<MapPointOfInterest>? pointsOfInterest,
+    List<MapPointOfInterestMarker>? pointMarkers,
     Entity? selectedEntity,
     bool clearSelectedEntity = false,
     EntityBoundary? selectedBoundary,
@@ -87,6 +92,7 @@ class MapViewState {
       error: clearError ? null : (error ?? this.error),
       persistedSamples: persistedSamples ?? this.persistedSamples,
       pointsOfInterest: pointsOfInterest ?? this.pointsOfInterest,
+      pointMarkers: pointMarkers ?? this.pointMarkers,
       selectedEntity: clearSelectedEntity
           ? null
           : (selectedEntity ?? this.selectedEntity),

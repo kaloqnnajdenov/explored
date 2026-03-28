@@ -30,13 +30,26 @@ void main() {
 
     expect(find.text('Testland', skipOffstage: false), findsOneWidget);
 
-    await tester.tap(find.text('Testland', skipOffstage: false));
+    await tester.tap(
+      find.byKey(
+        const ValueKey<String>('entity-selector-expand-country:relation:1'),
+      ),
+    );
     await tester.pump();
     await tester.pump(const Duration(milliseconds: 200));
 
     expect(find.text('Alpine Region'), findsOneWidget);
-    expect(find.text('Regional City'), findsOneWidget);
     expect(find.text('Coastal City'), findsOneWidget);
+
+    await tester.tap(
+      find.byKey(
+        const ValueKey<String>('entity-selector-expand-region:relation:2'),
+      ),
+    );
+    await tester.pump();
+    await tester.pump(const Duration(milliseconds: 200));
+
+    expect(find.text('Regional City'), findsOneWidget);
 
     await tester.tap(find.text('Regional City'));
     await tester.pump();

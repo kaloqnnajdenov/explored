@@ -68,7 +68,10 @@ class _EntitySelectorViewState extends State<EntitySelectorView> {
                         ),
                         IconButton(
                           onPressed: () => Navigator.of(context).pop(),
-                          icon: const Icon(Icons.close, color: AppColors.slate400),
+                          icon: const Icon(
+                            Icons.close,
+                            color: AppColors.slate400,
+                          ),
                         ),
                       ],
                     ),
@@ -83,51 +86,23 @@ class _EntitySelectorViewState extends State<EntitySelectorView> {
                         controller: scrollController,
                         padding: const EdgeInsets.fromLTRB(16, 0, 16, 16),
                         children: [
-                          _EntitySection(
-                            title: LocaleKeys.entity_selector_countries.tr(),
-                            entities: widget.viewModel.countries,
-                            selectedId: widget.viewModel.selectedCountryId,
-                            onTap: (entity) {
-                              widget.viewModel.selectCountry(entity.entityId);
-                            },
+                          Text(
+                            LocaleKeys.entity_selector_countries.tr(),
+                            style: const TextStyle(
+                              fontSize: 13,
+                              fontWeight: FontWeight.w700,
+                              color: AppColors.slate500,
+                            ),
                           ),
-                          if (widget.viewModel.selectedCountryId != null) ...[
-                            const SizedBox(height: 16),
-                            _EntitySection(
-                              title: LocaleKeys.entity_selector_regions.tr(),
-                              entities: widget.viewModel.regions,
-                              selectedId: widget.viewModel.selectedRegionId,
-                              emptyText: LocaleKeys.entity_selector_regions_empty
-                                  .tr(),
-                              onTap: (entity) {
-                                widget.viewModel.selectRegion(entity.entityId);
-                              },
+                          const SizedBox(height: 8),
+                          for (final country in widget.viewModel.countries) ...[
+                            _EntityTreeNode(
+                              entity: country,
+                              depth: 0,
+                              viewModel: widget.viewModel,
                             ),
-                            const SizedBox(height: 16),
-                            _EntitySection(
-                              title: LocaleKeys.entity_selector_cities.tr(),
-                              entities: widget.viewModel.cities,
-                              selectedId: widget.viewModel.selectedCityId,
-                              emptyText: LocaleKeys.entity_selector_cities_empty
-                                  .tr(),
-                              onTap: (entity) {
-                                widget.viewModel.selectCity(entity.entityId);
-                              },
-                            ),
-                          ],
-                          if (widget.viewModel.selectedCityId != null) ...[
-                            const SizedBox(height: 16),
-                            _EntitySection(
-                              title: LocaleKeys.entity_selector_city_centers.tr(),
-                              entities: widget.viewModel.cityCenters,
-                              selectedId: widget.viewModel.selectedCityCenterId,
-                              emptyText: LocaleKeys
-                                  .entity_selector_city_centers_empty
-                                  .tr(),
-                              onTap: (entity) {
-                                widget.viewModel.selectCityCenter(entity.entityId);
-                              },
-                            ),
+                            if (country != widget.viewModel.countries.last)
+                              const SizedBox(height: 8),
                           ],
                         ],
                       ),
@@ -139,7 +114,7 @@ class _EntitySelectorViewState extends State<EntitySelectorView> {
                       child: SizedBox(
                         width: double.infinity,
                         child: FilledButton(
-                          onPressed: widget.viewModel.selectedCountryId == null
+                          onPressed: widget.viewModel.selectedEntityId == null
                               ? null
                               : () async {
                                   await widget.viewModel.confirmSelection();
@@ -163,62 +138,52 @@ class _EntitySelectorViewState extends State<EntitySelectorView> {
   }
 }
 
-class _EntitySection extends StatelessWidget {
-  const _EntitySection({
-    required this.title,
-    required this.entities,
-    required this.selectedId,
-    required this.onTap,
-    this.emptyText,
+class _EntityTreeNode extends StatelessWidget {
+  const _EntityTreeNode({
+    required this.entity,
+    required this.depth,
+    required this.viewModel,
   });
 
-  final String title;
-  final List<Entity> entities;
-  final String? selectedId;
-  final String? emptyText;
-  final ValueChanged<Entity> onTap;
+  final Entity entity;
+  final int depth;
+  final EntitySelectorViewModel viewModel;
 
   @override
   Widget build(BuildContext context) {
+    final children = viewModel.childrenFor(entity.entityId);
+    final isExpanded = viewModel.isExpanded(entity.entityId);
+    final isLoadingChildren = viewModel.isLoadingChildren(entity.entityId);
+
     return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        Text(
-          title,
-          style: const TextStyle(
-            fontSize: 13,
-            fontWeight: FontWeight.w700,
-            color: AppColors.slate500,
+        Padding(
+          padding: EdgeInsets.only(left: depth * 20.0),
+          child: _EntityTile(
+            entity: entity,
+            isSelected: viewModel.selectedEntityId == entity.entityId,
+            canExpand: viewModel.canExpand(entity),
+            isExpanded: isExpanded,
+            isLoadingChildren: isLoadingChildren,
+            onTap: () => viewModel.selectEntity(entity.entityId),
+            onToggleExpanded: () => viewModel.toggleExpanded(entity.entityId),
           ),
         ),
-        const SizedBox(height: 8),
-        if (entities.isEmpty && emptyText != null)
-          Container(
-            width: double.infinity,
-            padding: const EdgeInsets.all(12),
-            decoration: BoxDecoration(
-              color: AppColors.slate50,
-              borderRadius: BorderRadius.circular(12),
-              border: Border.all(color: AppColors.slate100),
-            ),
-            child: Text(
-              emptyText!,
-              style: const TextStyle(color: AppColors.slate500),
-            ),
-          )
-        else
+        if (isExpanded && children.isNotEmpty) ...[
+          const SizedBox(height: 8),
           Column(
             children: [
-              for (final entity in entities) ...[
-                _EntityTile(
-                  entity: entity,
-                  isSelected: selectedId == entity.entityId,
-                  onTap: () => onTap(entity),
+              for (final child in children) ...[
+                _EntityTreeNode(
+                  entity: child,
+                  depth: depth + 1,
+                  viewModel: viewModel,
                 ),
-                if (entity != entities.last) const SizedBox(height: 8),
+                if (child != children.last) const SizedBox(height: 8),
               ],
             ],
           ),
+        ],
       ],
     );
   }
@@ -228,12 +193,20 @@ class _EntityTile extends StatelessWidget {
   const _EntityTile({
     required this.entity,
     required this.isSelected,
+    required this.canExpand,
+    required this.isExpanded,
+    required this.isLoadingChildren,
     required this.onTap,
+    required this.onToggleExpanded,
   });
 
   final Entity entity;
   final bool isSelected;
+  final bool canExpand;
+  final bool isExpanded;
+  final bool isLoadingChildren;
   final VoidCallback onTap;
+  final VoidCallback onToggleExpanded;
 
   @override
   Widget build(BuildContext context) {
@@ -263,7 +236,9 @@ class _EntityTile extends StatelessWidget {
                 ),
                 child: Icon(
                   _iconForType(entity.type),
-                  color: isSelected ? AppColors.emerald700 : AppColors.indigo600,
+                  color: isSelected
+                      ? AppColors.emerald700
+                      : AppColors.indigo600,
                   size: 18,
                 ),
               ),
@@ -291,10 +266,31 @@ class _EntityTile extends StatelessWidget {
                 ),
               ),
               if (isSelected)
-                const Icon(
-                  Icons.check_circle,
-                  color: AppColors.emerald600,
-                  size: 18,
+                const Padding(
+                  padding: EdgeInsets.only(right: 4),
+                  child: Icon(
+                    Icons.check_circle,
+                    color: AppColors.emerald600,
+                    size: 18,
+                  ),
+                ),
+              if (isLoadingChildren)
+                const SizedBox(
+                  width: 18,
+                  height: 18,
+                  child: CircularProgressIndicator(strokeWidth: 2),
+                )
+              else if (canExpand)
+                IconButton(
+                  key: ValueKey<String>(
+                    'entity-selector-expand-${entity.entityId}',
+                  ),
+                  onPressed: onToggleExpanded,
+                  splashRadius: 18,
+                  icon: Icon(
+                    isExpanded ? Icons.expand_more : Icons.chevron_right,
+                    color: AppColors.slate400,
+                  ),
                 ),
             ],
           ),
